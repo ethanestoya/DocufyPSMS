@@ -1,0 +1,10 @@
+# This repository is rooted at the Windows user profile, which is a mistake.
+# Nothing in a home directory should ever be tracked, so ignore everything by
+# default. The real projects each have their own repository:
+#   Desktop/prans/choir-prot/prot1        -> github.com/pranswg/sgn-prot
+#   Desktop/SCHOOL/Capstone 2/protAug42026 -> github.com/pranswg/DocuFy-prot
+# Run git inside those directories instead of from here.
+*
+
+# Keep this file itself tracked so the guard-rail is visible.
+!.gitignore

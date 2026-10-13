@@ -17,6 +17,8 @@ import {
   ChevronDown,
   X,
   ArrowLeft,
+  MapPin,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import Layout from "../Layout";
@@ -44,6 +46,9 @@ import ShopStatusBanner from "../shared/ShopStatusBanner";
 import { generateInvoiceData, generateInvoiceHTML, InvoiceData } from "../../utils/invoiceUtils";
 import { pricingStore, formatPrice, type PricingValues } from "../../utils/pricingStore";
 import { pickupReview } from "../../utils/pickupReview";
+import { landingContentStore, DEFAULT_MAP_EMBED } from "../../utils/landingContentStore";
+import { computeOrderPayment } from "../shared/OrderPaymentSummary";
+import { shopPhotosStore, type ShopPhoto } from "../../utils/shopPhotosStore";
 
 const menuItems = [
   {
@@ -73,6 +78,8 @@ export default function OrderTracking() {
   const navigate = useNavigate();
   const [showInvoice, setShowInvoice] = useState(false);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [showPaymentDetails, setShowPaymentDetails] = useState(false);
+  const [showInvoiceSection, setShowInvoiceSection] = useState(false);
   const [showColorBreakdown, setShowColorBreakdown] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
@@ -81,12 +88,33 @@ export default function OrderTracking() {
   );
   const [invoiceData, setInvoiceData] = useState<InvoiceData | null>(null);
   const [pricing, setPricing] = useState<PricingValues>(pricingStore.getPricing());
+  const [shopContent, setShopContent] = useState(() => landingContentStore.getContent());
+  const [shopLocationOpen, setShopLocationOpen] = useState(false);
+  const [showShopPhotos, setShowShopPhotos] = useState(false);
+  const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
+  const [shopPhotos, setShopPhotos] = useState<ShopPhoto[]>(() => shopPhotosStore.getPhotos());
   // PREVIEW — customer explanation/response for a pickup issue (in-memory only).
   const [explanationText, setExplanationText] = useState("");
   const [, setPickupTick] = useState(0);
 
   useEffect(() => {
     return pickupReview.subscribe(() => setPickupTick((t) => t + 1));
+  }, []);
+
+  useEffect(() => {
+    const load = () => setShopContent(landingContentStore.getContent());
+    const unsubscribe = landingContentStore.subscribe(load);
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    const load = () => setShopPhotos(shopPhotosStore.getPhotos());
+    const unsubscribe = shopPhotosStore.subscribe(load);
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -144,6 +172,59 @@ export default function OrderTracking() {
     isOrderCompleted &&
     (pickupIncident?.status === "pending_review" ||
       !!pickupIncident?.customerExplanation);
+
+  // ── Pickup information — real data only. The pickup date/time come from the
+  // order timeline (when it last changed status), the location from the
+  // admin-configured shop content, and the status from the order + the
+  // pickup-incident preview state — nothing here is hardcoded.
+  const orderTotalNumber = (() => {
+    if (orderData?.costBreakdown?.total != null) return orderData.costBreakdown.total;
+    const raw: unknown = orderData?.total;
+    if (typeof raw === "number") return raw;
+    const parsed = parseFloat(String(raw ?? "").replace(/[^\d.]/g, ""));
+    return Number.isFinite(parsed) ? parsed : 0;
+  })();
+
+  const pickupRemaining = orderData
+    ? computeOrderPayment({
+        total: orderTotalNumber,
+        costBreakdown: orderData.costBreakdown,
+        paymentVerified: orderData.paymentVerified,
+        downPaymentRequired: orderData.downPaymentRequired,
+        downPaymentVerified: orderData.downPaymentVerified,
+        downPaymentAmount: orderData.downPaymentAmount,
+        fullPaymentRequired: orderData.fullPaymentRequired,
+        fullPaymentVerified: orderData.fullPaymentVerified,
+        fullPaymentAmount: orderData.fullPaymentAmount,
+      }).remaining
+    : 0;
+
+  const isUnclaimed = pickupIncident?.status === "confirmed_unclaimed";
+  const pickupStatus = isUnclaimed
+    ? { label: "Unclaimed", className: "bg-[#FFF5D6] text-[#92400E] border-[#F59E0B]/40" }
+    : currentOrderStatus === "Released"
+      ? { label: "Picked Up", className: "bg-[#E0F7F5] text-[#0F766E] border-[#159A9C]/40" }
+      : { label: "Ready for Pickup", className: "bg-[#E8F7D8] text-[#3B7A1E] border-[#55A630]/40" };
+
+  const pickupTimelineInstant =
+    orderData?.statusUpdatedAt ?? orderData?.lastUpdatedAt ?? orderData?.createdAt;
+  const pickupDate = pickupTimelineInstant
+    ? formatPHDate(pickupTimelineInstant, "long")
+    : "";
+  const pickupTime = pickupTimelineInstant
+    ? formatPHTime(pickupTimelineInstant)
+    : "";
+  const pickupLocation = (shopContent.locationLines || [])
+    .filter(Boolean)
+    .join(", ");
+
+  const pickupNote = isUnclaimed
+    ? "This order was recorded as unclaimed and is no longer available for collection. Please contact the shop if you need assistance."
+    : currentOrderStatus === "Released"
+      ? "This order has already been collected. Thank you for choosing Docufy."
+      : pickupRemaining > 0
+        ? `Bring a valid ID and your order reference when collecting. A remaining balance of ${formatCurrency(pickupRemaining)} can be paid at the shop.`
+        : "Bring a valid ID and your order reference when collecting your order during shop hours.";
 
   const handleSubmitExplanation = () => {
     if (!orderId || !explanationText.trim()) return;
@@ -358,6 +439,72 @@ export default function OrderTracking() {
         </Card>
         )}
 
+        {/* Pickup Information — shown above Order Details once the order is in
+            the pickup phase (Completed = ready, Released = collected). */}
+        {isOrderCompleted && (
+          <Card className="gap-0 p-4 sm:p-6 bg-blue-50 border border-blue-200 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white text-[#1D73EC]">
+                  <MapPin className="h-5 w-5" />
+                </span>
+                <h2 className="truncate text-xl font-semibold text-gray-900">
+                  Pickup Information
+                </h2>
+              </div>
+              <Badge variant="outline" className={`border text-xs font-semibold ${pickupStatus.className}`}>
+                {pickupStatus.label}
+              </Badge>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="min-w-0 rounded-lg border border-blue-100 bg-white p-3">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <Calendar className="h-4 w-4 flex-shrink-0 text-[#1D73EC]" />
+                  Pickup Date
+                </div>
+                <p className="mt-1 break-words text-base font-semibold text-gray-900">
+                  {pickupDate || "Not available"}
+                </p>
+              </div>
+              <div className="min-w-0 rounded-lg border border-blue-100 bg-white p-3">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <Clock className="h-4 w-4 flex-shrink-0 text-[#1D73EC]" />
+                  Pickup Time
+                </div>
+                <p className="mt-1 break-words text-base font-semibold text-gray-900">
+                  {pickupTime || "Not available"}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 min-w-0 rounded-lg border border-blue-100 bg-white p-3">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                <PackageIcon className="h-4 w-4 flex-shrink-0 text-[#1D73EC]" />
+                Pickup Location
+              </div>
+              <p className="mt-1 hidden break-words text-sm font-medium text-gray-800 sm:block">
+                {pickupLocation || "Docufy Printing Services"}
+              </p>
+              <button
+                type="button"
+                onClick={() => setShopLocationOpen(true)}
+                className="mt-2 inline-flex h-9 items-center gap-2 rounded-xl bg-[#1D73EC] px-4 text-sm font-semibold text-white transition-all hover:bg-[#1D73EC]/90 active:scale-[0.97] sm:hidden"
+              >
+                <MapPin className="h-4 w-4" />
+                View Shop Location
+              </button>
+            </div>
+
+            <div className="mt-3 rounded-lg border border-blue-100 border-l-4 border-l-[#1D73EC] bg-white p-3">
+              <p className="flex items-start gap-2 text-sm text-gray-600">
+                <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1D73EC]" />
+                <span>{pickupNote}</span>
+              </p>
+            </div>
+          </Card>
+        )}
+
         {/* Order Summary */}
         <Card className="p-4 sm:p-6 bg-white shadow-sm gap-0">
           <button
@@ -374,12 +521,7 @@ export default function OrderTracking() {
           </h2>
           <div className={`${showOrderDetails ? "block" : "hidden"} sm:block`}>
 
-          {/* Basic Information */}
           <div className="mb-3">
-            <h3 className="text-md font-semibold text-gray-800 mb-3 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-[#2F6FD6]" />
-              Basic Information
-            </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-xs text-gray-600">Order ID</Label>
@@ -585,11 +727,20 @@ export default function OrderTracking() {
 
         {/* Payment Method and Status */}
         <Card className="p-6 bg-white shadow-sm gap-0">
-          <h2 className="text-xl font-semibold text-gray-900 mb-3">
+          <button
+            type="button"
+            onClick={() => setShowPaymentDetails((isOpen) => !isOpen)}
+            aria-expanded={showPaymentDetails}
+            className="flex w-full items-center justify-between text-left sm:hidden"
+          >
+            <span className="text-xl font-semibold text-gray-900">Payment Method and Status</span>
+            <ChevronDown className={`h-5 w-5 text-[#2F6FD6] transition-transform duration-200 ${showPaymentDetails ? "rotate-180" : ""}`} />
+          </button>
+          <h2 className="mb-3 hidden text-xl font-semibold text-gray-900 sm:block">
             Payment Method and Status
           </h2>
 
-          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-4">
+          <div className={`p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-4 ${showPaymentDetails ? "block" : "hidden"} sm:block`}>
             {/* Payment Method */}
             <div>
               <p className="text-sm font-medium text-gray-600 mb-1">
@@ -710,9 +861,19 @@ export default function OrderTracking() {
 
         {/* Invoice Section - Only show when order is Completed */}
         {isOrderCompleted && invoiceData && (
-          <Card className="p-6 bg-white shadow-sm">
+          <Card className="p-6 bg-white shadow-sm gap-0">
+            <button
+              type="button"
+              onClick={() => setShowInvoiceSection((isOpen) => !isOpen)}
+              aria-expanded={showInvoiceSection}
+              className="flex w-full items-center justify-between text-left sm:hidden"
+            >
+              <span className="text-xl font-semibold text-gray-900">Invoice</span>
+              <ChevronDown className={`h-5 w-5 text-[#2F6FD6] transition-transform duration-200 ${showInvoiceSection ? "rotate-180" : ""}`} />
+            </button>
+            <div className={`${showInvoiceSection ? "block" : "hidden"} sm:block`}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">
+              <h2 className="hidden text-xl font-semibold text-gray-900 sm:block">
                 Invoice
               </h2>
               <Badge className="bg-blue-100 text-blue-700">
@@ -766,59 +927,6 @@ export default function OrderTracking() {
                 Download Invoice
               </Button>
             </div>
-          </Card>
-        )}
-
-        {/* Pickup Information - Only show when order is Completed */}
-        {isOrderCompleted && (
-          <Card className="p-6 bg-blue-50 border border-blue-200">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Pickup Information
-            </h2>
-
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <Calendar className="w-5 h-5 text-[#1D73EC] mt-0.5" />
-                <div>
-                  <p className="font-medium text-gray-900">
-                    Pick-Up Date
-                  </p>
-                  <p className="text-gray-700">
-                    March 5, 2026 (Ready)
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <Clock className="w-5 h-5 text-[#1D73EC] mt-0.5" />
-                <div>
-                  <p className="font-medium text-gray-900">
-                    Pick-Up Time
-                  </p>
-                  <p className="text-gray-700">
-                    3:00 PM – 5:00 PM
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <PackageIcon className="w-5 h-5 text-[#1D73EC] mt-0.5" />
-                <div>
-                  <p className="font-medium text-gray-900">
-                    Pickup Location
-                  </p>
-                  <p className="text-gray-700">
-                    Docufy PSMS · Room 4, TBI Building, Palawan
-                    State University
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 p-3 bg-white rounded-lg">
-              <p className="text-sm text-gray-600">
-                <strong>Note:</strong> Please bring a valid ID
-                when picking up your order. Remaining balance (if
-                any) can be paid at pickup.
-              </p>
             </div>
           </Card>
         )}
@@ -1232,6 +1340,84 @@ export default function OrderTracking() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Shop Location Dialog */}
+      <Dialog open={shopLocationOpen} onOpenChange={setShopLocationOpen}>
+        <DialogContent className="sm:max-w-lg" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-[#1D73EC]" /> Shop Location
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            {shopContent.locationLines?.[0] ||
+              "Palawan State University - Main Campus, Puerto Princesa City, Palawan"}
+          </p>
+          <div className="overflow-hidden rounded-xl border-2 border-blue-100">
+            <iframe
+              title="Docufy Printing Services - Shop Location"
+              src={shopContent.mapEmbedUrl || DEFAULT_MAP_EMBED}
+              className="h-72 w-full border-0"
+              loading="lazy"
+              allowFullScreen
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </div>
+          {shopPhotos.length > 0 && (
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => setShowShopPhotos((open) => !open)}
+                className="flex items-center gap-2 text-sm font-medium text-[#1D73EC] transition-colors hover:text-[#155bb8]"
+              >
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform duration-200 ${
+                    showShopPhotos ? "rotate-180" : ""
+                  }`}
+                />
+                {showShopPhotos ? "Hide Shop Photos" : "View Shop Photos"}
+              </button>
+              {showShopPhotos && (
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {shopPhotos.map((photo) => (
+                    <button
+                      key={photo.id}
+                      type="button"
+                      onClick={() => setLightboxPhoto(photo.dataUrl)}
+                      className="cursor-pointer"
+                    >
+                      <img
+                        src={photo.dataUrl}
+                        alt="Shop location"
+                        className="h-24 w-full rounded-lg border border-gray-200 object-cover transition-all hover:ring-2 hover:ring-[#1D73EC]"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {lightboxPhoto && (
+        <Dialog open onOpenChange={() => setLightboxPhoto(null)}>
+          <DialogContent className="sm:max-w-2xl p-0 bg-black border-0 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setLightboxPhoto(null)}
+              className="absolute top-3 right-3 z-10 rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black/80"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <img
+              src={lightboxPhoto}
+              alt="Shop location full view"
+              className="max-h-[80vh] w-full object-contain"
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </Layout>
   );
 }

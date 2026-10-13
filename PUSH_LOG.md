@@ -1009,3 +1009,13 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Turned the Admin decision into three compact action cards - Keep under review, Confirm unclaimed order, and Excuse incident - each with an icon, short description, and chevron; the old separate "Review Incident" action was dropped so the modal itself is the review space.
 - Moved the second-offence advance-payment options (50% deposit / full advance / remove restriction) into a secondary dialog that appears only when a repeat offence is relevant, instead of showing them inline on every order.
 - Updated the Pickup Monitoring and Unclaimed Orders modals to the same compact header and wider layout. All preview-only rules, role gating (Staff flag/note, Admin decides), incident statuses, and note flows were preserved and nothing is saved, enforced, or written to a real customer record.
+
+---
+
+## October 13, 2026 (12:00 PM PHT) - Francis William Garcia
+- Redesigned the customer Order Tracking pickup information card: pickup date and time are now derived from the order's own timeline (when it last changed status) instead of a hardcoded date, and the row shows a separate pickup-status badge (Ready for Pickup / Picked Up / Unclaimed) so the collection state is never confused with the printing status. The card moved above the Order Details section, reads compactly, and uses a highlighted blue background on both desktop and mobile.
+- On mobile, the pickup location row now shows a "View Shop Location" button that opens the shop map and photos dialog instead of the full address text; desktop still shows the full address. The location itself always comes from the admin-managed shop content rather than a fixed string.
+- Made the Order Tracking "Payment Method and Status" and "Invoice" cards collapsible on mobile to match the Order Details card, and removed the redundant "Basic Information" heading from the Order Details section.
+- Added a customer-facing unclaimed-order warning card (preview only) on the Dashboard, My Orders, and print-request pages: it appears when the customer has a confirmed-unclaimed order and links straight to that order's tracking page.
+- Merged demo orders into the Pickup Monitoring and Unclaimed Orders pages and seed their preview incidents once per load, so the pickup workflow can be shown with data without touching any real order.
+- Added a demo-customer SQL seed (auth users, profiles, and orders) plus a login diagnostic script, and an `isDemo` flag on the order type so preview-only demo orders are never written to the database.

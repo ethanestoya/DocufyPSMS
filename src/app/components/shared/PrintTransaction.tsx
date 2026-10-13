@@ -37,6 +37,7 @@ import {
 import { toast } from "sonner";
 import Layout from "../Layout";
 import StaffTimeInGate from "./StaffTimeInGate";
+import { UnclaimedOrderWarning } from "./UnclaimedOrderWarning";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
@@ -1542,6 +1543,8 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
           <span className="text-sm font-medium">Back</span>
         </button>
       )}
+      {/* First confirmed-unclaimed order warning (preview only) */}
+      {!isWalkin && <UnclaimedOrderWarning customerKey={user?.email} />}
       {!isWalkin && isResumed && submittedOrderId && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <div className="flex items-start gap-3 min-w-0">

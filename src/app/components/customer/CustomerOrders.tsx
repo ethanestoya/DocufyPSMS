@@ -23,6 +23,7 @@ import { Label } from "../ui/label";
 import { dataStore, type Order } from "../../utils/dataStore";
 import { useAuth } from "../../contexts/AuthContext";
 import ShopStatusBanner from "../shared/ShopStatusBanner";
+import { UnclaimedOrderWarning } from "../shared/UnclaimedOrderWarning";
 import { getStatusBadgeClasses, getCustomerStatusLabel } from "../../utils/orderStatusPalette";
 import { formatPHDate, formatPHTime } from "../../utils/pht";
 
@@ -122,6 +123,9 @@ export default function CustomerOrders() {
       <div className="space-y-6 max-w-7xl mx-auto pb-10">
 
         <ShopStatusBanner />
+
+        {/* First confirmed-unclaimed order warning (preview only) */}
+        <UnclaimedOrderWarning customerKey={user?.email} />
 
         {/* ── Top Action Bar ─────────────────────────────────── */}
         <div className="flex items-center justify-between gap-3 md:justify-end mb-3">

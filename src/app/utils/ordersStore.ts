@@ -64,6 +64,9 @@ type OrderType = {
   statusUpdatedAt?: Date; // Tracks when status was last changed
   createdAt?: Date; // Tracks when order was created
   lastUpdatedAt?: Date; // Tracks any update to the order
+  // Marks a preview-only demo order (see pickupReviewDemoSeed.ts). Demo orders
+  // are merged into the pickup pages only and never written to the database.
+  isDemo?: boolean;
 };
 
 type Subscriber = () => void;

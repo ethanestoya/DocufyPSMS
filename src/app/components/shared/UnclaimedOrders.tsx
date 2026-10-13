@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import Layout from "../Layout";
 import StaffTimeInGate from "./StaffTimeInGate";
 import { ordersStore } from "../../utils/ordersStore";
+import { withDemoOrders, seedDemoIncidentsOnce } from "../../utils/pickupReviewDemoSeed";
 import { useAuth } from "../../contexts/AuthContext";
 import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
@@ -114,7 +115,11 @@ export default function UnclaimedOrders({
   const myName = user?.name || "Staff";
   const isAdmin = userRole === "admin";
 
-  const [orders, setOrders] = useState<OrderRow[]>(() => ordersStore.getOrders());
+  const [orders, setOrders] = useState<OrderRow[]>(() => {
+    const next = ordersStore.getOrders();
+    seedDemoIncidentsOnce(next);
+    return withDemoOrders(next);
+  });
   const [tick, setTick] = useState(0);
   const [tab, setTab] = useState<ReviewTab>("pending");
   const [search, setSearch] = useState("");
@@ -127,10 +132,13 @@ export default function UnclaimedOrders({
   const [removeReason, setRemoveReason] = useState("");
 
   useEffect(() => {
-    setOrders(ordersStore.getOrders());
-    const unsubOrders = ordersStore.subscribe(() =>
-      setOrders(ordersStore.getOrders()),
-    );
+    const sync = () => {
+      const next = ordersStore.getOrders();
+      seedDemoIncidentsOnce(next);
+      setOrders(withDemoOrders(next));
+    };
+    sync();
+    const unsubOrders = ordersStore.subscribe(sync);
     const unsubReview = pickupReview.subscribe(() => setTick((t) => t + 1));
     return () => {
       unsubOrders();

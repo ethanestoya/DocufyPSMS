@@ -22,6 +22,7 @@ import {
 import { hasVerifiedPayment } from '../../lib/db/paymentsRepo';
 import { createWalkInTransaction } from '../../lib/db/walkInRepo';
 import { auditLogStore } from './auditLogStore';
+import { pickupReview, CASH_ON_PICKUP_BLOCKED_MESSAGE } from './pickupReview';
 import { resolveStorageUrl, BUCKETS, uploadObjectAndGetPath, removeObjectsIfPresent } from '../../lib/db/storage';
 import { formatOrderNumber } from '../../lib/db/types';
 import type { OrderDto, OrderFileDto } from '../../lib/db/types';
@@ -441,6 +442,21 @@ class DataStore {
         : typeof suppliedCustomerId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(suppliedCustomerId)
           ? suppliedCustomerId
           : input.actorId ?? null;
+
+    // FINALIZED RULE — second confirmed unclaimed-order offense blocks Cash on
+    // Pickup for future orders. This is enforced HERE at the single order-
+    // submission chokepoint (the same path every print request flows through),
+    // NOT only in the checkout UI, so a bypassed/manipulated selection is still
+    // rejected before any row or file is written. Walk-in (staff-assisted) sales
+    // are exempt. NOTE: the offense ledger is the in-memory preview store, so in
+    // this prototype the check is client-trusted; when the penalty workflow is
+    // backed by a server table this guard moves server-side with no caller change.
+    if (!isWalkin && input.paymentMethod === 'Cash') {
+      const customerKey = input.customerEmail ?? input.actorId ?? null;
+      if (pickupReview.isCashOnPickupRestricted(customerKey)) {
+        throw new Error(CASH_ON_PICKUP_BLOCKED_MESSAGE);
+      }
+    }
 
     const row: CreateOrderInput = {
       customerId,

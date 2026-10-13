@@ -214,7 +214,7 @@ export default function OrderViolationsSection({
                     {PAYMENT_ARRANGEMENT_LABELS[liveRestriction.arrangement]}
                   </Badge>
                   <span className="text-xs text-gray-500">
-                    Restriction duration pending policy approval
+                    Cash on Pickup disabled after a second confirmed offense
                   </span>
                 </div>
                 <PaymentRestrictionNotice
@@ -337,7 +337,7 @@ export default function OrderViolationsSection({
                   Advance payment required
                 </Badge>
                 <span className="text-xs text-gray-500">
-                  Restriction duration pending policy approval
+                  Cash on Pickup disabled after a second confirmed offense
                 </span>
               </div>
               <PaymentRestrictionNotice

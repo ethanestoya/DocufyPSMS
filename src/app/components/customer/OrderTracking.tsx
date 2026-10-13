@@ -15,10 +15,12 @@ import {
   File,
   ShoppingCart,
   ChevronDown,
+  ChevronRight,
   X,
   ArrowLeft,
   MapPin,
   Info,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import Layout from "../Layout";
@@ -49,6 +51,26 @@ import { pickupReview } from "../../utils/pickupReview";
 import { landingContentStore, DEFAULT_MAP_EMBED } from "../../utils/landingContentStore";
 import { computeOrderPayment } from "../shared/OrderPaymentSummary";
 import { shopPhotosStore, type ShopPhoto } from "../../utils/shopPhotosStore";
+import { isDemoCustomerEmail, seedDemoIncidentsOnce } from "../../utils/pickupReviewDemoSeed";
+import { ordersStore } from "../../utils/ordersStore";
+
+const OFFENSE_WORDS: Record<number, string> = {
+  1: "First",
+  2: "Second",
+  3: "Third",
+  4: "Fourth",
+  5: "Fifth",
+  6: "Sixth",
+  7: "Seventh",
+  8: "Eighth",
+  9: "Ninth",
+  10: "Tenth",
+};
+
+/** "First" / "Second" / … for small ordinals; a numeric fallback beyond ten. */
+function ordinalWord(n: number): string {
+  return OFFENSE_WORDS[n] ?? `${n}th`;
+}
 
 const menuItems = [
   {
@@ -92,6 +114,7 @@ export default function OrderTracking() {
   const [shopLocationOpen, setShopLocationOpen] = useState(false);
   const [showShopPhotos, setShowShopPhotos] = useState(false);
   const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
+  const [unclaimedDialogOpen, setUnclaimedDialogOpen] = useState(false);
   const [shopPhotos, setShopPhotos] = useState<ShopPhoto[]>(() => shopPhotosStore.getPhotos());
   // PREVIEW — customer explanation/response for a pickup issue (in-memory only).
   const [explanationText, setExplanationText] = useState("");
@@ -140,6 +163,16 @@ export default function OrderTracking() {
     });
     return unsubscribe;
   }, [orderId]);
+
+  // Seed the preview pickup incidents for demo customers (once), the same way
+  // the customer dashboard / My Orders warning does, so a confirmed-unclaimed
+  // order is visible when this page is opened directly.
+  useEffect(() => {
+    const email = orderData?.customerEmail;
+    if (email && isDemoCustomerEmail(email)) {
+      seedDemoIncidentsOnce(ordersStore.getOrders());
+    }
+  }, [orderData?.customerEmail]);
 
   // Generate invoice data when component mounts or order completes
   useEffect(() => {
@@ -218,13 +251,36 @@ export default function OrderTracking() {
     .filter(Boolean)
     .join(", ");
 
+  const UNCLAIMED_MESSAGE =
+    "This order was recorded as unclaimed and is no longer available for collection. Please contact the shop if you need assistance.";
+
   const pickupNote = isUnclaimed
-    ? "This order was recorded as unclaimed and is no longer available for collection. Please contact the shop if you need assistance."
+    ? UNCLAIMED_MESSAGE
     : currentOrderStatus === "Released"
       ? "This order has already been collected. Thank you for choosing Docufy."
       : pickupRemaining > 0
         ? `Bring a valid ID and your order reference when collecting. A remaining balance of ${formatCurrency(pickupRemaining)} can be paid at the shop.`
         : "Bring a valid ID and your order reference when collecting your order during shop hours.";
+
+  // Offense label — derived from the ACTUAL confirmed-unclaimed incidents for
+  // this order's customer (ranked oldest decision first), never hardcoded: a
+  // first incident reads "First Offense", a repeat reads "Second Offense", etc.
+  // Left blank when the rank cannot be resolved from real preview data.
+  const unclaimedOffenseLabel = (() => {
+    if (!isUnclaimed) return "";
+    const email = (orderData?.customerEmail ?? "").trim().toLowerCase();
+    if (!email) return "";
+    const confirmed = pickupReview
+      .getAllIncidents()
+      .filter(
+        (inc) =>
+          inc.status === "confirmed_unclaimed" &&
+          (inc.customerKey ?? "").toLowerCase() === email,
+      )
+      .sort((a, b) => (a.reviewedAt ?? "").localeCompare(b.reviewedAt ?? ""));
+    const rank = confirmed.findIndex((inc) => inc.orderId === orderId);
+    return rank >= 0 ? `${ordinalWord(rank + 1)} Offense` : "";
+  })();
 
   const handleSubmitExplanation = () => {
     if (!orderId || !explanationText.trim()) return;
@@ -462,56 +518,102 @@ export default function OrderTracking() {
                   Pickup Information
                 </h2>
               </div>
-              <Badge variant="outline" className={`border text-xs font-semibold ${pickupStatus.className}`}>
-                {pickupStatus.label}
-              </Badge>
+              {!isUnclaimed && (
+                <Badge variant="outline" className={`border text-xs font-semibold ${pickupStatus.className}`}>
+                  {pickupStatus.label}
+                </Badge>
+              )}
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="min-w-0 rounded-lg border border-blue-100 bg-white p-3">
-                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-gray-500">
-                  <Calendar className="h-4 w-4 flex-shrink-0 text-[#1D73EC]" />
-                  Pickup Date
+            <div className="mt-4 min-w-0 overflow-hidden rounded-lg border border-blue-100 bg-white">
+              <div className="grid grid-cols-1 sm:grid-cols-2">
+                <div className="min-w-0 p-3">
+                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                    <Calendar className="h-4 w-4 flex-shrink-0 text-[#1D73EC]" />
+                    Pickup Date
+                  </div>
+                  <p className="mt-1 break-words text-base font-semibold text-gray-900">
+                    {pickupDate || "Not available"}
+                  </p>
                 </div>
-                <p className="mt-1 break-words text-base font-semibold text-gray-900">
-                  {pickupDate || "Not available"}
+                <div className="min-w-0 border-t border-blue-100 p-3 sm:border-l sm:border-t-0">
+                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                    <Clock className="h-4 w-4 flex-shrink-0 text-[#1D73EC]" />
+                    Pickup Time
+                  </div>
+                  <p className="mt-1 break-words text-base font-semibold text-gray-900">
+                    {pickupTime || "Not available"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="min-w-0 border-t border-blue-100 p-3">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <PackageIcon className="h-4 w-4 flex-shrink-0 text-[#1D73EC]" />
+                  Pickup Location
+                </div>
+                <p className="mt-1 hidden break-words text-sm font-medium text-gray-800 sm:block">
+                  {pickupLocation || "Docufy Printing Services"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShopLocationOpen(true)}
+                  className="mt-2 inline-flex h-9 items-center gap-2 rounded-xl bg-[#1D73EC] px-4 text-sm font-semibold text-white transition-all hover:bg-[#1D73EC]/90 active:scale-[0.97] sm:hidden"
+                >
+                  <MapPin className="h-4 w-4" />
+                  View Shop Location
+                </button>
+              </div>
+            </div>
+
+            {isUnclaimed ? (
+              <>
+                {/* Mobile: compact, clickable unclaimed warning — the full
+                    message opens in a floating dialog. Desktop keeps the
+                    existing inline warning presentation below. */}
+                <button
+                  type="button"
+                  onClick={() => setUnclaimedDialogOpen(true)}
+                  aria-haspopup="dialog"
+                  aria-label="Unclaimed Order — view details"
+                  className="mt-3 flex w-full items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-left transition-colors hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 sm:hidden"
+                >
+                  <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-amber-100">
+                    <AlertTriangle className="h-5 w-5 text-amber-600" aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-amber-900">
+                      Unclaimed Order
+                    </span>
+                    {unclaimedOffenseLabel && (
+                      <span className="mt-0.5 block text-xs font-medium text-amber-700">
+                        {unclaimedOffenseLabel}
+                      </span>
+                    )}
+                  </span>
+                  <ChevronRight
+                    className="h-5 w-5 flex-shrink-0 text-amber-600"
+                    aria-hidden="true"
+                  />
+                </button>
+
+                {/* Desktop: inline warning using the same amber container
+                    styling as the mobile compact warning. */}
+                <div className="mt-3 hidden rounded-lg border border-amber-200 bg-amber-50 p-3 sm:block">
+                  <p className="flex items-start gap-2 text-sm text-amber-900">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+                    <span>{pickupNote}</span>
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="mt-3 rounded-lg border border-blue-100 border-l-4 border-l-[#1D73EC] bg-white p-3">
+                <p className="flex items-start gap-2 text-sm text-gray-600">
+                  <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1D73EC]" />
+                  <span>{pickupNote}</span>
                 </p>
               </div>
-              <div className="min-w-0 rounded-lg border border-blue-100 bg-white p-3">
-                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-gray-500">
-                  <Clock className="h-4 w-4 flex-shrink-0 text-[#1D73EC]" />
-                  Pickup Time
-                </div>
-                <p className="mt-1 break-words text-base font-semibold text-gray-900">
-                  {pickupTime || "Not available"}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-3 min-w-0 rounded-lg border border-blue-100 bg-white p-3">
-              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-gray-500">
-                <PackageIcon className="h-4 w-4 flex-shrink-0 text-[#1D73EC]" />
-                Pickup Location
-              </div>
-              <p className="mt-1 hidden break-words text-sm font-medium text-gray-800 sm:block">
-                {pickupLocation || "Docufy Printing Services"}
-              </p>
-              <button
-                type="button"
-                onClick={() => setShopLocationOpen(true)}
-                className="mt-2 inline-flex h-9 items-center gap-2 rounded-xl bg-[#1D73EC] px-4 text-sm font-semibold text-white transition-all hover:bg-[#1D73EC]/90 active:scale-[0.97] sm:hidden"
-              >
-                <MapPin className="h-4 w-4" />
-                View Shop Location
-              </button>
-            </div>
-
-            <div className="mt-3 rounded-lg border border-blue-100 border-l-4 border-l-[#1D73EC] bg-white p-3">
-              <p className="flex items-start gap-2 text-sm text-gray-600">
-                <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1D73EC]" />
-                <span>{pickupNote}</span>
-              </p>
-            </div>
+            )}
           </Card>
         )}
 
@@ -1407,6 +1509,43 @@ export default function OrderTracking() {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Unclaimed Order Warning Dialog (opened from the mobile compact warning) */}
+      <Dialog open={unclaimedDialogOpen} onOpenChange={setUnclaimedDialogOpen}>
+        <DialogContent
+          className="max-h-[85vh] overflow-y-auto sm:max-w-md"
+          aria-describedby={undefined}
+        >
+          <DialogHeader>
+            <div className="flex items-center gap-3 text-left">
+              <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-amber-100">
+                <AlertTriangle className="h-6 w-6 text-amber-600" aria-hidden="true" />
+              </span>
+              <div className="min-w-0 text-left">
+                <DialogTitle className="text-lg text-amber-900">
+                  Unclaimed Order
+                </DialogTitle>
+                {unclaimedOffenseLabel && (
+                  <p className="mt-0.5 text-xs font-medium text-amber-700">
+                    {unclaimedOffenseLabel}
+                  </p>
+                )}
+              </div>
+            </div>
+          </DialogHeader>
+
+          <p className="text-sm leading-relaxed text-gray-600">{UNCLAIMED_MESSAGE}</p>
+
+          <DialogFooter>
+            <Button
+              onClick={() => setUnclaimedDialogOpen(false)}
+              className="w-full border-transparent bg-[#1D73EC] text-white hover:bg-[#10316B] sm:w-auto"
+            >
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

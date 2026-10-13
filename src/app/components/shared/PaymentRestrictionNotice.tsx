@@ -44,17 +44,17 @@ export default function PaymentRestrictionNotice({
             )}
           </div>
           <p className="mt-1 text-sm text-slate-600">
-            Cash on Pickup is temporarily unavailable for your account. Please
-            choose an available advance payment option.
+            Cash on Pickup is unavailable for your account. Please choose an
+            available advance payment option.
           </p>
           {reason && (
             <p className="mt-1 text-xs text-slate-500">Reason: {reason}</p>
           )}
-          <p className="mt-1 text-xs text-slate-500">
-            {duration
-              ? `Restriction duration: ${duration}`
-              : "Restriction duration pending policy approval."}
-          </p>
+          {duration && (
+            <p className="mt-1 text-xs text-slate-500">
+              Restriction duration: {duration}
+            </p>
+          )}
         </div>
       </div>
     </div>

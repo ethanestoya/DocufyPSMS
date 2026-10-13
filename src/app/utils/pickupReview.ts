@@ -65,6 +65,19 @@ export const PAYMENT_ARRANGEMENT_LABELS: Record<PaymentArrangement, string> = {
   full_advance: "Full payment in advance for future orders",
 };
 
+/**
+ * FINALIZED RULE (customer checkout): once a customer has this many CONFIRMED
+ * unclaimed-order offenses, Cash on Pickup is no longer selectable for their
+ * future orders — they must pay with an available advance (online) method.
+ * Only `confirmed_unclaimed` incidents count; pending_review, excused, and
+ * untouched orders never do.
+ */
+export const CASH_ON_PICKUP_MIN_CONFIRMED_OFFENSES = 2;
+
+/** Shared customer-facing explanation for the disabled Cash on Pickup option. */
+export const CASH_ON_PICKUP_BLOCKED_MESSAGE =
+  "Cash on Pickup is unavailable because your account has a second confirmed unclaimed-order offense. Please choose an available advance payment method.";
+
 // In-memory preview maps. Reset on every full page reload — intentional.
 const incidents = new Map<string, PickupIncident>();
 const restrictions = new Map<string, RestrictionPreview>();
@@ -141,6 +154,36 @@ export const pickupReview = {
    */
   getConfirmedCount(customerKey: string): number {
     return pickupReview.getConfirmedIncidents(customerKey).length;
+  },
+
+  /**
+   * Confirmed unclaimed count matched case-insensitively (emails may differ in
+   * casing between the login session and the stored incident key).
+   */
+  getConfirmedCountFor(customerKey: string | null | undefined): number {
+    const key = (customerKey ?? "").trim().toLowerCase();
+    if (!key) return 0;
+    let count = 0;
+    incidents.forEach((inc) => {
+      if (
+        inc.status === "confirmed_unclaimed" &&
+        (inc.customerKey ?? "").trim().toLowerCase() === key
+      ) {
+        count += 1;
+      }
+    });
+    return count;
+  },
+
+  /**
+   * True when the finalized rule blocks Cash on Pickup for this customer
+   * (>= CASH_ON_PICKUP_MIN_CONFIRMED_OFFENSES confirmed unclaimed offenses).
+   */
+  isCashOnPickupRestricted(customerKey: string | null | undefined): boolean {
+    return (
+      pickupReview.getConfirmedCountFor(customerKey) >=
+      CASH_ON_PICKUP_MIN_CONFIRMED_OFFENSES
+    );
   },
 
   getRestriction(customerKey: string): RestrictionPreview {

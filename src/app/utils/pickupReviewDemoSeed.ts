@@ -8,8 +8,8 @@
 //   ORD-DEMO-0002  Juan Dela Cruz  — Excuse Requested (customer replied)
 //   ORD-DEMO-0003  Ana Reyes       — Confirmed Unclaimed
 //   ORD-DEMO-0004  Pedro Lim       — Excused
-//   ORD-DEMO-0005  Carlo Mendoza   — Confirmed (1st)  ┐ Restricted
-//   ORD-DEMO-0006  Carlo Mendoza   — Confirmed (2nd)  ┘ (2nd offence, 50% deposit)
+//   ORD-DEMO-0005  Carlo Mendoza   — Confirmed (1st)
+//   ORD-DEMO-0006  Carlo Mendoza   — Confirmed (2nd) — Cash on Pickup restricted
 //   ORD-DEMO-0007  Liza Torres     — Good Standing (no incident)
 //
 // Each scenario has BOTH:
@@ -226,15 +226,5 @@ export function seedDemoIncidentsOnce(orders: OrderType[] = []): void {
     if (!pickupReview.getIncident(orderId)) {
       pickupReview.setIncident(orderId, def.incident);
     }
-  }
-
-  // Restricted (2nd offence) — one active 50% deposit arrangement for Carlo.
-  if (!pickupReview.getRestriction(CARLO).active) {
-    pickupReview.setRestriction(CARLO, {
-      arrangement: "deposit_50",
-      active: true,
-      reason: "Second confirmed unclaimed order — 50% deposit required on future orders.",
-      updatedBy: "Admin — Docufy",
-    });
   }
 }

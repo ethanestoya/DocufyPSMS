@@ -1024,3 +1024,14 @@ New entries are added at the bottom, below the most recent one, so the log reads
 
 ## October 13, 2026 (1:16 PM PHT) - Francis William Garcia
 - Showed the Unclaimed badge beside "Current Status": a confirmed-unclaimed order now displays a small amber "Unclaimed" badge on the right side of the Current Status label row, so the customer sees the incident at a glance without opening the pickup card.
+
+---
+
+## October 13, 2026 (11:08 PM PHT) - Francis William Garcia
+- Finalized the second-offense penalty rule: a customer with a second confirmed unclaimed-order offense can no longer choose Cash on Pickup. The rule is enforced at the single order-submission chokepoint (so a manipulated selection is rejected before anything is saved) and mirrored in the checkout UI, with walk-in sales exempt.
+- Added confirmed-offense counting and a Cash-on-Pickup restriction helper to the pickup-review preview store, matching the customer by email case-insensitively.
+- Updated the Cash on Pickup option on the print request so it now reads "Unavailable — second confirmed offense" with the full explanation, and refreshes live when the offense ledger changes; removed the old "restriction duration pending policy approval" preview notice from checkout.
+- Updated the customer account violation preview and the payment restriction notice to the finalized wording, dropping the placeholder "duration pending approval" line.
+- Stopped seeding the demo 50%-deposit restriction so the demo customer now demonstrates the Cash on Pickup restriction instead.
+- Order Tracking: replaced the plain Unclaimed badge with a clearer amber warning — a compact clickable warning on mobile that opens a details dialog, and an inline amber note on desktop — each showing the offense label (First/Second/...) derived from the customer's real confirmed incidents.
+- Merged the Pickup Date, Pickup Time, and Pickup Location rows into one pickup-information container on Order Tracking.

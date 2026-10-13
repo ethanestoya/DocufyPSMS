@@ -1019,3 +1019,8 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Added a customer-facing unclaimed-order warning card (preview only) on the Dashboard, My Orders, and print-request pages: it appears when the customer has a confirmed-unclaimed order and links straight to that order's tracking page.
 - Merged demo orders into the Pickup Monitoring and Unclaimed Orders pages and seed their preview incidents once per load, so the pickup workflow can be shown with data without touching any real order.
 - Added a demo-customer SQL seed (auth users, profiles, and orders) plus a login diagnostic script, and an `isDemo` flag on the order type so preview-only demo orders are never written to the database.
+
+---
+
+## October 13, 2026 (1:16 PM PHT) - Francis William Garcia
+- Showed the Unclaimed badge beside "Current Status": a confirmed-unclaimed order now displays a small amber "Unclaimed" badge on the right side of the Current Status label row, so the customer sees the incident at a glance without opening the pickup card.

@@ -425,10 +425,20 @@ export default function OrderTracking() {
                 <X className={`w-5 h-5 ${statusStyle.icon}`} />
               )}
             </div>
-            <div className="min-w-0">
-              <p className="text-sm text-gray-500 font-medium">
-                Current Status
-              </p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm text-gray-500 font-medium">
+                  Current Status
+                </p>
+                {isUnclaimed && (
+                  <Badge
+                    variant="outline"
+                    className="border text-xs font-semibold bg-[#FFF5D6] text-[#92400E] border-[#F59E0B]/40"
+                  >
+                    Unclaimed
+                  </Badge>
+                )}
+              </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="font-bold text-gray-900 text-2xl">
                   {currentOrderLabel}

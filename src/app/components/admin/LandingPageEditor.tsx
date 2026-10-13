@@ -637,6 +637,22 @@ export default function LandingPageEditor() {
                   onChange={(v) => patch({ hoursNote: v })}
                 />
                 <div>
+                  <Label className="text-sm font-medium text-slate-700">
+                    Pickup deadline — shop closing time
+                  </Label>
+                  <Input
+                    type="time"
+                    value={content.shopClosingTime}
+                    onChange={(e) => patch({ shopClosingTime: e.target.value })}
+                    className="mt-1.5 h-9 w-full sm:w-48"
+                  />
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    Cash-on-Pickup orders not collected by this time on the day they
+                    become ready count as unclaimed. Leave blank to disable unclaimed
+                    tracking — no pickup deadline can be computed without it.
+                  </p>
+                </div>
+                <div>
                   <div className="flex items-center justify-between mb-2">
                     <Label className="text-sm font-medium text-slate-700">Location</Label>
                     <Button

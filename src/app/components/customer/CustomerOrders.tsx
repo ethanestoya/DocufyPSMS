@@ -12,6 +12,7 @@ import {
   Eye,
   ArrowLeft,
   Search,
+  AlertTriangle,
 } from "lucide-react";
 import Layout from "../Layout";
 import { Card } from "../ui/card";
@@ -24,6 +25,7 @@ import { dataStore, type Order } from "../../utils/dataStore";
 import { useAuth } from "../../contexts/AuthContext";
 import ShopStatusBanner from "../shared/ShopStatusBanner";
 import { UnclaimedOrderWarning } from "../shared/UnclaimedOrderWarning";
+import { useUnclaimedOffenses } from "../../utils/useUnclaimedOffenses";
 import { getStatusBadgeClasses, getCustomerStatusLabel } from "../../utils/orderStatusPalette";
 import { formatPHDate, formatPHTime } from "../../utils/pht";
 
@@ -53,6 +55,13 @@ const menuItems = [
 export default function CustomerOrders() {
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  // The customer's derived unclaimed orders (shared with the notice above),
+  // used only to highlight the affected order rows.
+  const { summary: unclaimedSummary } = useUnclaimedOffenses(user?.email);
+  const affectedOrderIds = new Set(
+    (unclaimedSummary?.records ?? []).map((r) => r.orderId),
+  );
 
   // ── Orders state ──────────────────────────────────────────────────
   const [selectedStatus, setSelectedStatus] = useState<string>("All");
@@ -313,7 +322,11 @@ export default function CustomerOrders() {
                   paginatedOrders.map((order) => (
                     <tr
                       key={order.id}
-                      className="cursor-pointer border-b hover:bg-gray-50 transition-colors"
+                      className={`cursor-pointer border-b transition-colors ${
+                        affectedOrderIds.has(order.id)
+                          ? "bg-amber-50/70 hover:bg-amber-50 ring-1 ring-inset ring-amber-200"
+                          : "hover:bg-gray-50"
+                      }`}
                       onClick={() => navigate(`/customer/track/${order.id}`)}
                       onKeyDown={(event) => {
                         if (event.key === "Enter" || event.key === " ") {
@@ -324,7 +337,18 @@ export default function CustomerOrders() {
                       tabIndex={0}
                     >
                       <td className="py-4 px-4 text-sm font-medium text-gray-900">
-                        {order.displayId ?? order.id}
+                        <div className="flex items-center gap-2">
+                          <span>{order.displayId ?? order.id}</span>
+                          {affectedOrderIds.has(order.id) && (
+                            <span
+                              className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"
+                              title="This order was recorded as unclaimed."
+                            >
+                              <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                              Unclaimed
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-4 px-4 text-sm text-gray-900">
                         <div className="flex min-w-0 items-center gap-2">

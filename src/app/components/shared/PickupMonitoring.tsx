@@ -1,42 +1,26 @@
-// PREVIEW PAGE — "Pickup Monitoring".
+// "Pickup Monitoring" — Admin/Staff workspace for tracking orders through the
+// pickup phase (ready for pickup, overdue for pickup, collected) and the
+// automatically DERIVED unclaimed-order records.
 //
-// Dedicated Admin/Staff workspace for tracking orders through the pickup phase:
-// ready for pickup, still within the (proposed) pickup window, and orders that
-// need review because they are overdue / flagged. It intentionally does NOT
-// duplicate the All Orders queue — the queue stays focused on normal order
-// management (status updates, payment, invoicing); this page owns pickup
-// tracking and the flag / note / decision workflow.
-//
-// Everything here is a DESIGN PREVIEW built on the in-memory preview store
-// (utils/pickupReview.ts). Nothing is persisted, enforced, notified, or written
-// to a real customer record. No order is ever auto-marked overdue: because the
-// collection window is pending policy approval, "Overdue for Pickup" stays at
-// zero and "Needs Review" is driven only by staff/Admin flags.
-//
-// Roles: Admin makes every final decision (Confirm / Excuse / arrangement /
-// Remove Restriction). Staff may monitor, flag overdue orders, and add notes
-// for Admin — the final-decision controls are Admin-only (enforced inside
-// OrderPickupReview).
+// There is no manual review workflow here: an order counts as unclaimed only
+// when the real order + status-history timeline proves it reached Completed and
+// was not collected by the shop's configured closing time. The page is
+// display-only (view an order's details); nothing is enforced or written.
 
 import React, { useEffect, useMemo, useState } from "react";
 import {
   PackageCheck,
-  PackageX,
   Clock,
   Search,
   Eye,
-  Flag,
   AlertTriangle,
   ClipboardList,
-  Lock,
   CalendarClock,
+  PackageX,
 } from "lucide-react";
-import { toast } from "sonner";
 import Layout from "../Layout";
 import StaffTimeInGate from "./StaffTimeInGate";
 import { ordersStore } from "../../utils/ordersStore";
-import { withDemoOrders, seedDemoIncidentsOnce } from "../../utils/pickupReviewDemoSeed";
-import { useAuth } from "../../contexts/AuthContext";
 import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -55,11 +39,14 @@ import { formatPHDate, formatPHTime, formatPHDateTime } from "../../utils/pht";
 import { formatCurrency } from "../../utils/formatNumber";
 import { getStatusBadgeClasses } from "../../utils/orderStatusPalette";
 import { computeOrderPayment } from "./OrderPaymentSummary";
-import OrderPickupReview from "./OrderPickupReview";
 import {
-  pickupReview,
-  type PickupIncident,
-} from "../../utils/pickupReview";
+  closingDeadline,
+  deriveUnclaimedRecords,
+  isClosingTimeConfigured,
+  toUnclaimedOrderLikes,
+  type UnclaimedRecord,
+} from "../../utils/unclaimedOrders";
+import { useShopClosingTime } from "../../utils/useUnclaimedOffenses";
 
 type OrderRow = ReturnType<typeof ordersStore.getOrders>[number];
 
@@ -68,121 +55,76 @@ interface PickupMonitoringProps {
   userRole: "admin" | "staff";
 }
 
-// Pickup-phase state derived per order. "needs_review" is the only "overdue"
-// signal available while the pickup deadline policy is undecided — it is set
-// manually by staff/Admin (never computed from a guessed deadline).
-type PickupState =
-  | "ready"
-  | "awaiting_release"
-  | "needs_review"
-  | "confirmed"
-  | "excused";
-
-type PickupFilter = "all" | PickupState;
+type PickupState = "ready" | "overdue" | "collected";
+type PickupFilter = "all" | PickupState | "unclaimed";
 
 const PICKUP_STATE_LABELS: Record<PickupState, string> = {
   ready: "Ready for Pickup",
-  awaiting_release: "Awaiting Release",
-  needs_review: "Needs Review",
-  confirmed: "Confirmed Unclaimed",
-  excused: "Excused",
+  overdue: "Overdue for Pickup",
+  collected: "Picked Up",
 };
 
 const PICKUP_FILTERS: { key: PickupFilter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "ready", label: "Ready for Pickup" },
-  { key: "awaiting_release", label: "Awaiting Release" },
-  { key: "needs_review", label: "Needs Review" },
-  { key: "confirmed", label: "Confirmed Unclaimed" },
+  { key: "overdue", label: "Overdue for Pickup" },
+  { key: "collected", label: "Picked Up" },
+  { key: "unclaimed", label: "Unclaimed" },
 ];
 
 const STATUS_LABELS: Record<string, string> = {
-  inQueue: "In Queue",
+  inqueue: "In Queue",
   printing: "Printing",
   completed: "Completed",
-  released: "Ready for Pickup",
+  released: "Picked Up",
   canceled: "Canceled",
-  awaitingPayment: "Awaiting Payment",
+  awaitingpayment: "Awaiting Payment",
 };
 
 const statusLabel = (status: string) =>
-  STATUS_LABELS[status] ?? STATUS_LABELS[status?.toLowerCase()] ?? status;
+  STATUS_LABELS[status?.toLowerCase()] ?? status;
 
 function pickupStateClasses(state: PickupState): string {
   switch (state) {
     case "ready":
       return "bg-[#EAF3FF] text-[#1D73EC] border-[#1D73EC]/30";
-    case "needs_review":
-      return "bg-[#FFF5D6] text-[#92400E] border-[#F59E0B]/40";
-    case "confirmed":
+    case "overdue":
       return "bg-[#FDE8E8] text-[#B91C1C] border-[#DC2626]/40";
-    case "excused":
-      return "bg-[#E0F7F5] text-[#0F766E] border-[#159A9C]/40";
     default:
       return "bg-slate-100 text-slate-600 border-slate-200";
   }
 }
 
 function paymentBadgeClasses(status: string): string {
-  if (status === "Paid")
-    return "bg-[#E8F7D8] text-[#3B7A1E] border-[#55A630]/40";
+  if (status === "Paid") return "bg-[#E8F7D8] text-[#3B7A1E] border-[#55A630]/40";
   if (status === "Partially Paid")
     return "bg-[#FFF5D6] text-[#92400E] border-[#F59E0B]/40";
   return "bg-[#FDE8E8] text-[#B91C1C] border-[#DC2626]/40";
 }
 
-// Pickup-deadline cell states. Kept deliberately short and scannable so the
-// table never carries policy prose — the full explanation lives in the order
-// details view (OrderPickupReview).
-type PickupDeadlineInfo =
-  | { kind: "configured"; at: Date }
-  | { kind: "pending" }
-  | { kind: "unset" };
-
-// Read a configured pickup deadline if the order ever carries one. No pickup
-// deadline field or shop policy exists yet — the collection window is still
-// awaiting client approval — so this stays null today and no date or time is
-// ever invented.
-function readConfiguredPickupDeadline(order: OrderRow): Date | null {
-  const raw = (order as Record<string, unknown>).pickupDeadline;
-  if (raw instanceof Date && !Number.isNaN(raw.getTime())) return raw;
-  if (typeof raw === "string" || typeof raw === "number") {
-    const d = new Date(raw);
-    if (!Number.isNaN(d.getTime())) return d;
+// Earliest time the order's own timeline shows it entering `status`.
+function earliestStatusAt(
+  history: OrderRow["statusHistory"],
+  status: string,
+): Date | null {
+  if (!history?.length) return null;
+  let best: Date | null = null;
+  for (const entry of history) {
+    if (entry.status !== status) continue;
+    const at = entry.at instanceof Date ? entry.at : new Date(entry.at);
+    if (isNaN(at.getTime())) continue;
+    if (!best || at.getTime() < best.getTime()) best = at;
   }
-  return null;
-}
-
-// Resolve the Pickup Deadline cell to one of three honest states:
-//   • configured — the actual deadline date + time (when one is set)
-//   • pending    — a deadline rule applies but is awaiting policy approval
-//   • unset      — no pickup window has been defined for the order
-// Cash-on-pickup / unpaid orders have a proposed same-day window whose cutoff
-// is pending approval; fully-paid orders have no pickup window configured yet.
-function pickupDeadlineInfo(
-  order: OrderRow,
-  hasOutstandingBalance: boolean,
-): PickupDeadlineInfo {
-  const configured = readConfiguredPickupDeadline(order);
-  if (configured) return { kind: "configured", at: configured };
-  if (hasOutstandingBalance) return { kind: "pending" };
-  return { kind: "unset" };
+  return best;
 }
 
 export default function PickupMonitoring({
   menuItems,
   userRole,
 }: PickupMonitoringProps) {
-  const { user } = useAuth();
-  const myName = user?.name || "Staff";
-  const isAdmin = userRole === "admin";
+  const closingTime = useShopClosingTime();
 
-  const [orders, setOrders] = useState<OrderRow[]>(() => {
-    const next = ordersStore.getOrders();
-    seedDemoIncidentsOnce(next);
-    return withDemoOrders(next);
-  });
-  const [tick, setTick] = useState(0);
+  const [orders, setOrders] = useState<OrderRow[]>(() => ordersStore.getOrders());
   const [filter, setFilter] = useState<PickupFilter>("all");
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState("");
@@ -190,71 +132,66 @@ export default function PickupMonitoring({
   const [selected, setSelected] = useState<OrderRow | null>(null);
 
   useEffect(() => {
-    const sync = () => {
-      const next = ordersStore.getOrders();
-      seedDemoIncidentsOnce(next);
-      setOrders(withDemoOrders(next));
-    };
+    const sync = () => setOrders(ordersStore.getOrders());
     sync();
-    const unsubOrders = ordersStore.subscribe(sync);
-    const unsubReview = pickupReview.subscribe(() => setTick((t) => t + 1));
-    return () => {
-      unsubOrders();
-      unsubReview();
-    };
+    return ordersStore.subscribe(sync);
   }, []);
 
   const payFor = (order: OrderRow) =>
     computeOrderPayment(order, order.manualTotal ?? 0);
 
-  const pickupStateOf = (order: OrderRow): PickupState => {
-    const incident = pickupReview.getIncident(order.id);
-    const status = incident?.status ?? "not_reviewed";
-    if (status === "confirmed_unclaimed") return "confirmed";
-    if (status === "excused") return "excused";
-    if (status === "pending_review" || incident?.flaggedForReview)
-      return "needs_review";
-    return order.status?.toLowerCase() === "released"
-      ? "ready"
-      : "awaiting_release";
-  };
+  const recordById = useMemo(() => {
+    const records = deriveUnclaimedRecords(
+      toUnclaimedOrderLikes(orders),
+      closingTime,
+    );
+    const map = new Map<string, UnclaimedRecord>();
+    records.forEach((r) => map.set(r.orderId, r));
+    return map;
+  }, [orders, closingTime]);
 
-  // Orders relevant to pickup: anything already released or completed, plus any
-  // order that carries a preview incident (flagged / pending / confirmed).
-  const pickupOrders = useMemo<OrderRow[]>(() => {
-    void tick;
-    return orders.filter((o) => {
-      const status = o.status?.toLowerCase();
-      const hasIncident = !!pickupReview.getIncident(o.id);
-      return status === "released" || status === "completed" || hasIncident;
-    });
-  }, [orders, tick]);
+  const pickupStateOf = (order: OrderRow): PickupState | null => {
+    const status = order.status?.toLowerCase();
+    const released = status === "released";
+    const hasRecord = recordById.has(order.id);
+    if (hasRecord && !released) return "overdue";
+    if (released) return "collected";
+    if (status === "completed") return "ready";
+    return null;
+  };
 
   const stateById = useMemo(() => {
     const map = new Map<string, PickupState>();
-    pickupOrders.forEach((o) => map.set(o.id, pickupStateOf(o)));
+    orders.forEach((o) => {
+      const s = pickupStateOf(o);
+      if (s) map.set(o.id, s);
+    });
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pickupOrders, tick]);
+  }, [orders, recordById]);
+
+  const pickupOrders = useMemo(
+    () => orders.filter((o) => stateById.has(o.id)),
+    [orders, stateById],
+  );
 
   const counts = useMemo(() => {
     let ready = 0;
-    let awaitingRelease = 0;
-    let needsReview = 0;
-    let confirmed = 0;
-    pickupOrders.forEach((o) => {
-      const s = stateById.get(o.id);
+    let overdue = 0;
+    let collected = 0;
+    stateById.forEach((s) => {
       if (s === "ready") ready += 1;
-      else if (s === "awaiting_release") awaitingRelease += 1;
-      else if (s === "needs_review") needsReview += 1;
-      else if (s === "confirmed") confirmed += 1;
+      else if (s === "overdue") overdue += 1;
+      else if (s === "collected") collected += 1;
     });
-    return { ready, awaitingRelease, needsReview, confirmed };
-  }, [pickupOrders, stateById]);
+    return { ready, overdue, collected, unclaimed: recordById.size };
+  }, [stateById, recordById]);
 
   const tableRows = useMemo(() => {
     let rows = [...pickupOrders];
-    if (filter !== "all") {
+    if (filter === "unclaimed") {
+      rows = rows.filter((o) => recordById.has(o.id));
+    } else if (filter !== "all") {
       rows = rows.filter((o) => stateById.get(o.id) === filter);
     }
     const q = search.trim().toLowerCase();
@@ -274,48 +211,66 @@ export default function PickupMonitoring({
       rows = rows.filter((o) => o.submittedAt.getTime() <= to);
     }
     return rows.sort((a, b) => {
-      const aReady =
-        stateById.get(a.id) === "ready" || stateById.get(a.id) === "needs_review";
-      const bReady =
-        stateById.get(b.id) === "ready" || stateById.get(b.id) === "needs_review";
-      if (aReady !== bReady) return aReady ? -1 : 1;
+      const aActive = stateById.get(a.id) !== "collected";
+      const bActive = stateById.get(b.id) !== "collected";
+      if (aActive !== bActive) return aActive ? -1 : 1;
       return b.submittedAt.getTime() - a.submittedAt.getTime();
     });
-  }, [pickupOrders, filter, stateById, search, dateFrom, dateTo]);
+  }, [pickupOrders, filter, stateById, recordById, search, dateFrom, dateTo]);
 
-  const handleFlag = (order: OrderRow) => {
-    pickupReview.setIncident(order.id, {
-      customerKey: order.customerEmail || order.customer,
-      status: "pending_review",
-      flaggedForReview: true,
-      flaggedBy: myName,
-    });
-    toast.info("Flagged for review (preview).", {
-      description:
-        "Order moved to Pending Review. Only Admin can make the final decision.",
-    });
+  // Ready-for-pickup time: from the derived record, else the order's own
+  // Completed transition. Released orders that were collected in time no longer
+  // carry a ready timestamp once `statusUpdatedAt` moved to the collection time.
+  const readyAtFor = (order: OrderRow): Date | null =>
+    recordById.get(order.id)?.readyAt ??
+    earliestStatusAt(order.statusHistory, "Completed");
+
+  const deadlineFor = (order: OrderRow): Date | null => {
+    const record = recordById.get(order.id);
+    if (record) return record.deadlineAt;
+    const readyAt = earliestStatusAt(order.statusHistory, "Completed");
+    return readyAt ? closingDeadline(readyAt, closingTime) : null;
   };
 
-  const readyFor = (order: OrderRow) =>
-    order.status?.toLowerCase() === "released" ? order.statusUpdatedAt : undefined;
+  const historyUnavailable = orders.some((o) => o.statusHistoryUnavailable);
+
+  const readyForDisplay = (order: OrderRow): string => {
+    const readyAt = readyAtFor(order);
+    if (!readyAt) return "—";
+    return `${formatPHDate(readyAt)} · ${formatPHTime(readyAt)}`;
+  };
 
   return (
     <Layout menuItems={menuItems} title="Pickup Monitoring" showBackButton>
       <StaffTimeInGate>
         <div className="flex flex-col space-y-5">
-          {/* Intro + preview badge */}
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <p className="max-w-2xl text-sm text-slate-500">
-              Track orders that are ready for pickup, still within their pickup
-              window, or overdue and needing review.
-            </p>
-            <span className="inline-flex items-center gap-1 rounded-md bg-[#F2F7FF] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#1D73EC] ring-1 ring-[#1D73EC]/20">
-              <AlertTriangle className="h-3 w-3" />
-              Preview workflow
-            </span>
-          </div>
+          <p className="max-w-2xl text-sm text-slate-500">
+            Track orders that are ready for pickup, overdue for pickup, or already
+            collected. Overdue status is computed automatically from each order's
+            status history and the shop's configured closing time.
+          </p>
 
-          {/* Summary cards */}
+          {!isClosingTimeConfigured(closingTime) && (
+            <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+              <span>
+                Pickup deadlines cannot be computed yet — set the shop closing time
+                in Admin → Landing Page → Shop Information to start tracking
+                overdue and unclaimed orders.
+              </span>
+            </div>
+          )}
+
+          {historyUnavailable && (
+            <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-500" />
+              <span>
+                Unclaimed-order information is unavailable right now — some order
+                status history could not be read.
+              </span>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <SummaryCard
               label="Ready for Pickup"
@@ -324,45 +279,43 @@ export default function PickupMonitoring({
               iconBg="bg-[#EAF3FF]"
               iconColor="text-[#1D73EC]"
               active={filter === "ready"}
-              onClick={() =>
-                setFilter((f) => (f === "ready" ? "all" : "ready"))
-              }
+              onClick={() => setFilter((f) => (f === "ready" ? "all" : "ready"))}
             />
             <SummaryCard
               label="Overdue for Pickup"
-              value={0}
+              value={counts.overdue}
               icon={CalendarClock}
-              iconBg="bg-[#FFF5D6]"
-              iconColor="text-[#B45309]"
-              subtitle="Pickup deadline not configured yet"
-            />
-            <SummaryCard
-              label="Needs Review"
-              value={counts.needsReview}
-              icon={Flag}
-              iconBg="bg-[#FFF5D6]"
-              iconColor="text-[#B45309]"
-              active={filter === "needs_review"}
+              iconBg="bg-[#FDE8E8]"
+              iconColor="text-[#B91C1C]"
+              active={filter === "overdue"}
               onClick={() =>
-                setFilter((f) => (f === "needs_review" ? "all" : "needs_review"))
+                setFilter((f) => (f === "overdue" ? "all" : "overdue"))
               }
             />
             <SummaryCard
-              label="Awaiting Release"
-              value={counts.awaitingRelease}
+              label="Picked Up"
+              value={counts.collected}
               icon={Clock}
               iconBg="bg-slate-100"
               iconColor="text-slate-600"
-              active={filter === "awaiting_release"}
+              active={filter === "collected"}
               onClick={() =>
-                setFilter((f) =>
-                  f === "awaiting_release" ? "all" : "awaiting_release",
-                )
+                setFilter((f) => (f === "collected" ? "all" : "collected"))
+              }
+            />
+            <SummaryCard
+              label="Unclaimed Orders"
+              value={counts.unclaimed}
+              icon={PackageX}
+              iconBg="bg-[#FDE8E8]"
+              iconColor="text-[#B91C1C]"
+              active={filter === "unclaimed"}
+              onClick={() =>
+                setFilter((f) => (f === "unclaimed" ? "all" : "unclaimed"))
               }
             />
           </div>
 
-          {/* Filters */}
           <Card className="p-4 border border-slate-100 shadow-sm shrink-0">
             <div className="flex flex-col gap-4">
               <div className="flex flex-col lg:flex-row lg:items-end gap-4">
@@ -419,7 +372,6 @@ export default function PickupMonitoring({
             </div>
           </Card>
 
-          {/* Table */}
           <Card className="overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -456,9 +408,9 @@ export default function PickupMonitoring({
                             No pickup orders to show
                           </p>
                           <p className="mt-1 max-w-md text-xs text-gray-500">
-                            Orders appear here once they are completed or marked
-                            ready for pickup. Overdue tracking activates after the
-                            pickup window policy is approved.
+                            Orders appear here once they are completed or released.
+                            Overdue and unclaimed orders are tracked automatically
+                            once the shop closing time is configured.
                           </p>
                         </div>
                       </td>
@@ -466,12 +418,10 @@ export default function PickupMonitoring({
                   ) : (
                     tableRows.map((order) => {
                       const payment = payFor(order);
-                      const state = stateById.get(order.id) ?? "awaiting_release";
-                      const readyAt = readyFor(order);
-                      const deadline = pickupDeadlineInfo(
-                        order,
-                        payment.remaining > 0,
-                      );
+                      const state = stateById.get(order.id) ?? "collected";
+                      const readyAt = readyAtFor(order);
+                      const deadline = deadlineFor(order);
+                      const isUnclaimed = recordById.has(order.id);
                       return (
                         <tr
                           key={order.id}
@@ -527,6 +477,11 @@ export default function PickupMonitoring({
                             >
                               {PICKUP_STATE_LABELS[state]}
                             </Badge>
+                            {isUnclaimed && state === "collected" && (
+                              <div className="mt-1 text-xs text-red-700">
+                                Collected after deadline
+                              </div>
+                            )}
                           </td>
                           <td className="px-4 py-3">
                             {readyAt ? (
@@ -540,18 +495,20 @@ export default function PickupMonitoring({
                               </>
                             ) : (
                               <span className="text-xs text-gray-400">
-                                Not yet ready
+                                {state === "collected" ? "—" : "Not available"}
                               </span>
                             )}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
-                            {deadline.kind === "configured" ? (
-                              <span className="text-xs text-gray-700">
-                                {formatPHDateTime(deadline.at)}
-                              </span>
-                            ) : deadline.kind === "pending" ? (
-                              <span className="text-xs text-gray-500">
-                                Pending approval
+                            {deadline ? (
+                              <span
+                                className={
+                                  isUnclaimed
+                                    ? "text-xs font-medium text-red-700"
+                                    : "text-xs text-gray-700"
+                                }
+                              >
+                                {formatPHDateTime(deadline)}
                               </span>
                             ) : (
                               <span className="text-xs text-gray-500">
@@ -560,36 +517,18 @@ export default function PickupMonitoring({
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              {state !== "needs_review" &&
-                                state !== "confirmed" &&
-                                state !== "excused" && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleFlag(order);
-                                    }}
-                                    className="h-8 bg-white text-amber-700 border-2 border-amber-200 hover:bg-amber-600 hover:text-white"
-                                  >
-                                    <Flag className="h-3.5 w-3.5 mr-1.5" />
-                                    Flag
-                                  </Button>
-                                )}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelected(order);
-                                }}
-                                className="h-8 bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
-                              >
-                                <Eye className="h-3.5 w-3.5 mr-1.5" />
-                                View
-                              </Button>
-                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelected(order);
+                              }}
+                              className="h-8 bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
+                            >
+                              <Eye className="h-3.5 w-3.5 mr-1.5" />
+                              View
+                            </Button>
                           </td>
                         </tr>
                       );
@@ -599,34 +538,16 @@ export default function PickupMonitoring({
               </table>
             </div>
           </Card>
-
-          {!isAdmin && (
-            <p className="flex items-center gap-1.5 text-xs text-gray-500">
-              <Lock className="h-3.5 w-3.5" />
-              Staff can monitor pickups, flag orders, and add notes. Final
-              incident decisions are made by Admin.
-            </p>
-          )}
-
-          <p className="text-xs text-gray-400">
-            <strong>Design preview.</strong>{" "}
-            {isAdmin
-              ? "Pickup deadlines, valid excuses, and penalty rules are still awaiting client approval."
-              : "Pickup deadlines and penalty rules are still awaiting client approval."}{" "}
-            Nothing on this page applies a real penalty, restriction, or
-            notification, and no order is auto-marked overdue.
-          </p>
         </div>
       </StaffTimeInGate>
 
-      {/* Order details + pickup review */}
       <Dialog
         open={!!selected}
         onOpenChange={(open) => {
           if (!open) setSelected(null);
         }}
       >
-        <DialogContent className="sm:max-w-[1100px] max-h-[90vh] overflow-y-auto p-[26px]">
+        <DialogContent className="sm:max-w-[680px] max-h-[90vh] overflow-y-auto p-[26px]">
           {selected && (
             <>
               <DialogHeader className="border-b border-gray-100 pb-4">
@@ -656,13 +577,43 @@ export default function PickupMonitoring({
                 </div>
               </DialogHeader>
 
-              <OrderPickupReview
-                order={selected}
-                fallbackTotal={selected.manualTotal ?? 0}
-                reviewerName={myName}
-                role={userRole}
-                customerKey={selected.customerEmail || selected.customer}
-              />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Payment
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900">
+                    {payFor(selected).status}
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    Remaining {formatCurrency(payFor(selected).remaining)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Ready for Pickup
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900">
+                    {readyForDisplay(selected)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 p-4 sm:col-span-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Pickup Deadline
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900">
+                    {deadlineFor(selected)
+                      ? formatPHDateTime(deadlineFor(selected)!)
+                      : "Not configured — set the shop closing time to enable pickup deadlines."}
+                  </p>
+                  {recordById.get(selected.id) && (
+                    <p className="mt-1.5 text-xs text-red-700">
+                      This order passed its pickup deadline without being
+                      collected{recordById.get(selected.id)?.releasedAt ? " on time" : ""}.
+                    </p>
+                  )}
+                </div>
+              </div>
             </>
           )}
         </DialogContent>

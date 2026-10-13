@@ -89,10 +89,10 @@ import {
 import PaymentMethodQRPanel from "./PaymentMethodQR";
 import { CashOnPickupAcknowledgement } from "./CashOnPickupAcknowledgement";
 import {
-  pickupReview,
   CASH_ON_PICKUP_BLOCKED_MESSAGE,
   CASH_ON_PICKUP_MIN_CONFIRMED_OFFENSES,
-} from "../../utils/pickupReview";
+} from "../../utils/unclaimedPolicy";
+import { useUnclaimedOffenses } from "../../utils/useUnclaimedOffenses";
 import LegalPolicyDialog from "./LegalPolicyDialog";
 import {
   shopStatusStore,
@@ -881,7 +881,9 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
   // (≥ fullPaymentThreshold → online only) AND — per the finalized second-
   // offense rule — for any customer with >= 2 confirmed unclaimed-order
   // offenses on record. Down-payment tier orders keep every option selectable.
-  const confirmedOffenseCount = pickupReview.getConfirmedCountFor(user?.email);
+  // The count is derived from the customer's authoritative order data + status
+  // timeline (never stored), and re-renders automatically on data changes.
+  const { count: confirmedOffenseCount } = useUnclaimedOffenses(user?.email);
   const cashRestrictedByOffense =
     !isWalkin &&
     confirmedOffenseCount >= CASH_ON_PICKUP_MIN_CONFIRMED_OFFENSES;
@@ -901,15 +903,6 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
     (s) =>
       s.inStock &&
       (["2R", "3R", "4R", "5R", "6R", "A4photo"] as string[]).includes(s.name),
-  );
-
-  // Re-render when the (in-memory preview) offense ledger changes so the
-  // second-offense Cash on Pickup restriction reflects the latest confirmed
-  // count without a manual refresh.
-  const [, setPickupReviewTick] = useState(0);
-  useEffect(
-    () => pickupReview.subscribe(() => setPickupReviewTick((n) => n + 1)),
-    [],
   );
 
   // Keep the payment method consistent when the order must be paid online.
@@ -1568,7 +1561,9 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
         </button>
       )}
       {/* First confirmed-unclaimed order warning (preview only) */}
-      {!isWalkin && <UnclaimedOrderWarning customerKey={user?.email} />}
+      {!isWalkin && (
+        <UnclaimedOrderWarning customerKey={user?.email} variant="slim" />
+      )}
       {!isWalkin && isResumed && submittedOrderId && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <div className="flex items-start gap-3 min-w-0">

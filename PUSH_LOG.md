@@ -1035,3 +1035,15 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Stopped seeding the demo 50%-deposit restriction so the demo customer now demonstrates the Cash on Pickup restriction instead.
 - Order Tracking: replaced the plain Unclaimed badge with a clearer amber warning — a compact clickable warning on mobile that opens a details dialog, and an inline amber note on desktop — each showing the offense label (First/Second/...) derived from the customer's real confirmed incidents.
 - Merged the Pickup Date, Pickup Time, and Pickup Location rows into one pickup-information container on Order Tracking.
+
+---
+
+## October 14, 2026 (1:53 AM PHT) - Francis William Garcia
+- Replaced the manual unpaid/unclaimed-order review workflow with an automatic, data-driven system: an order's unclaimed status and a customer's offense count are now worked out from the real order data and its order status timeline, so nothing has to be flagged, excused, or confirmed by hand and no separate offense ledger is stored.
+- Added a Shop Closing Time setting on the Landing Page editor: the daily pickup deadline is now calculated from it, and the admin pickup/unclaimed pages show a clear "configure shop hours" warning until it is set (nothing is ever marked unclaimed before then).
+- Rebuilt the Pickup Monitoring page around plain, honest states - ready, collected, or overdue - with a read-only details view, replacing the manual review panel.
+- Rebuilt the Unclaimed Orders page into two clear lists: the unclaimed-order history and the customers who currently have a restriction, with search and a date range.
+- Made payment restrictions fully automatic based on a customer's unclaimed-order count: the 1st offense is a warning only, the 2nd disables Cash on Pickup and requires a 50% deposit or full advance, and the 3rd and beyond requires full advance. Outstanding balance and account suspension stay separate from this.
+- Updated the customer-facing unclaimed-order warning and Order Tracking so the warning and offense label reflect the real count, and removed the old "tell us why" excuse/explanation card.
+- Removed the old manual preview pieces entirely: the order-review modal, the customer violations section, the payment-restriction notice, the in-memory pickup-review store, and its demo seed.
+- Added a read-only order status-history timeline to order loading (degrading safely to empty when unavailable) and extended the demo SQL seed with demo accounts, orders, and status timelines that cover every unclaimed-order scenario.

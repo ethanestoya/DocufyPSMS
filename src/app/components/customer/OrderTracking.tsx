@@ -47,12 +47,10 @@ import { notificationStore } from "../../utils/notificationStore";
 import ShopStatusBanner from "../shared/ShopStatusBanner";
 import { generateInvoiceData, generateInvoiceHTML, InvoiceData } from "../../utils/invoiceUtils";
 import { pricingStore, formatPrice, type PricingValues } from "../../utils/pricingStore";
-import { pickupReview } from "../../utils/pickupReview";
 import { landingContentStore, DEFAULT_MAP_EMBED } from "../../utils/landingContentStore";
 import { computeOrderPayment } from "../shared/OrderPaymentSummary";
 import { shopPhotosStore, type ShopPhoto } from "../../utils/shopPhotosStore";
-import { isDemoCustomerEmail, seedDemoIncidentsOnce } from "../../utils/pickupReviewDemoSeed";
-import { ordersStore } from "../../utils/ordersStore";
+import { useUnclaimedOffenses } from "../../utils/useUnclaimedOffenses";
 
 const OFFENSE_WORDS: Record<number, string> = {
   1: "First",
@@ -116,13 +114,6 @@ export default function OrderTracking() {
   const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
   const [unclaimedDialogOpen, setUnclaimedDialogOpen] = useState(false);
   const [shopPhotos, setShopPhotos] = useState<ShopPhoto[]>(() => shopPhotosStore.getPhotos());
-  // PREVIEW — customer explanation/response for a pickup issue (in-memory only).
-  const [explanationText, setExplanationText] = useState("");
-  const [, setPickupTick] = useState(0);
-
-  useEffect(() => {
-    return pickupReview.subscribe(() => setPickupTick((t) => t + 1));
-  }, []);
 
   useEffect(() => {
     const load = () => setShopContent(landingContentStore.getContent());
@@ -164,16 +155,6 @@ export default function OrderTracking() {
     return unsubscribe;
   }, [orderId]);
 
-  // Seed the preview pickup incidents for demo customers (once), the same way
-  // the customer dashboard / My Orders warning does, so a confirmed-unclaimed
-  // order is visible when this page is opened directly.
-  useEffect(() => {
-    const email = orderData?.customerEmail;
-    if (email && isDemoCustomerEmail(email)) {
-      seedDemoIncidentsOnce(ordersStore.getOrders());
-    }
-  }, [orderData?.customerEmail]);
-
   // Generate invoice data when component mounts or order completes
   useEffect(() => {
     if (orderData && (orderData.status === 'Completed' || orderData.status === 'Released')) {
@@ -197,14 +178,12 @@ export default function OrderTracking() {
     currentOrderStatus === "Released";
   const isAwaitingPayment = currentOrderStatus === "Awaiting Payment";
 
-  // PREVIEW — the pickup-issue response area appears only once Admin has flagged
-  // this order for review, or when the customer has already submitted an
-  // explanation. It is never shown for orders with no pickup issue.
-  const pickupIncident = pickupReview.getIncident(orderId || "");
-  const showPickupResponse =
-    isOrderCompleted &&
-    (pickupIncident?.status === "pending_review" ||
-      !!pickupIncident?.customerExplanation);
+  // Derived unclaimed-offense state for this order's customer (shared source of
+  // truth — recomputed from the authoritative order data + status timeline,
+  // never stored). The record for THIS order tells us whether it went unclaimed.
+  const { summary: unclaimedSummary } = useUnclaimedOffenses(orderData?.customerEmail);
+  const isUnclaimed =
+    unclaimedSummary?.records.some((r) => r.orderId === (orderId || "")) ?? false;
 
   // ── Pickup information — real data only. The pickup date/time come from the
   // order timeline (when it last changed status), the location from the
@@ -232,7 +211,6 @@ export default function OrderTracking() {
       }).remaining
     : 0;
 
-  const isUnclaimed = pickupIncident?.status === "confirmed_unclaimed";
   const pickupStatus = isUnclaimed
     ? { label: "Unclaimed", className: "bg-[#FFF5D6] text-[#92400E] border-[#F59E0B]/40" }
     : currentOrderStatus === "Released"
@@ -262,35 +240,17 @@ export default function OrderTracking() {
         ? `Bring a valid ID and your order reference when collecting. A remaining balance of ${formatCurrency(pickupRemaining)} can be paid at the shop.`
         : "Bring a valid ID and your order reference when collecting your order during shop hours.";
 
-  // Offense label — derived from the ACTUAL confirmed-unclaimed incidents for
-  // this order's customer (ranked oldest decision first), never hardcoded: a
-  // first incident reads "First Offense", a repeat reads "Second Offense", etc.
-  // Left blank when the rank cannot be resolved from real preview data.
+  // Offense label — the rank of THIS order among the customer's unclaimed
+  // orders (chronological), never hardcoded: a first unclaimed order reads
+  // "First Offense", a repeat reads "Second Offense", etc. Left blank when the
+  // rank cannot be resolved from the derived data.
   const unclaimedOffenseLabel = (() => {
-    if (!isUnclaimed) return "";
-    const email = (orderData?.customerEmail ?? "").trim().toLowerCase();
-    if (!email) return "";
-    const confirmed = pickupReview
-      .getAllIncidents()
-      .filter(
-        (inc) =>
-          inc.status === "confirmed_unclaimed" &&
-          (inc.customerKey ?? "").toLowerCase() === email,
-      )
-      .sort((a, b) => (a.reviewedAt ?? "").localeCompare(b.reviewedAt ?? ""));
-    const rank = confirmed.findIndex((inc) => inc.orderId === orderId);
+    if (!isUnclaimed || !unclaimedSummary) return "";
+    const rank = unclaimedSummary.records.findIndex(
+      (r) => r.orderId === (orderId || ""),
+    );
     return rank >= 0 ? `${ordinalWord(rank + 1)} Offense` : "";
   })();
-
-  const handleSubmitExplanation = () => {
-    if (!orderId || !explanationText.trim()) return;
-    pickupReview.setCustomerExplanation(orderId, explanationText.trim());
-    toast.info("Explanation submitted (preview).", {
-      description:
-        "This is a design preview — your response was not saved to the server.",
-    });
-    setExplanationText("");
-  };
 
   const handleDownloadInvoice = () => {
     if (!invoiceData) {
@@ -1043,58 +1003,6 @@ export default function OrderTracking() {
           </Card>
         )}
 
-        {/* Pickup Issue Response (PREVIEW workflow) — shown only for orders
-            flagged for review. In-memory preview; nothing is saved. */}
-        {showPickupResponse && (
-          <Card className="p-6 bg-white border border-[#1D73EC]/20">
-            <div className="flex flex-wrap items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-[#1D73EC]" />
-              <h2 className="text-lg font-semibold text-gray-900">
-                Pickup Issue Response
-              </h2>
-              <span className="rounded-md bg-[#F2F7FF] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#1D73EC] ring-1 ring-[#1D73EC]/20">
-                Preview
-              </span>
-            </div>
-            <p className="mt-2 text-sm text-gray-600">
-              This order was flagged for a pickup review. You can explain what
-              happened below. Admin reviews your response before making a final
-              decision.
-            </p>
-
-            {pickupIncident?.customerExplanation ? (
-              <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Your submitted explanation
-                </p>
-                <p className="mt-1 text-sm text-gray-700">
-                  {pickupIncident.customerExplanation}
-                </p>
-              </div>
-            ) : (
-              <div className="mt-4 space-y-3">
-                <Textarea
-                  rows={3}
-                  value={explanationText}
-                  onChange={(e) => setExplanationText(e.target.value)}
-                  placeholder="e.g. I was out of town and couldn't collect the order on time."
-                />
-                <Button
-                  onClick={handleSubmitExplanation}
-                  disabled={!explanationText.trim()}
-                  className="bg-[#1D73EC] text-white hover:bg-[#10316B] disabled:opacity-40"
-                >
-                  Submit Explanation
-                </Button>
-              </div>
-            )}
-
-            <p className="mt-3 text-xs text-gray-500">
-              Preview only — the pickup policy and valid excuses are still
-              awaiting client approval, so this response is not saved.
-            </p>
-          </Card>
-        )}
       </div>
 
       {/* Invoice Preview Dialog */}

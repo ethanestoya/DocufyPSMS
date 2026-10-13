@@ -49,6 +49,7 @@ import {
   DialogFooter,
 } from "./ui/dialog";
 import { AnnouncementDetailsModal, type AnnouncementDetailData } from "./shared/AnnouncementDetailsModal";
+import { UnclaimedHeaderIndicator } from "./shared/UnclaimedHeaderIndicator";
 import { Button } from "./ui/button";
 import { TopProgressBar } from "./ui/top-progress-bar";
 import {
@@ -1018,6 +1019,11 @@ export default function Layout({
                 {headerTimeStr}
               </span>
             </div>
+
+            {/* Unclaimed-order indicator (customers only) */}
+            {user?.role === "customer" && (
+              <UnclaimedHeaderIndicator customerKey={user?.email} />
+            )}
 
             {/* Notification Bell */}
             <div className="relative">

@@ -74,7 +74,6 @@ import { PriorityBadge, StartHereTag } from "../ui/priority-badge";
 import OrderPaymentSummary, {
   computeOrderPayment,
 } from "./OrderPaymentSummary";
-import OrderPickupReview from "./OrderPickupReview";
 import {
   getLock,
   claimLock,
@@ -965,8 +964,8 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
             ["all", "All Orders", "Total orders", LayoutGrid, queueOrders.length],
             ["inQueue", "In Queue", "Waiting to be printed", Clock, stats.inQueue],
             ["printing", "Printing", "Currently printing", Printer, stats.printing],
-            ["completed", "Completed", "Successfully completed", CheckCircle, stats.completed],
-            ["released", "Released", "Ready for pickup", CheckCircle, stats.released],
+            ["completed", "Completed", "Ready for pickup", CheckCircle, stats.completed],
+            ["released", "Released", "Picked up", CheckCircle, stats.released],
             ["canceled", "Canceled", "Canceled orders", XCircle, stats.canceled],
           ] as const).map(([key, label, description, Icon, count]) => {
             const s = ORDER_STATUS_STYLES[key];
@@ -1527,20 +1526,6 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                     )}
                   />
                 </div>
-
-                {/* Pickup & Order Review (PREVIEW workflow) */}
-                <OrderPickupReview
-                  order={selectedOrder}
-                  fallbackTotal={fallbackPrintTotal(
-                    selectedOrder.pages,
-                    selectedOrder.copies,
-                    selectedOrder.type,
-                  )}
-                  reviewerName={myName}
-                  role={userRole}
-                  customerKey={selectedOrder.customerEmail || selectedOrder.customer}
-                  readOnly={!!selectedLock && selectedLock.heldBy !== myName}
-                />
 
                 {/* Additional Information Section */}
                 <div className="bg-white border-2 border-gray-300 rounded-xl overflow-hidden">

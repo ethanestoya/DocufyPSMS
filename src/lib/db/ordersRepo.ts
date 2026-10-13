@@ -6,11 +6,13 @@ import type {
   OrderAddonDto,
   CostBreakdownDto,
   PaymentDto,
+  StatusHistoryDto,
   OrderRow,
   OrderFileRow,
   OrderAddonRow,
   CostBreakdownRow,
   PaymentRow,
+  StatusHistoryRow,
   OrderUpdate,
   OrderStatus,
   OrderSource,
@@ -72,12 +74,26 @@ function toPaymentDto(row: PaymentRow): PaymentDto {
   };
 }
 
+function toStatusHistoryDto(row: StatusHistoryRow): StatusHistoryDto {
+  return {
+    id: row.id,
+    orderId: row.order_id,
+    oldStatus: row.old_status,
+    newStatus: row.new_status,
+    reason: row.reason,
+    changedBy: row.changed_by,
+    createdAt: new Date(row.created_at),
+  };
+}
+
 function toOrderDto(
   row: OrderRow,
   files: OrderFileRow[],
   addons: OrderAddonRow[],
   breakdown: CostBreakdownRow | undefined,
   payments: PaymentRow[],
+  statusHistory: StatusHistoryRow[],
+  statusHistoryUnavailable: boolean,
 ): OrderDto {
   return {
     id: row.id,
@@ -125,6 +141,8 @@ function toOrderDto(
         }
       : null,
     payments: payments.map(toPaymentDto),
+    statusHistory: statusHistory.map(toStatusHistoryDto),
+    statusHistoryUnavailable,
   };
 }
 
@@ -367,12 +385,13 @@ export async function updateOrder(id: string, patch: OrderUpdatePatch): Promise<
 // read degrades to empty arrays rather than failing the whole list. Payment
 // rows are sorted newest-first so the first element is the latest submission.
 export async function fetchOrders(): Promise<OrderDto[]> {
-  const [ordersRes, filesRes, addonsRes, breakdownRes, paymentsRes] = await Promise.all([
+  const [ordersRes, filesRes, addonsRes, breakdownRes, paymentsRes, historyRes] = await Promise.all([
     supabase.from('orders').select('*'),
     supabase.from('order_files').select('*'),
     supabase.from('order_addons').select('*'),
     supabase.from('order_cost_breakdowns').select('*'),
     supabase.from('payments').select('*').order('submitted_at', { ascending: false }),
+    supabase.from('order_status_history').select('*').order('created_at', { ascending: true }),
   ]);
   if (ordersRes.error) throw ordersRes.error;
 
@@ -432,6 +451,22 @@ export async function fetchOrders(): Promise<OrderDto[]> {
     }
   }
 
+  const historyByOrder = new Map<string, StatusHistoryRow[]>();
+  const historyUnavailable = !!historyRes.error;
+  if (historyRes.error) {
+    console.warn(
+      '[db:orders] order_status_history read FAILED (%s) — unclaimed-order info may be unavailable or RLS is misconfigured:',
+      historyRes.error.code ?? historyRes.error.message,
+      historyRes.error.message,
+    );
+  } else {
+    for (const h of historyRes.data) {
+      const list = historyByOrder.get(h.order_id) ?? [];
+      list.push(h);
+      historyByOrder.set(h.order_id, list);
+    }
+  }
+
   return ordersRes.data.map((o) =>
     toOrderDto(
       o,
@@ -439,6 +474,8 @@ export async function fetchOrders(): Promise<OrderDto[]> {
       addonsByOrder.get(o.id) ?? [],
       breakdownByOrder.get(o.id),
       paymentsByOrder.get(o.id) ?? [],
+      historyByOrder.get(o.id) ?? [],
+      historyUnavailable,
     ),
   );
 }

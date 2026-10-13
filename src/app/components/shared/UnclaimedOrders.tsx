@@ -1,44 +1,33 @@
-// PREVIEW PAGE — "Unclaimed Orders".
+// "Unclaimed Orders" — Admin/Staff workspace listing every automatically
+// DERIVED unclaimed-order record and the resulting per-customer payment
+// restrictions.
 //
-// Dedicated Admin/Staff workspace for reviewing pickup incidents: orders flagged
-// or waiting on a decision (Pending Review), customer explanations awaiting an
-// Admin decision (Excuse Requests), confirmed unclaimed orders, and the
-// resulting per-customer advance-payment restrictions.
-//
-// Like the rest of the penalty workflow preview, everything here reads/writes
-// the IN-MEMORY preview store (utils/pickupReview.ts). No penalty, restriction,
-// notification, or database write ever happens — the controls are presentational
-// so the client can review the design before the policy is approved.
-//
-// Roles: Admin makes every final decision (Confirm / Excuse / arrangement /
-// Remove Restriction). Staff can view and flag/annotate, but the final-decision
-// controls are Admin-only (enforced inside OrderPickupReview).
+// There is no manual review, excuse, or confirm workflow here: a record exists
+// only when the real order + status-history timeline proves a Cash-on-Pickup
+// order passed its pickup deadline (the shop's configured closing time) without
+// being collected. Counts are always derived, never stored, and the page is
+// display-only — nothing is enforced or written.
 
 import React, { useEffect, useMemo, useState } from "react";
 import {
   PackageX,
-  Clock,
-  MessageSquare,
-  ShieldAlert,
+  CalendarClock,
   Search,
   Eye,
-  Lock,
-  Trash2,
-  AlertTriangle,
+  ShieldAlert,
   ClipboardList,
+  AlertTriangle,
+  Undo2,
+  CircleSlash,
 } from "lucide-react";
-import { toast } from "sonner";
 import Layout from "../Layout";
 import StaffTimeInGate from "./StaffTimeInGate";
 import { ordersStore } from "../../utils/ordersStore";
-import { withDemoOrders, seedDemoIncidentsOnce } from "../../utils/pickupReviewDemoSeed";
-import { useAuth } from "../../contexts/AuthContext";
 import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { Textarea } from "../ui/textarea";
 import { SummaryCard } from "../ui/summary-card";
 import { DateRangeFilter } from "../ui/date-range-filter";
 import {
@@ -47,20 +36,20 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from "../ui/dialog";
 import { formatPHDate, formatPHTime, formatPHDateTime } from "../../utils/pht";
 import { formatCurrency } from "../../utils/formatNumber";
 import { getStatusBadgeClasses } from "../../utils/orderStatusPalette";
 import { computeOrderPayment } from "./OrderPaymentSummary";
-import OrderPickupReview from "./OrderPickupReview";
 import {
-  pickupReview,
-  INCIDENT_STATUS_LABELS,
-  PAYMENT_ARRANGEMENT_LABELS,
-  type IncidentReviewStatus,
-  type PickupIncident,
-} from "../../utils/pickupReview";
+  deriveUnclaimedRecords,
+  getCustomerSummaries,
+  isClosingTimeConfigured,
+  toUnclaimedOrderLikes,
+  type CustomerUnclaimedSummary,
+  type UnclaimedRecord,
+} from "../../utils/unclaimedOrders";
+import { useShopClosingTime } from "../../utils/useUnclaimedOffenses";
 
 type OrderRow = ReturnType<typeof ordersStore.getOrders>[number];
 
@@ -69,82 +58,51 @@ interface UnclaimedOrdersProps {
   userRole: "admin" | "staff";
 }
 
-type ReviewTab = "pending" | "excuse" | "confirmed" | "restrictions";
-
-interface JoinedIncident {
-  order: OrderRow;
-  incident: PickupIncident;
-}
-
-const TAB_LABELS: Record<ReviewTab, string> = {
-  pending: "Pending Review",
-  excuse: "Excuse Requests",
-  confirmed: "Confirmed Unclaimed",
-  restrictions: "Customer Restrictions",
-};
-
 const STATUS_LABELS: Record<string, string> = {
   inQueue: "In Queue",
   printing: "Printing",
   completed: "Completed",
-  released: "Ready for Pickup",
+  released: "Picked Up",
   canceled: "Canceled",
   awaitingPayment: "Awaiting Payment",
 };
 
 const statusLabel = (status: string) => STATUS_LABELS[status] ?? status;
 
-function incidentBadgeClasses(status: IncidentReviewStatus): string {
-  switch (status) {
-    case "confirmed_unclaimed":
-      return "bg-[#FDE8E8] text-[#B91C1C] border-[#DC2626]/40";
-    case "pending_review":
-      return "bg-[#FFF5D6] text-[#92400E] border-[#F59E0B]/40";
-    case "excused":
-      return "bg-[#E0F7F5] text-[#0F766E] border-[#159A9C]/40";
-    default:
-      return "bg-slate-100 text-slate-600 border-slate-200";
-  }
+function policyBadgeClasses(level: number): string {
+  if (level >= 3) return "bg-[#FDE8E8] text-[#B91C1C] border-[#DC2626]/40";
+  if (level === 2) return "bg-[#FFF5D6] text-[#92400E] border-[#F59E0B]/40";
+  return "bg-slate-100 text-slate-600 border-slate-200";
 }
 
 export default function UnclaimedOrders({
   menuItems,
-  userRole,
 }: UnclaimedOrdersProps) {
-  const { user } = useAuth();
-  const myName = user?.name || "Staff";
-  const isAdmin = userRole === "admin";
+  const closingTime = useShopClosingTime();
 
-  const [orders, setOrders] = useState<OrderRow[]>(() => {
-    const next = ordersStore.getOrders();
-    seedDemoIncidentsOnce(next);
-    return withDemoOrders(next);
-  });
-  const [tick, setTick] = useState(0);
-  const [tab, setTab] = useState<ReviewTab>("pending");
+  const [orders, setOrders] = useState<OrderRow[]>(() => ordersStore.getOrders());
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-
-  const [selected, setSelected] = useState<JoinedIncident | null>(null);
-  const [restrictionKey, setRestrictionKey] = useState<string | null>(null);
-  const [removeOpen, setRemoveOpen] = useState(false);
-  const [removeReason, setRemoveReason] = useState("");
+  const [selectedRecord, setSelectedRecord] = useState<UnclaimedRecord | null>(null);
+  const [selectedCustomer, setSelectedCustomer] =
+    useState<CustomerUnclaimedSummary | null>(null);
 
   useEffect(() => {
-    const sync = () => {
-      const next = ordersStore.getOrders();
-      seedDemoIncidentsOnce(next);
-      setOrders(withDemoOrders(next));
-    };
+    const sync = () => setOrders(ordersStore.getOrders());
     sync();
-    const unsubOrders = ordersStore.subscribe(sync);
-    const unsubReview = pickupReview.subscribe(() => setTick((t) => t + 1));
-    return () => {
-      unsubOrders();
-      unsubReview();
-    };
+    return ordersStore.subscribe(sync);
   }, []);
+
+  const likes = useMemo(() => toUnclaimedOrderLikes(orders), [orders]);
+  const records = useMemo(
+    () => deriveUnclaimedRecords(likes, closingTime),
+    [likes, closingTime],
+  );
+  const summaries = useMemo(
+    () => getCustomerSummaries(likes, closingTime),
+    [likes, closingTime],
+  );
 
   const ordersById = useMemo(() => {
     const map = new Map<string, OrderRow>();
@@ -152,228 +110,106 @@ export default function UnclaimedOrders({
     return map;
   }, [orders]);
 
-  // Live preview incidents joined to their orders. `tick` is a dependency so a
-  // review action taken here (or in Order Details) recomputes immediately.
-  const joined = useMemo<JoinedIncident[]>(() => {
-    void tick;
-    return pickupReview
-      .getAllIncidents()
-      .map((incident) => {
-        const order = ordersById.get(incident.orderId);
-        return order ? { order, incident } : null;
-      })
-      .filter((row): row is JoinedIncident => row !== null);
-  }, [ordersById, tick]);
-
-  const pendingRows = useMemo(
-    () => joined.filter((r) => r.incident.status === "pending_review"),
-    [joined],
-  );
-  const excuseRows = useMemo(
-    () =>
-      joined.filter(
-        (r) =>
-          !!r.incident.customerExplanation &&
-          r.incident.status !== "confirmed_unclaimed" &&
-          r.incident.status !== "excused",
-      ),
-    [joined],
-  );
-  const confirmedRows = useMemo(
-    () => joined.filter((r) => r.incident.status === "confirmed_unclaimed"),
-    [joined],
+  const restrictedSummaries = useMemo(
+    () => summaries.filter((s) => s.policy.cashOnPickupDisabled),
+    [summaries],
   );
 
-  const restrictionRows = useMemo(() => {
-    void tick;
-    return pickupReview
-      .getAllRestrictions()
-      .filter((entry) => entry.restriction.active)
-      .map((entry) => {
-        const match = joined.find(
-          (r) =>
-            (r.incident.customerKey ||
-              r.order.customerEmail ||
-              r.order.customer) === entry.customerKey,
-        );
-        return {
-          ...entry,
-          name: match?.order.customer,
-          email: match?.order.customerEmail,
-          confirmedCount: pickupReview.getConfirmedCount(entry.customerKey),
-        };
-      });
-  }, [joined, tick]);
+  const uncollectedCount = useMemo(
+    () => records.filter((r) => !r.releasedAt).length,
+    [records],
+  );
 
-  const applyFilters = (rows: JoinedIncident[]): JoinedIncident[] => {
-    let filtered = [...rows].sort(
-      (a, b) => b.order.submittedAt.getTime() - a.order.submittedAt.getTime(),
+  const filteredRecords = useMemo(() => {
+    let rows = [...records].sort(
+      (a, b) => b.deadlineAt.getTime() - a.deadlineAt.getTime(),
     );
     const q = search.trim().toLowerCase();
     if (q) {
-      filtered = filtered.filter((r) =>
-        `${r.order.customer} ${r.order.displayId ?? r.order.id} ${
-          r.order.customerEmail ?? ""
-        }`
+      rows = rows.filter((r) => {
+        const displayId = ordersById.get(r.orderId)?.displayId ?? r.orderId;
+        return `${r.customerName} ${r.customerEmail} ${displayId}`
           .toLowerCase()
-          .includes(q),
-      );
+          .includes(q);
+      });
     }
     if (dateFrom) {
       const from = new Date(`${dateFrom}T00:00:00`).getTime();
-      filtered = filtered.filter(
-        (r) => r.order.submittedAt.getTime() >= from,
-      );
+      rows = rows.filter((r) => r.deadlineAt.getTime() >= from);
     }
     if (dateTo) {
       const to = new Date(`${dateTo}T23:59:59.999`).getTime();
-      filtered = filtered.filter((r) => r.order.submittedAt.getTime() <= to);
+      rows = rows.filter((r) => r.deadlineAt.getTime() <= to);
     }
-    return filtered;
-  };
+    return rows;
+  }, [records, ordersById, search, dateFrom, dateTo]);
 
-  const tabCounts: Record<ReviewTab, number> = {
-    pending: pendingRows.length,
-    excuse: excuseRows.length,
-    confirmed: confirmedRows.length,
-    restrictions: restrictionRows.length,
-  };
+  const filteredCustomers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return restrictedSummaries;
+    return restrictedSummaries.filter((s) =>
+      `${s.name} ${s.email} ${s.customerKey}`.toLowerCase().includes(q),
+    );
+  }, [restrictedSummaries, search]);
 
-  const tableRows =
-    tab === "pending"
-      ? applyFilters(pendingRows)
-      : tab === "excuse"
-        ? applyFilters(excuseRows)
-        : tab === "confirmed"
-          ? applyFilters(confirmedRows)
-          : [];
-
-  const selectedRestriction = restrictionKey
-    ? pickupReview.getRestriction(restrictionKey)
-    : null;
-
-  const handleRemoveRestriction = () => {
-    if (!restrictionKey) return;
-    pickupReview.setRestriction(restrictionKey, {
-      active: false,
-      arrangement: selectedRestriction?.arrangement ?? null,
-      reason:
-        removeReason.trim() || "Restriction removed after payment settlement",
-      updatedBy: myName,
-    });
-    toast.info("Restriction removed (preview).", {
-      description: "Previous incidents stay in the history. Nothing was saved.",
-    });
-    setRemoveOpen(false);
-    setRemoveReason("");
-    setRestrictionKey(null);
-  };
-
-  const emptyCopy: Record<ReviewTab, { title: string; body: string }> = {
-    pending: {
-      title: "No incidents pending review",
-      body: "Orders flagged for review from Order Details will appear here for an Admin decision.",
-    },
-    excuse: {
-      title: "No excuse requests",
-      body: "Customer explanations submitted from Order Tracking will appear here for review.",
-    },
-    confirmed: {
-      title: "No confirmed unclaimed orders",
-      body: "Orders Admin has confirmed as unclaimed will be listed here.",
-    },
-    restrictions: {
-      title: "No active customer restrictions",
-      body: "When a second unclaimed order is confirmed and Admin sets an advance-payment arrangement, the restriction will show here.",
-    },
-  };
+  const historyUnavailable = orders.some((o) => o.statusHistoryUnavailable);
 
   return (
     <Layout menuItems={menuItems} title="Unclaimed Orders" showBackButton>
       <StaffTimeInGate>
         <div className="flex flex-col space-y-5">
-          {/* Intro + preview badge */}
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <p className="max-w-2xl text-sm text-slate-500">
-              Review overdue and unclaimed pickup orders, decide on customer
-              excuse requests, and manage payment restrictions.
-            </p>
-            <span className="inline-flex items-center gap-1 rounded-md bg-[#F2F7FF] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#1D73EC] ring-1 ring-[#1D73EC]/20">
-              <AlertTriangle className="h-3 w-3" />
-              Preview workflow
-            </span>
-          </div>
+          <p className="max-w-2xl text-sm text-slate-500">
+            Every order listed here was automatically recorded as unclaimed —
+            a Cash-on-Pickup order that passed its pickup deadline without being
+            collected. Counts are derived from real order status history, so they
+            can never drift or be edited.
+          </p>
 
-          {/* Summary cards */}
+          {!isClosingTimeConfigured(closingTime) && (
+            <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+              <span>
+                Unclaimed orders cannot be computed yet — set the shop closing
+                time in Admin → Landing Page → Shop Information. Until then no
+                order can pass a pickup deadline.
+              </span>
+            </div>
+          )}
+
+          {historyUnavailable && (
+            <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-500" />
+              <span>
+                Unclaimed-order information is unavailable right now — some order
+                status history could not be read, so this list may be incomplete.
+              </span>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <SummaryCard
-              label="Overdue for Pickup"
-              value={0}
-              icon={Clock}
-              iconBg="bg-[#FFF5D6]"
-              iconColor="text-[#B45309]"
-              subtitle="Pickup deadline not configured yet"
-            />
-            <SummaryCard
-              label="Excuse Requests"
-              value={excuseRows.length}
-              icon={MessageSquare}
-              iconBg="bg-[#FFF5D6]"
-              iconColor="text-[#B45309]"
-              active={tab === "excuse"}
-              onClick={() => setTab("excuse")}
-            />
-            <SummaryCard
-              label="Confirmed Unclaimed"
-              value={confirmedRows.length}
+              label="Unclaimed Orders"
+              value={records.length}
               icon={PackageX}
               iconBg="bg-[#FDE8E8]"
               iconColor="text-[#B91C1C]"
-              active={tab === "confirmed"}
-              onClick={() => setTab("confirmed")}
+            />
+            <SummaryCard
+              label="Overdue & Uncollected"
+              value={uncollectedCount}
+              icon={CalendarClock}
+              iconBg="bg-[#FFF5D6]"
+              iconColor="text-[#B45309]"
+            />
+            <SummaryCard
+              label="Customers Restricted"
+              value={restrictedSummaries.length}
+              icon={ShieldAlert}
+              iconBg="bg-[#FDE8E8]"
+              iconColor="text-[#B91C1C]"
             />
           </div>
 
-          {/* Tabs */}
-          <Card className="p-3 border border-slate-100 shadow-sm shrink-0">
-            <div className="flex flex-wrap items-center gap-1.5">
-              {(Object.keys(TAB_LABELS) as ReviewTab[]).map((key) => {
-                const active = tab === key;
-                return (
-                  <Button
-                    key={key}
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setTab(key)}
-                    className={
-                      active
-                        ? "h-8 rounded-lg border-2 border-[#2F6FD6] bg-[#2F6FD6] text-white hover:bg-[#2557b8] hover:text-white"
-                        : "h-8 rounded-lg border border-gray-200 bg-white text-slate-600 hover:bg-[#F2F7FF] hover:text-[#2F6FD6] hover:border-[#2F6FD6]"
-                    }
-                  >
-                    {TAB_LABELS[key]}
-                    <span
-                      className={`ml-1.5 rounded-full px-1.5 text-[11px] font-semibold ${
-                        active
-                          ? "bg-white/25 text-white"
-                          : "bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      {tabCounts[key]}
-                    </span>
-                  </Button>
-                );
-              })}
-            </div>
-            <p className="mt-1.5 text-[11px] text-gray-400">
-              Incidents appear here after they are flagged or reviewed from an
-              order&apos;s details. Pickup deadlines, valid excuses, and the
-              restriction duration are still pending client approval.
-            </p>
-          </Card>
-
-          {/* Filters */}
           <Card className="p-4 border border-slate-100 shadow-sm shrink-0">
             <div className="flex flex-col lg:flex-row lg:items-end gap-4">
               <div className="flex-1 min-w-[200px]">
@@ -402,126 +238,30 @@ export default function UnclaimedOrders({
                 className="w-full lg:w-[21rem]"
               />
             </div>
+            <p className="mt-2 text-xs text-gray-400">
+              Date range filters by the day an order became unclaimed (its missed
+              pickup deadline).
+            </p>
           </Card>
 
-          {/* Table */}
-          <Card className="overflow-hidden">
-            <div className="overflow-x-auto">
-              {tab === "restrictions" ? (
+          {/* Unclaimed orders history */}
+          <div className="space-y-2">
+            <h2 className="text-sm font-semibold text-[#10316B]">
+              Unclaimed Order History
+            </h2>
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-[#F2F7FF] border-b border-[#1D73EC]/10">
                     <tr>
                       {[
                         "Customer",
-                        "Confirmed Orders",
-                        "Restriction",
-                        "Reason",
-                        "Updated",
-                        "Action",
-                      ].map((h) => (
-                        <th
-                          key={h}
-                          className="px-4 py-3 text-left text-xs font-semibold text-[#10316B] uppercase tracking-wider"
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white">
-                    {restrictionRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-14">
-                          <div className="flex flex-col items-center text-center">
-                            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#1D73EC] ring-1 ring-[#1D73EC]/15">
-                              <ShieldAlert className="h-6 w-6" />
-                            </span>
-                            <p className="mt-3 text-sm font-semibold text-gray-800">
-                              {emptyCopy.restrictions.title}
-                            </p>
-                            <p className="mt-1 max-w-md text-xs text-gray-500">
-                              {emptyCopy.restrictions.body}
-                            </p>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : (
-                      restrictionRows.map((row) => (
-                        <tr
-                          key={row.customerKey}
-                          className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors cursor-pointer"
-                          onClick={() => setRestrictionKey(row.customerKey)}
-                        >
-                          <td className="px-4 py-3">
-                            <div className="text-sm font-semibold text-gray-900">
-                              {row.name || row.customerKey}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {row.email || row.customerKey}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge
-                              variant="outline"
-                              className="text-xs font-semibold bg-[#FDE8E8] text-[#B91C1C] border-[#DC2626]/40"
-                            >
-                              {row.confirmedCount} confirmed
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3">
-                            {row.restriction.arrangement ? (
-                              <span className="text-sm font-medium text-amber-700">
-                                {PAYMENT_ARRANGEMENT_LABELS[
-                                  row.restriction.arrangement
-                                ]}
-                              </span>
-                            ) : (
-                              <span className="text-sm text-gray-400">
-                                None set
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 max-w-[16rem]">
-                            <span className="text-sm text-gray-600">
-                              {row.restriction.reason || "—"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="text-xs text-gray-500">
-                              {row.restriction.updatedAt
-                                ? formatPHDateTime(row.restriction.updatedAt)
-                                : "—"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setRestrictionKey(row.customerKey);
-                              }}
-                              className="h-8 bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
-                            >
-                              <Eye className="h-3.5 w-3.5 mr-1.5" />
-                              View
-                            </Button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              ) : (
-                <table className="w-full">
-                  <thead className="bg-[#F2F7FF] border-b border-[#1D73EC]/10">
-                    <tr>
-                      {[
-                        "Customer",
+                        "Order ID",
                         "Order Status",
-                        "Incident Status",
                         "Payment & Balance",
-                        "Last Update",
+                        "Ready for Pickup",
+                        "Unclaimed On",
+                        "Collected",
                         "Action",
                       ].map((h) => (
                         <th
@@ -534,94 +274,109 @@ export default function UnclaimedOrders({
                     </tr>
                   </thead>
                   <tbody className="bg-white">
-                    {tableRows.length === 0 ? (
+                    {filteredRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-4 py-14">
+                        <td colSpan={8} className="px-4 py-14">
                           <div className="flex flex-col items-center text-center">
                             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#1D73EC] ring-1 ring-[#1D73EC]/15">
                               <ClipboardList className="h-6 w-6" />
                             </span>
                             <p className="mt-3 text-sm font-semibold text-gray-800">
-                              {emptyCopy[tab].title}
+                              No unclaimed orders
                             </p>
                             <p className="mt-1 max-w-md text-xs text-gray-500">
-                              {emptyCopy[tab].body}
+                              A Cash-on-Pickup order appears here once it passes
+                              its pickup deadline without being collected.
                             </p>
                           </div>
                         </td>
                       </tr>
                     ) : (
-                      tableRows.map(({ order, incident }) => {
-                        const payment = computeOrderPayment(
-                          order,
-                          order.manualTotal ?? 0,
-                        );
-                        const status: IncidentReviewStatus =
-                          incident.status ?? "not_reviewed";
-                        const updated = incident.reviewedAt
-                          ? new Date(incident.reviewedAt)
-                          : order.statusUpdatedAt ?? order.submittedAt;
+                      filteredRecords.map((record) => {
+                        const order = ordersById.get(record.orderId);
+                        const payment = order
+                          ? computeOrderPayment(order, order.manualTotal ?? 0)
+                          : null;
                         return (
                           <tr
-                            key={order.id}
+                            key={record.orderId}
                             className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors cursor-pointer"
-                            onClick={() => setSelected({ order, incident })}
+                            onClick={() => setSelectedRecord(record)}
                           >
                             <td className="px-4 py-3">
                               <div className="text-sm font-semibold text-gray-900">
-                                {order.customer}
+                                {record.customerName}
                               </div>
-                              <div className="font-mono text-xs text-gray-500">
-                                {order.displayId ?? order.id}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <Badge
-                                variant="outline"
-                                className={`text-xs font-medium ${getStatusBadgeClasses(
-                                  order.status,
-                                )}`}
-                              >
-                                {statusLabel(order.status)}
-                              </Badge>
-                            </td>
-                            <td className="px-4 py-3">
-                              <Badge
-                                variant="outline"
-                                className={`text-xs font-semibold ${incidentBadgeClasses(
-                                  status,
-                                )}`}
-                              >
-                                {INCIDENT_STATUS_LABELS[status]}
-                              </Badge>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="text-sm font-semibold text-gray-900">
-                                {formatCurrency(payment.total)}
-                              </div>
-                              <div
-                                className={`text-xs ${
-                                  payment.remaining > 0
-                                    ? "text-amber-700"
-                                    : "text-gray-500"
-                                }`}
-                              >
-                                {payment.remaining > 0
-                                  ? `Balance ${formatCurrency(payment.remaining)}`
-                                  : "Fully paid"}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
                               <div className="text-xs text-gray-500">
-                                {order.statusUpdatedAt
-                                  ? formatPHDate(order.statusUpdatedAt)
-                                  : formatPHDate(order.submittedAt)}
+                                {record.customerEmail || "—"}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="font-mono text-xs text-gray-700">
+                                {order?.displayId ?? record.orderId}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              {order ? (
+                                <Badge
+                                  variant="outline"
+                                  className={`text-xs font-medium ${getStatusBadgeClasses(
+                                    order.status,
+                                  )}`}
+                                >
+                                  {statusLabel(order.status)}
+                                </Badge>
+                              ) : (
+                                <span className="text-xs text-gray-400">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {payment ? (
+                                <>
+                                  <div className="text-sm font-semibold text-gray-900">
+                                    {formatCurrency(payment.total)}
+                                  </div>
+                                  <div
+                                    className={`text-xs ${
+                                      payment.remaining > 0
+                                        ? "text-amber-700"
+                                        : "text-gray-500"
+                                    }`}
+                                  >
+                                    {payment.remaining > 0
+                                      ? `Balance ${formatCurrency(payment.remaining)}`
+                                      : "Fully paid"}
+                                  </div>
+                                </>
+                              ) : (
+                                <span className="text-xs text-gray-400">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="text-xs text-gray-700">
+                                {formatPHDate(record.readyAt)}
                               </div>
                               <div className="text-xs text-gray-400">
-                                {order.statusUpdatedAt
-                                  ? formatPHTime(order.statusUpdatedAt)
-                                  : formatPHTime(order.submittedAt)}
+                                {formatPHTime(record.readyAt)}
                               </div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="text-xs font-medium text-red-700">
+                                {formatPHDateTime(record.deadlineAt)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              {record.releasedAt ? (
+                                <span className="inline-flex items-center gap-1.5 text-xs text-gray-600">
+                                  <Undo2 className="h-3.5 w-3.5 text-gray-400" />
+                                  {formatPHDate(record.releasedAt)}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-700">
+                                  <CircleSlash className="h-3.5 w-3.5" />
+                                  Not collected
+                                </span>
+                              )}
                             </td>
                             <td className="px-4 py-3">
                               <Button
@@ -629,7 +384,7 @@ export default function UnclaimedOrders({
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setSelected({ order, incident });
+                                  setSelectedRecord(record);
                                 }}
                                 className="h-8 bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
                               >
@@ -643,201 +398,310 @@ export default function UnclaimedOrders({
                     )}
                   </tbody>
                 </table>
-              )}
-            </div>
-          </Card>
+              </div>
+            </Card>
+          </div>
 
-          {!isAdmin && (
-            <p className="flex items-center gap-1.5 text-xs text-gray-500">
-              <Lock className="h-3.5 w-3.5" />
-              Final incident decisions are made by Admin. Staff can flag orders
-              and add notes for review.
-            </p>
-          )}
+          {/* Customer restrictions */}
+          <div className="space-y-2">
+            <h2 className="text-sm font-semibold text-[#10316B]">
+              Customer Restrictions
+            </h2>
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-[#F2F7FF] border-b border-[#1D73EC]/10">
+                    <tr>
+                      {[
+                        "Customer",
+                        "Unclaimed Orders",
+                        "Restriction",
+                        "What's Required",
+                        "Action",
+                      ].map((h) => (
+                        <th
+                          key={h}
+                          className="px-4 py-3 text-left text-xs font-semibold text-[#10316B] uppercase tracking-wider"
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white">
+                    {filteredCustomers.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-14">
+                          <div className="flex flex-col items-center text-center">
+                            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#1D73EC] ring-1 ring-[#1D73EC]/15">
+                              <ShieldAlert className="h-6 w-6" />
+                            </span>
+                            <p className="mt-3 text-sm font-semibold text-gray-800">
+                              No restricted customers
+                            </p>
+                            <p className="mt-1 max-w-md text-xs text-gray-500">
+                              A restriction applies automatically from a
+                              customer&apos;s second unclaimed order.
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredCustomers.map((summary) => (
+                        <tr
+                          key={summary.customerKey}
+                          className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors cursor-pointer"
+                          onClick={() => setSelectedCustomer(summary)}
+                        >
+                          <td className="px-4 py-3">
+                            <div className="text-sm font-semibold text-gray-900">
+                              {summary.name || summary.customerKey}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {summary.email || summary.customerKey}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge
+                              variant="outline"
+                              className="text-xs font-semibold bg-[#FDE8E8] text-[#B91C1C] border-[#DC2626]/40"
+                            >
+                              {summary.count} unclaimed
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge
+                              variant="outline"
+                              className={`text-xs font-semibold ${policyBadgeClasses(
+                                summary.policy.level,
+                              )}`}
+                            >
+                              {summary.policy.label}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3 max-w-[22rem]">
+                            <span className="text-sm text-gray-600">
+                              {summary.policy.summary}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedCustomer(summary);
+                              }}
+                              className="h-8 bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
+                            >
+                              <Eye className="h-3.5 w-3.5 mr-1.5" />
+                              View
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
 
           <p className="text-xs text-gray-400">
-            <strong>Design preview.</strong> The pickup window, valid excuses,
-            and penalty/advance-payment rules are still awaiting client
-            approval, so nothing on this page applies a real penalty,
-            restriction, or notification.
+            Restrictions are derived automatically from each customer&apos;s
+            unclaimed-order count and cannot be overridden here.
           </p>
         </div>
       </StaffTimeInGate>
 
-      {/* Order details + pickup review */}
+      {/* Unclaimed order details */}
       <Dialog
-        open={!!selected}
+        open={!!selectedRecord}
         onOpenChange={(open) => {
-          if (!open) setSelected(null);
+          if (!open) setSelectedRecord(null);
         }}
       >
-        <DialogContent className="sm:max-w-[1100px] max-h-[90vh] overflow-y-auto p-[26px]">
-          {selected && (
+        <DialogContent className="sm:max-w-[680px] max-h-[90vh] overflow-y-auto p-[26px]">
+          {selectedRecord && (
             <>
               <DialogHeader className="border-b border-gray-100 pb-4">
                 <div className="flex flex-wrap items-start justify-between gap-3 pr-8">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <DialogTitle className="text-[22px] font-bold text-[#10316B]">
-                        {selected.order.customer}
+                        {selectedRecord.customerName}
                       </DialogTitle>
                       <span className="font-mono text-sm text-gray-500">
-                        {selected.order.displayId ?? selected.order.id}
+                        {ordersById.get(selectedRecord.orderId)?.displayId ??
+                          selectedRecord.orderId}
                       </span>
                     </div>
                     <DialogDescription className="mt-1 text-sm text-gray-500">
-                      Submitted on {formatPHDate(selected.order.submittedAt)} ·{" "}
-                      {formatPHTime(selected.order.submittedAt)}
+                      {selectedRecord.customerEmail || "No email on file"}
                     </DialogDescription>
                   </div>
-                  <Badge
-                    variant="outline"
-                    className={`text-xs font-medium ${getStatusBadgeClasses(
-                      selected.order.status,
-                    )}`}
-                  >
-                    {statusLabel(selected.order.status)}
-                  </Badge>
+                  {ordersById.get(selectedRecord.orderId) && (
+                    <Badge
+                      variant="outline"
+                      className={`text-xs font-medium ${getStatusBadgeClasses(
+                        ordersById.get(selectedRecord.orderId)!.status,
+                      )}`}
+                    >
+                      {statusLabel(
+                        ordersById.get(selectedRecord.orderId)!.status,
+                      )}
+                    </Badge>
+                  )}
                 </div>
               </DialogHeader>
 
-              <OrderPickupReview
-                order={selected.order}
-                fallbackTotal={selected.order.manualTotal ?? 0}
-                reviewerName={myName}
-                role={userRole}
-                customerKey={
-                  selected.order.customerEmail || selected.order.customer
-                }
-              />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Ready for Pickup
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900">
+                    {formatPHDate(selectedRecord.readyAt)} ·{" "}
+                    {formatPHTime(selectedRecord.readyAt)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
+                    Pickup Deadline
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-red-800">
+                    {formatPHDateTime(selectedRecord.deadlineAt)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Collected
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900">
+                    {selectedRecord.releasedAt
+                      ? `${formatPHDate(selectedRecord.releasedAt)} · ${formatPHTime(
+                          selectedRecord.releasedAt,
+                        )}`
+                      : "Not collected"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Order Total
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900">
+                    {selectedRecord.orderTotal != null
+                      ? formatCurrency(selectedRecord.orderTotal)
+                      : "—"}
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-500">
+                This order was recorded as unclaimed because it was not collected
+                by its pickup deadline. The record stays even if the order is
+                collected later.
+              </p>
             </>
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Restriction detail + remove (Admin only) */}
+      {/* Customer restriction details */}
       <Dialog
-        open={!!restrictionKey && !removeOpen}
+        open={!!selectedCustomer}
         onOpenChange={(open) => {
-          if (!open) setRestrictionKey(null);
+          if (!open) setSelectedCustomer(null);
         }}
       >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-[#10316B]">
-              Customer Restriction
-            </DialogTitle>
-            <DialogDescription>
-              Advance-payment arrangement applied after repeated confirmed
-              unclaimed orders (preview). Duration and removal rules are pending
-              client approval.
-            </DialogDescription>
-          </DialogHeader>
-          {selectedRestriction && (
-            <div className="space-y-3 py-1">
+        <DialogContent className="sm:max-w-[620px] max-h-[90vh] overflow-y-auto p-[26px]">
+          {selectedCustomer && (
+            <>
+              <DialogHeader className="border-b border-gray-100 pb-4">
+                <DialogTitle className="text-[22px] font-bold text-[#10316B]">
+                  {selectedCustomer.name || selectedCustomer.customerKey}
+                </DialogTitle>
+                <DialogDescription className="mt-1 text-sm text-gray-500">
+                  {selectedCustomer.email || selectedCustomer.customerKey}
+                </DialogDescription>
+              </DialogHeader>
+
               <div className="flex flex-wrap items-center gap-2">
                 <Badge
                   variant="outline"
-                  className="text-xs font-semibold bg-[#FFF5D6] text-[#92400E] border-[#F59E0B]/40"
+                  className="text-xs font-semibold bg-[#FDE8E8] text-[#B91C1C] border-[#DC2626]/40"
                 >
-                  {selectedRestriction.active ? "Active" : "Removed"}
+                  {selectedCustomer.count} unclaimed
                 </Badge>
-                {selectedRestriction.arrangement && (
-                  <span className="text-sm font-medium text-amber-700">
-                    {PAYMENT_ARRANGEMENT_LABELS[
-                      selectedRestriction.arrangement
-                    ]}
-                  </span>
-                )}
+                <Badge
+                  variant="outline"
+                  className={`text-xs font-semibold ${policyBadgeClasses(
+                    selectedCustomer.policy.level,
+                  )}`}
+                >
+                  {selectedCustomer.policy.label}
+                </Badge>
               </div>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
-                {selectedRestriction.reason || "No reason recorded."}
-              </div>
-              <p className="text-xs text-gray-500">
-                {selectedRestriction.updatedAt
-                  ? `Updated ${
-                      selectedRestriction.updatedBy
-                        ? `${selectedRestriction.updatedBy} · `
-                        : ""
-                    }${formatPHDateTime(selectedRestriction.updatedAt)}`
-                  : ""}
-              </p>
-            </div>
-          )}
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setRestrictionKey(null)}
-              className="bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200"
-            >
-              Close
-            </Button>
-            {isAdmin && selectedRestriction?.active && (
-              <Button
-                onClick={() => setRemoveOpen(true)}
-                className="bg-red-600 text-white hover:bg-red-700"
-              >
-                <Trash2 className="h-4 w-4 mr-1.5" />
-                Remove Restriction
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
-      {/* Remove restriction confirm (Admin only, reason required) */}
-      <Dialog
-        open={removeOpen}
-        onOpenChange={(open) => {
-          setRemoveOpen(open);
-          if (!open) setRemoveReason("");
-        }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <div className="mb-2 flex items-center gap-3">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-50 ring-1 ring-red-200">
-                <Trash2 className="h-5 w-5 text-red-500" />
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                {selectedCustomer.policy.summary}
               </div>
-              <DialogTitle className="text-xl text-[#10316B]">
-                Remove Restriction?
-              </DialogTitle>
-            </div>
-            <DialogDescription>
-              The proposed policy requires the outstanding payment to be settled
-              first. Previous incidents stay in the history after removal. Only
-              Admin may remove a restriction.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2 py-2">
-            <Label htmlFor="urRemoveReason">Reason *</Label>
-            <Textarea
-              id="urRemoveReason"
-              rows={2}
-              value={removeReason}
-              onChange={(e) => setRemoveReason(e.target.value)}
-              placeholder="e.g. Outstanding balance settled in full at the shop."
-            />
-          </div>
-          <div className="rounded-lg border border-[#1D73EC]/20 bg-[#F2F7FF] p-3 text-sm text-[#10316B]">
-            Preview only — real customer eligibility is unchanged.
-          </div>
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setRemoveOpen(false)}
-              className="bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200"
-            >
-              Go Back
-            </Button>
-            <Button
-              onClick={handleRemoveRestriction}
-              disabled={!removeReason.trim()}
-              className="bg-red-600 text-white hover:bg-red-700"
-            >
-              Remove Restriction
-            </Button>
-          </DialogFooter>
+
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Unclaimed Orders ({selectedCustomer.records.length})
+                </p>
+                <div className="overflow-hidden rounded-xl border border-slate-200">
+                  <table className="w-full">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        {["Order ID", "Ready", "Missed Deadline", "Collected"].map(
+                          (h) => (
+                            <th
+                              key={h}
+                              className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500"
+                            >
+                              {h}
+                            </th>
+                          ),
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white">
+                      {selectedCustomer.records
+                        .slice()
+                        .sort(
+                          (a, b) =>
+                            b.deadlineAt.getTime() - a.deadlineAt.getTime(),
+                        )
+                        .map((record) => (
+                          <tr
+                            key={record.orderId}
+                            className="border-t border-slate-100"
+                          >
+                            <td className="px-3 py-2 font-mono text-xs text-gray-700">
+                              {ordersById.get(record.orderId)?.displayId ??
+                                record.orderId}
+                            </td>
+                            <td className="px-3 py-2 text-xs text-gray-600">
+                              {formatPHDate(record.readyAt)}
+                            </td>
+                            <td className="px-3 py-2 text-xs font-medium text-red-700">
+                              {formatPHDate(record.deadlineAt)}
+                            </td>
+                            <td className="px-3 py-2 text-xs text-gray-600">
+                              {record.releasedAt
+                                ? formatPHDate(record.releasedAt)
+                                : "Not collected"}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </Layout>

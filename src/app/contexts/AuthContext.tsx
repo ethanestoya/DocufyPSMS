@@ -290,6 +290,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     void refreshAllStores();
 
+    toast.success("Logged in successfully.");
+
     return { success: true };
   };
 

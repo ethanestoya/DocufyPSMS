@@ -10,14 +10,18 @@
 // surfaces can show an "information unavailable" notice instead of implying
 // the customer has zero offenses.
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { dataStore, type Order } from "./dataStore";
+import { ordersStore } from "./ordersStore";
 import { landingContentStore } from "./landingContentStore";
 import {
+  deriveUnclaimedRecords,
   findCustomerSummary,
+  getCustomerSummaries,
   isHistoryUnavailable,
   toUnclaimedOrderLikes,
   type CustomerUnclaimedSummary,
+  type UnclaimedRecord,
 } from "./unclaimedOrders";
 import { paymentPolicyForCount, type PaymentPolicy } from "./unclaimedPolicy";
 
@@ -92,4 +96,89 @@ export function useShopClosingTime(): string {
     return landingContentStore.subscribe(sync);
   }, []);
   return closingTime;
+}
+
+/** A single order row as returned by `ordersStore`. */
+export type UnclaimedAdminOrder = ReturnType<typeof ordersStore.getOrders>[number];
+
+export interface UnclaimedAdminData {
+  orders: UnclaimedAdminOrder[];
+  records: UnclaimedRecord[];
+  summaries: CustomerUnclaimedSummary[];
+  ordersById: Map<string, UnclaimedAdminOrder>;
+  /** Records still not collected (no `releasedAt`) — the current offenses. */
+  uncollectedRecords: UnclaimedRecord[];
+  /** Records collected AFTER their deadline — the late-pickup history. */
+  latePickups: UnclaimedRecord[];
+  uncollectedCount: number;
+  restrictedSummaries: CustomerUnclaimedSummary[];
+  closingTime: string;
+  historyUnavailable: boolean;
+}
+
+/**
+ * Shared derivation for the admin/staff Unclaimed Orders pages. Derives the
+ * unclaimed records, per-customer summaries, restricted customers, and the
+ * closing time from the live orders store + landing content, so the hub and
+ * its detail pages always agree. Nothing is stored.
+ */
+export function useUnclaimedAdminData(): UnclaimedAdminData {
+  const closingTime = useShopClosingTime();
+  const [orders, setOrders] = useState<UnclaimedAdminOrder[]>(() =>
+    ordersStore.getOrders(),
+  );
+
+  useEffect(() => {
+    const sync = () => setOrders(ordersStore.getOrders());
+    sync();
+    return ordersStore.subscribe(sync);
+  }, []);
+
+  const likes = useMemo(() => toUnclaimedOrderLikes(orders), [orders]);
+  const records = useMemo(
+    () => deriveUnclaimedRecords(likes, closingTime),
+    [likes, closingTime],
+  );
+  const summaries = useMemo(
+    () => getCustomerSummaries(likes, closingTime),
+    [likes, closingTime],
+  );
+
+  const ordersById = useMemo(() => {
+    const map = new Map<string, UnclaimedAdminOrder>();
+    orders.forEach((o) => map.set(o.id, o));
+    return map;
+  }, [orders]);
+
+  const restrictedSummaries = useMemo(
+    () => summaries.filter((s) => s.policy.cashOnPickupDisabled),
+    [summaries],
+  );
+
+  const uncollectedRecords = useMemo(
+    () => records.filter((r) => !r.releasedAt),
+    [records],
+  );
+
+  const latePickups = useMemo(
+    () => records.filter((r) => !!r.releasedAt),
+    [records],
+  );
+
+  const uncollectedCount = uncollectedRecords.length;
+
+  const historyUnavailable = orders.some((o) => o.statusHistoryUnavailable);
+
+  return {
+    orders,
+    records,
+    summaries,
+    ordersById,
+    uncollectedRecords,
+    latePickups,
+    uncollectedCount,
+    restrictedSummaries,
+    closingTime,
+    historyUnavailable,
+  };
 }

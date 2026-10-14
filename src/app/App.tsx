@@ -16,6 +16,8 @@ import DownPaymentMethod from './components/customer/DownPaymentMethod';
 import StaffOrdersUnified from './components/staff/StaffOrdersUnified';
 import StaffPickupMonitoring from './components/staff/StaffPickupMonitoring';
 import StaffUnclaimedOrders from './components/staff/StaffUnclaimedOrders';
+import StaffUnclaimedOrderHistory from './components/staff/StaffUnclaimedOrderHistory';
+import StaffUnclaimedRestrictions from './components/staff/StaffUnclaimedRestrictions';
 import WalkInTransactions from './components/staff/WalkInTransactions';
 import StaffDashboard from './components/staff/StaffDashboard';
 import StaffProfile from './components/staff/StaffProfile';
@@ -27,6 +29,8 @@ import AdminPaymentVerificationUnified from './components/admin/AdminPaymentVeri
 import AdminOrdersUnified from './components/admin/AdminOrdersUnified';
 import AdminPickupMonitoring from './components/admin/AdminPickupMonitoring';
 import AdminUnclaimedOrders from './components/admin/AdminUnclaimedOrders';
+import AdminUnclaimedOrderHistory from './components/admin/AdminUnclaimedOrderHistory';
+import AdminUnclaimedRestrictions from './components/admin/AdminUnclaimedRestrictions';
 import Staff from './components/admin/Staff';
 import InventoryManagement from './components/admin/InventoryManagement';
 import PaymentMethodsManagement from './components/admin/PaymentMethodsManagement';
@@ -182,6 +186,14 @@ const router = createBrowserRouter([
         element: <ProtectedRoute role="staff"><StaffUnclaimedOrders /></ProtectedRoute>,
       },
       {
+        path: 'queue/unclaimed/history',
+        element: <ProtectedRoute role="staff"><StaffUnclaimedOrderHistory /></ProtectedRoute>,
+      },
+      {
+        path: 'queue/unclaimed/restrictions',
+        element: <ProtectedRoute role="staff"><StaffUnclaimedRestrictions /></ProtectedRoute>,
+      },
+      {
         path: 'orders',
         element: <Navigate to="/staff/queue" replace />,
       },
@@ -258,6 +270,14 @@ const router = createBrowserRouter([
       {
         path: 'orders/unclaimed',
         element: <ProtectedRoute role="admin"><AdminUnclaimedOrders /></ProtectedRoute>,
+      },
+      {
+        path: 'orders/unclaimed/history',
+        element: <ProtectedRoute role="admin"><AdminUnclaimedOrderHistory /></ProtectedRoute>,
+      },
+      {
+        path: 'orders/unclaimed/restrictions',
+        element: <ProtectedRoute role="admin"><AdminUnclaimedRestrictions /></ProtectedRoute>,
       },
       {
         path: 'inventory',

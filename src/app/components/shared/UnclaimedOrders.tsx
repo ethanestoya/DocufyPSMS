@@ -1,25 +1,28 @@
-// "Unclaimed Orders" — Admin/Staff workspace listing every automatically
-// DERIVED unclaimed-order record and the resulting per-customer payment
-// restrictions.
+// "Unclaimed Orders" — Admin/Staff page for the automatically DERIVED
+// unclaimed-order records. It shows a small card row (counts + links to the
+// Unclaimed Order History and Customer Restrictions pages, which are reached
+// ONLY from here, never the sidebar) and a table of the CURRENT offenses —
+// Cash-on-Pickup orders that passed their pickup deadline and have NOT yet
+// been collected. Orders that were eventually collected (late) move to the
+// Unclaimed Order History page.
 //
-// There is no manual review, excuse, or confirm workflow here: a record exists
-// only when the real order + status-history timeline proves a Cash-on-Pickup
-// order passed its pickup deadline (the shop's configured closing time) without
-// being collected. Counts are always derived, never stored, and the page is
-// display-only — nothing is enforced or written.
+// There is no manual review, excuse, or confirm workflow: a record exists only
+// when the real order + status-history timeline proves a Cash-on-Pickup order
+// passed its pickup deadline (the shop's configured closing time) without being
+// collected on time. Counts are always derived, never stored — nothing is
+// enforced or written.
 
 import React, { useEffect, useMemo, useState } from "react";
 import {
   PackageX,
-  CalendarClock,
-  Search,
-  Eye,
   ShieldAlert,
   ClipboardList,
+  Search,
+  Eye,
   AlertTriangle,
-  Undo2,
   CircleSlash,
 } from "lucide-react";
+import { useNavigate } from "react-router";
 import Layout from "../Layout";
 import StaffTimeInGate from "./StaffTimeInGate";
 import { ordersStore } from "../../utils/ordersStore";
@@ -42,14 +45,10 @@ import { formatCurrency } from "../../utils/formatNumber";
 import { getStatusBadgeClasses } from "../../utils/orderStatusPalette";
 import { computeOrderPayment } from "./OrderPaymentSummary";
 import {
-  deriveUnclaimedRecords,
-  getCustomerSummaries,
   isClosingTimeConfigured,
-  toUnclaimedOrderLikes,
-  type CustomerUnclaimedSummary,
   type UnclaimedRecord,
 } from "../../utils/unclaimedOrders";
-import { useShopClosingTime } from "../../utils/useUnclaimedOffenses";
+import { useUnclaimedAdminData } from "../../utils/useUnclaimedOffenses";
 
 type OrderRow = ReturnType<typeof ordersStore.getOrders>[number];
 
@@ -69,59 +68,33 @@ const STATUS_LABELS: Record<string, string> = {
 
 const statusLabel = (status: string) => STATUS_LABELS[status] ?? status;
 
-function policyBadgeClasses(level: number): string {
-  if (level >= 3) return "bg-[#FDE8E8] text-[#B91C1C] border-[#DC2626]/40";
-  if (level === 2) return "bg-[#FFF5D6] text-[#92400E] border-[#F59E0B]/40";
-  return "bg-slate-100 text-slate-600 border-slate-200";
-}
-
 export default function UnclaimedOrders({
   menuItems,
+  userRole,
 }: UnclaimedOrdersProps) {
-  const closingTime = useShopClosingTime();
+  const navigate = useNavigate();
+  const {
+    closingTime,
+    uncollectedRecords,
+    uncollectedCount,
+    latePickups,
+    restrictedSummaries,
+    ordersById,
+    historyUnavailable,
+  } = useUnclaimedAdminData();
 
-  const [orders, setOrders] = useState<OrderRow[]>(() => ordersStore.getOrders());
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [selectedRecord, setSelectedRecord] = useState<UnclaimedRecord | null>(null);
-  const [selectedCustomer, setSelectedCustomer] =
-    useState<CustomerUnclaimedSummary | null>(null);
-
-  useEffect(() => {
-    const sync = () => setOrders(ordersStore.getOrders());
-    sync();
-    return ordersStore.subscribe(sync);
-  }, []);
-
-  const likes = useMemo(() => toUnclaimedOrderLikes(orders), [orders]);
-  const records = useMemo(
-    () => deriveUnclaimedRecords(likes, closingTime),
-    [likes, closingTime],
-  );
-  const summaries = useMemo(
-    () => getCustomerSummaries(likes, closingTime),
-    [likes, closingTime],
+  const [selectedRecord, setSelectedRecord] = useState<UnclaimedRecord | null>(
+    null,
   );
 
-  const ordersById = useMemo(() => {
-    const map = new Map<string, OrderRow>();
-    orders.forEach((o) => map.set(o.id, o));
-    return map;
-  }, [orders]);
-
-  const restrictedSummaries = useMemo(
-    () => summaries.filter((s) => s.policy.cashOnPickupDisabled),
-    [summaries],
-  );
-
-  const uncollectedCount = useMemo(
-    () => records.filter((r) => !r.releasedAt).length,
-    [records],
-  );
+  const base =
+    userRole === "admin" ? "/admin/orders/unclaimed" : "/staff/queue/unclaimed";
 
   const filteredRecords = useMemo(() => {
-    let rows = [...records].sort(
+    let rows = [...uncollectedRecords].sort(
       (a, b) => b.deadlineAt.getTime() - a.deadlineAt.getTime(),
     );
     const q = search.trim().toLowerCase();
@@ -142,17 +115,7 @@ export default function UnclaimedOrders({
       rows = rows.filter((r) => r.deadlineAt.getTime() <= to);
     }
     return rows;
-  }, [records, ordersById, search, dateFrom, dateTo]);
-
-  const filteredCustomers = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return restrictedSummaries;
-    return restrictedSummaries.filter((s) =>
-      `${s.name} ${s.email} ${s.customerKey}`.toLowerCase().includes(q),
-    );
-  }, [restrictedSummaries, search]);
-
-  const historyUnavailable = orders.some((o) => o.statusHistoryUnavailable);
+  }, [uncollectedRecords, ordersById, search, dateFrom, dateTo]);
 
   return (
     <Layout menuItems={menuItems} title="Unclaimed Orders" showBackButton>
@@ -161,8 +124,9 @@ export default function UnclaimedOrders({
           <p className="max-w-2xl text-sm text-slate-500">
             Every order listed here was automatically recorded as unclaimed —
             a Cash-on-Pickup order that passed its pickup deadline without being
-            collected. Counts are derived from real order status history, so they
-            can never drift or be edited.
+            collected. Orders collected late are kept on the Late Pick-up History
+            page. Counts are derived from real order status history, so
+            they can never drift or be edited.
           </p>
 
           {!isClosingTimeConfigured(closingTime) && (
@@ -181,25 +145,27 @@ export default function UnclaimedOrders({
               <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-500" />
               <span>
                 Unclaimed-order information is unavailable right now — some order
-                status history could not be read, so this list may be incomplete.
+                status history could not be read, so these counts may be
+                incomplete.
               </span>
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <SummaryCard
               label="Unclaimed Orders"
-              value={records.length}
+              value={uncollectedCount}
               icon={PackageX}
               iconBg="bg-[#FDE8E8]"
               iconColor="text-[#B91C1C]"
             />
             <SummaryCard
-              label="Overdue & Uncollected"
-              value={uncollectedCount}
-              icon={CalendarClock}
-              iconBg="bg-[#FFF5D6]"
-              iconColor="text-[#B45309]"
+              label="Late Pick-up History"
+              value={latePickups.length}
+              icon={ClipboardList}
+              iconBg="bg-[#EAF3FF]"
+              iconColor="text-[#2F6FD6]"
+              onClick={() => navigate(`${base}/history`)}
             />
             <SummaryCard
               label="Customers Restricted"
@@ -207,6 +173,7 @@ export default function UnclaimedOrders({
               icon={ShieldAlert}
               iconBg="bg-[#FDE8E8]"
               iconColor="text-[#B91C1C]"
+              onClick={() => navigate(`${base}/restrictions`)}
             />
           </div>
 
@@ -244,10 +211,9 @@ export default function UnclaimedOrders({
             </p>
           </Card>
 
-          {/* Unclaimed orders history */}
           <div className="space-y-2">
             <h2 className="text-sm font-semibold text-[#10316B]">
-              Unclaimed Order History
+              Unclaimed Orders
             </h2>
             <Card className="overflow-hidden">
               <div className="overflow-x-auto">
@@ -260,8 +226,7 @@ export default function UnclaimedOrders({
                         "Order Status",
                         "Payment & Balance",
                         "Ready for Pickup",
-                        "Unclaimed On",
-                        "Collected",
+                        "Pickup Deadline",
                         "Action",
                       ].map((h) => (
                         <th
@@ -276,13 +241,13 @@ export default function UnclaimedOrders({
                   <tbody className="bg-white">
                     {filteredRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-4 py-14">
+                        <td colSpan={7} className="px-4 py-14">
                           <div className="flex flex-col items-center text-center">
                             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#1D73EC] ring-1 ring-[#1D73EC]/15">
                               <ClipboardList className="h-6 w-6" />
                             </span>
                             <p className="mt-3 text-sm font-semibold text-gray-800">
-                              No unclaimed orders
+                              No orders are currently unclaimed
                             </p>
                             <p className="mt-1 max-w-md text-xs text-gray-500">
                               A Cash-on-Pickup order appears here once it passes
@@ -361,22 +326,10 @@ export default function UnclaimedOrders({
                               </div>
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
-                              <span className="text-xs font-medium text-red-700">
+                              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-700">
+                                <CircleSlash className="h-3.5 w-3.5" />
                                 {formatPHDateTime(record.deadlineAt)}
                               </span>
-                            </td>
-                            <td className="px-4 py-3">
-                              {record.releasedAt ? (
-                                <span className="inline-flex items-center gap-1.5 text-xs text-gray-600">
-                                  <Undo2 className="h-3.5 w-3.5 text-gray-400" />
-                                  {formatPHDate(record.releasedAt)}
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-700">
-                                  <CircleSlash className="h-3.5 w-3.5" />
-                                  Not collected
-                                </span>
-                              )}
                             </td>
                             <td className="px-4 py-3">
                               <Button
@@ -401,116 +354,6 @@ export default function UnclaimedOrders({
               </div>
             </Card>
           </div>
-
-          {/* Customer restrictions */}
-          <div className="space-y-2">
-            <h2 className="text-sm font-semibold text-[#10316B]">
-              Customer Restrictions
-            </h2>
-            <Card className="overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-[#F2F7FF] border-b border-[#1D73EC]/10">
-                    <tr>
-                      {[
-                        "Customer",
-                        "Unclaimed Orders",
-                        "Restriction",
-                        "What's Required",
-                        "Action",
-                      ].map((h) => (
-                        <th
-                          key={h}
-                          className="px-4 py-3 text-left text-xs font-semibold text-[#10316B] uppercase tracking-wider"
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white">
-                    {filteredCustomers.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="px-4 py-14">
-                          <div className="flex flex-col items-center text-center">
-                            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#1D73EC] ring-1 ring-[#1D73EC]/15">
-                              <ShieldAlert className="h-6 w-6" />
-                            </span>
-                            <p className="mt-3 text-sm font-semibold text-gray-800">
-                              No restricted customers
-                            </p>
-                            <p className="mt-1 max-w-md text-xs text-gray-500">
-                              A restriction applies automatically from a
-                              customer&apos;s second unclaimed order.
-                            </p>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredCustomers.map((summary) => (
-                        <tr
-                          key={summary.customerKey}
-                          className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors cursor-pointer"
-                          onClick={() => setSelectedCustomer(summary)}
-                        >
-                          <td className="px-4 py-3">
-                            <div className="text-sm font-semibold text-gray-900">
-                              {summary.name || summary.customerKey}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {summary.email || summary.customerKey}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge
-                              variant="outline"
-                              className="text-xs font-semibold bg-[#FDE8E8] text-[#B91C1C] border-[#DC2626]/40"
-                            >
-                              {summary.count} unclaimed
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge
-                              variant="outline"
-                              className={`text-xs font-semibold ${policyBadgeClasses(
-                                summary.policy.level,
-                              )}`}
-                            >
-                              {summary.policy.label}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3 max-w-[22rem]">
-                            <span className="text-sm text-gray-600">
-                              {summary.policy.summary}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedCustomer(summary);
-                              }}
-                              className="h-8 bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
-                            >
-                              <Eye className="h-3.5 w-3.5 mr-1.5" />
-                              View
-                            </Button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          </div>
-
-          <p className="text-xs text-gray-400">
-            Restrictions are derived automatically from each customer&apos;s
-            unclaimed-order count and cannot be overridden here.
-          </p>
         </div>
       </StaffTimeInGate>
 
@@ -577,12 +420,8 @@ export default function UnclaimedOrders({
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Collected
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-gray-900">
-                    {selectedRecord.releasedAt
-                      ? `${formatPHDate(selectedRecord.releasedAt)} · ${formatPHTime(
-                          selectedRecord.releasedAt,
-                        )}`
-                      : "Not collected"}
+                  <p className="mt-1 text-sm font-semibold text-red-700">
+                    Not collected
                   </p>
                 </div>
                 <div className="rounded-xl border border-slate-200 p-4">
@@ -599,107 +438,8 @@ export default function UnclaimedOrders({
 
               <p className="text-xs text-gray-500">
                 This order was recorded as unclaimed because it was not collected
-                by its pickup deadline. The record stays even if the order is
-                collected later.
+                by its pickup deadline.
               </p>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Customer restriction details */}
-      <Dialog
-        open={!!selectedCustomer}
-        onOpenChange={(open) => {
-          if (!open) setSelectedCustomer(null);
-        }}
-      >
-        <DialogContent className="sm:max-w-[620px] max-h-[90vh] overflow-y-auto p-[26px]">
-          {selectedCustomer && (
-            <>
-              <DialogHeader className="border-b border-gray-100 pb-4">
-                <DialogTitle className="text-[22px] font-bold text-[#10316B]">
-                  {selectedCustomer.name || selectedCustomer.customerKey}
-                </DialogTitle>
-                <DialogDescription className="mt-1 text-sm text-gray-500">
-                  {selectedCustomer.email || selectedCustomer.customerKey}
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge
-                  variant="outline"
-                  className="text-xs font-semibold bg-[#FDE8E8] text-[#B91C1C] border-[#DC2626]/40"
-                >
-                  {selectedCustomer.count} unclaimed
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className={`text-xs font-semibold ${policyBadgeClasses(
-                    selectedCustomer.policy.level,
-                  )}`}
-                >
-                  {selectedCustomer.policy.label}
-                </Badge>
-              </div>
-
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                {selectedCustomer.policy.summary}
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Unclaimed Orders ({selectedCustomer.records.length})
-                </p>
-                <div className="overflow-hidden rounded-xl border border-slate-200">
-                  <table className="w-full">
-                    <thead className="bg-slate-50">
-                      <tr>
-                        {["Order ID", "Ready", "Missed Deadline", "Collected"].map(
-                          (h) => (
-                            <th
-                              key={h}
-                              className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500"
-                            >
-                              {h}
-                            </th>
-                          ),
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white">
-                      {selectedCustomer.records
-                        .slice()
-                        .sort(
-                          (a, b) =>
-                            b.deadlineAt.getTime() - a.deadlineAt.getTime(),
-                        )
-                        .map((record) => (
-                          <tr
-                            key={record.orderId}
-                            className="border-t border-slate-100"
-                          >
-                            <td className="px-3 py-2 font-mono text-xs text-gray-700">
-                              {ordersById.get(record.orderId)?.displayId ??
-                                record.orderId}
-                            </td>
-                            <td className="px-3 py-2 text-xs text-gray-600">
-                              {formatPHDate(record.readyAt)}
-                            </td>
-                            <td className="px-3 py-2 text-xs font-medium text-red-700">
-                              {formatPHDate(record.deadlineAt)}
-                            </td>
-                            <td className="px-3 py-2 text-xs text-gray-600">
-                              {record.releasedAt
-                                ? formatPHDate(record.releasedAt)
-                                : "Not collected"}
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
             </>
           )}
         </DialogContent>

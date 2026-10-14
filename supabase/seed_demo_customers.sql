@@ -1,366 +1,286 @@
 -- ============================================================================
--- Docufy PSMS — DEMO CUSTOMER SEED (login-able accounts + demo orders)
+-- Docufy PSMS — DEMO CUSTOMER SEED (automatic unclaimed-order / penalty system)
 -- ----------------------------------------------------------------------------
--- Creates real, login-able Supabase Auth accounts for the automatic UNCLAIMED
--- Cash-on-Pickup order system — offenses are DERIVED from the authoritative
--- orders + their order_status_history timeline (see
--- src/app/utils/unclaimedOrders.ts and src/app/utils/unclaimedPolicy.ts), not
--- from any stored ledger — plus the orders + status history that exercise every
--- rule. Nothing here is a "review queue": the pages recompute offenses live.
+-- Creates real, login-able Supabase Auth accounts — ONE PER FUNCTION of the
+-- automatic unclaimed-order penalty system — plus the orders and status-history
+-- timelines that make each function visible. Offenses are DERIVED live from the
+-- authoritative orders + their order_status_history (see
+-- src/app/utils/unclaimedOrders.ts and src/app/utils/unclaimedPolicy.ts). There
+-- is no stored ledger and no review queue.
 --
 -- RUN THIS IN: Supabase Dashboard -> SQL Editor -> New query -> Run.
--- It is IDEMPOTENT — re-running it updates the same accounts/rows instead of
--- duplicating them — so it is safe to run more than once.
---
--- IMPORTANT: after running, scroll to the results. Every account must appear in
--- the final SELECT, AND the "Messages" tab must show
---   "demo seed: ensured auth user <email>"
--- for every account. A WARNING naming an account means that login did NOT get
--- created (see the note at the top of each block for the manual fallback).
+-- Run supabase/reset_demo_customers.sql FIRST to remove older demo data.
+-- It is IDEMPOTENT — re-running updates the same rows instead of duplicating.
 --
 -- All demo logins share the password:  DocufyDemo123!
 --
---   maria.santos@docufy.demo    1 unclaimed COP order  -> 1st offense (warning)
---   juan.delacruz@docufy.demo   1 unclaimed COP order  -> 1st offense (warning)
---   carlo.mendoza@docufy.demo   2 unclaimed COP orders -> 2nd offense (COP disabled)
---   ryan.cruz@docufy.demo       3 unclaimed COP orders -> 3rd+ offense (full advance)
---   pedro.lim@docufy.demo       advance-paid past deadline -> never counts
---   ana.reyes@docufy.demo       online-paid (Maya)        -> never counts
---   liza.torres@docufy.demo     collected before deadline  -> never counts
+--   Account                          Function demonstrated
+--   ---------------------------------------------------------------------------
+--   no.unclaimed@docufy.demo         Level 0 — clean account, no warning
+--   first.offense@docufy.demo        Level 1 — warning only, COP allowed
+--   second.offense@docufy.demo       Level 2 — Cash on Pickup disabled
+--   third.offense@docufy.demo        Level 3 — full advance required
+--   collected.on.time@docufy.demo    Excluded  — collected before the deadline
+--   collected.late@docufy.demo       Counted   — collected after the deadline
+--   advance.paid@docufy.demo         Excluded  — advance / online paid
+--   within.window@docufy.demo        Excluded  — pickup deadline has not passed
 --
--- ALSO DEMONSTRATES (why a record does / doesn't count):
---   * Released BEFORE the pickup deadline (same day)   — excluded.
---   * Released AFTER the pickup deadline (next day)     — still counts.
---   * Advance / online-paid orders past the deadline     — never count.
+-- !! REQUIRED CONFIG: offenses are only computed once the shop's CLOSING TIME is
+--    set (Admin -> Management -> Landing Page -> Shop Information -> "Closing
+--    time", e.g. 20:00). Until then the derivation returns nothing and the admin
+--    pages show "pickup deadline cannot be computed — configure shop hours".
+--    These demo orders assume a 20:00 closing time.
 --
--- !! REQUIRED CONFIG: an offense is only computed once the shop's CLOSING TIME
---    is configured (Admin -> Management -> Landing Page -> Shop Information ->
---    "Closing time", e.g. 20:00). Until then the derivation returns no offenses
---    and the admin pages show "pickup deadline cannot be computed — configure
---    shop hours". These demo orders assume a 20:00 closing time.
+-- !! TIMING NOTE: the within.window order is seeded as "just completed", so it
+--    reads as still-in-window only while the current time is before the shop's
+--    closing time. Seed/ demo during shop hours. The day-based accounts (first/
+--    second/third offense, collected.*) are anchored to past dates and are
+--    unaffected by when you run this.
 --
--- NOTE: writing to the auth schema directly is version-sensitive. This script
--- uses only long-stable columns, blanks every GoTrue "token" column (a NULL in
--- any of them makes GoTrue reject the login), and detects the newer
--- `identities.provider_id` schema. If an account still fails to create, make it
--- from Dashboard -> Authentication -> Users -> Add user (Auto Confirm User)
--- with the same email + password; the profile/orders rows below still seed.
+-- NOTE: writing to the auth schema directly is version-sensitive. If your
+-- project rejects it (permission/trigger error), create the users in
+-- Dashboard -> Authentication -> Add user (email + password above), then run
+-- only section 1b onwards; section 1a's `on conflict` makes it safe to re-run.
 -- ============================================================================
 
 create extension if not exists pgcrypto;
 
--- ── 1a. Auth users + email identities ───────────────────────────────────────
+
+-- ============================================================================
+-- SECTION 1a — AUTH USERS (real logins)
+-- One account per function. uuid is fixed so re-running is idempotent.
+-- ============================================================================
+
 do $$
 declare
-  u record;
-  v_has_provider_id boolean;
+  accounts constant text[][] := array[
+    array['d0000001-0000-4000-8000-000000000000', 'no.unclaimed@docufy.demo'],
+    array['d0000002-0000-4000-8000-000000000000', 'first.offense@docufy.demo'],
+    array['d0000003-0000-4000-8000-000000000000', 'second.offense@docufy.demo'],
+    array['d0000004-0000-4000-8000-000000000000', 'third.offense@docufy.demo'],
+    array['d0000005-0000-4000-8000-000000000000', 'collected.on.time@docufy.demo'],
+    array['d0000006-0000-4000-8000-000000000000', 'collected.late@docufy.demo'],
+    array['d0000007-0000-4000-8000-000000000000', 'advance.paid@docufy.demo'],
+    array['d0000008-0000-4000-8000-000000000000', 'within.window@docufy.demo']
+  ];
+  rec text[];
+  uid uuid;
+  em  text;
 begin
-  select exists (
-    select 1 from information_schema.columns
-    where table_schema = 'auth' and table_name = 'identities'
-      and column_name = 'provider_id'
-  ) into v_has_provider_id;
-
-  for u in
-    select * from (values
-      ('11111111-1111-4111-8111-111111111111'::uuid, 'maria.santos@docufy.demo',  'Maria Santos',    'DocufyDemo123!'),
-      ('22222222-2222-4222-8222-222222222222'::uuid, 'juan.delacruz@docufy.demo', 'Juan Dela Cruz',  'DocufyDemo123!'),
-      ('33333333-3333-4333-8333-333333333333'::uuid, 'ana.reyes@docufy.demo',     'Ana Reyes',       'DocufyDemo123!'),
-      ('44444444-4444-4444-8444-444444444444'::uuid, 'pedro.lim@docufy.demo',     'Pedro Lim',       'DocufyDemo123!'),
-      ('55555555-5555-4555-8555-555555555555'::uuid, 'carlo.mendoza@docufy.demo', 'Carlo Mendoza',   'DocufyDemo123!'),
-      ('66666666-6666-4666-8666-666666666666'::uuid, 'liza.torres@docufy.demo',   'Liza Torres',     'DocufyDemo123!'),
-      ('77777777-7777-4777-8777-777777777777'::uuid, 'ryan.cruz@docufy.demo',     'Ryan Cruz',       'DocufyDemo123!')
-    ) as t(uid, email, full_name, password)
+  foreach rec slice 1 in array accounts
   loop
-    begin
-      insert into auth.users (
-        instance_id, id, aud, role, email, encrypted_password,
-        email_confirmed_at, created_at, updated_at,
-        confirmation_token, recovery_token, email_change, email_change_token_new,
-        raw_app_meta_data, raw_user_meta_data
-      ) values (
-        '00000000-0000-0000-0000-000000000000', u.uid, 'authenticated', 'authenticated', u.email,
-        crypt(u.password, gen_salt('bf')),
-        now(), now(), now(),
-        '', '', '', '',
-        jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email')),
-        jsonb_build_object('full_name', u.full_name, 'email', u.email, 'demo', true)
-      )
-      on conflict (id) do update set
-        email = excluded.email,
-        encrypted_password = excluded.encrypted_password,
-        email_confirmed_at = coalesce(auth.users.email_confirmed_at, now()),
-        updated_at = now(),
-        confirmation_token = '',
-        recovery_token = '',
-        email_change = '',
-        email_change_token_new = '',
-        raw_app_meta_data = excluded.raw_app_meta_data,
-        raw_user_meta_data = excluded.raw_user_meta_data;
+    uid := rec[1]::uuid;
+    em  := rec[2];
 
-      -- Blank any OTHER token columns this GoTrue version ships (GoTrue reads
-      -- them as non-null strings; a NULL makes sign-in fail with "invalid").
-      execute (
-        select 'update auth.users set ' ||
-               string_agg(format('%I = coalesce(%I, %L)', column_name, column_name, ''), ', ') ||
-               format(' where id = %L', u.uid)
-        from information_schema.columns
-        where table_schema = 'auth' and table_name = 'users'
-          and column_name in (
-            'confirmation_token', 'recovery_token', 'email_change',
-            'email_change_token_new', 'email_change_token_current',
-            'phone_change', 'phone_change_token', 'reauthentication_token'
-          )
-      );
+    insert into auth.users (
+      instance_id, id, aud, role, email, encrypted_password,
+      email_confirmed_at, created_at, updated_at,
+      raw_app_meta_data, raw_user_meta_data,
+      confirmation_token, recovery_token, email_change_token_new, email_change
+    )
+    values (
+      '00000000-0000-0000-0000-000000000000', uid, 'authenticated', 'authenticated',
+      em, crypt('DocufyDemo123!', gen_salt('bf')),
+      now(), now(), now(),
+      '{"provider":"email","providers":["email"]}'::jsonb,
+      jsonb_build_object('full_name', em),
+      '', '', '', ''
+    )
+    on conflict (id) do update
+      set email              = excluded.email,
+          encrypted_password = excluded.encrypted_password,
+          email_confirmed_at = coalesce(auth.users.email_confirmed_at, now()),
+          updated_at         = now();
 
-      if v_has_provider_id then
-        insert into auth.identities (
-          provider_id, user_id, identity_data, provider,
-          last_sign_in_at, created_at, updated_at
-        ) values (
-          u.uid::text, u.uid,
-          jsonb_build_object('sub', u.uid::text, 'email', u.email),
-          'email', now(), now(), now()
-        )
-        on conflict (provider_id, provider) do update set
-          identity_data = excluded.identity_data,
-          updated_at = now();
-      else
-        insert into auth.identities (
-          id, user_id, identity_data, provider,
-          last_sign_in_at, created_at, updated_at
-        ) values (
-          u.uid::text, u.uid,
-          jsonb_build_object('sub', u.uid::text, 'email', u.email),
-          'email', now(), now(), now()
-        )
-        on conflict (id) do update set
-          identity_data = excluded.identity_data,
-          updated_at = now();
-      end if;
+    insert into auth.identities (
+      provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at, id
+    )
+    values (
+      uid::text, uid,
+      jsonb_build_object('sub', uid::text, 'email', em),
+      'email', now(), now(), now(), gen_random_uuid()
+    )
+    on conflict do nothing;
 
-      raise notice 'demo seed: ensured auth user %', u.email;
-    exception when others then
-      raise warning 'demo seed: auth user % FAILED — %', u.email, sqlerrm;
-    end;
+    raise notice 'demo seed: ensured auth user %', em;
+  end loop;
+exception when others then
+  raise warning 'demo seed: auth user creation FAILED (%) — create them in the Dashboard instead', sqlerrm;
+end $$;
+
+
+-- ============================================================================
+-- SECTION 1b — PROFILES
+-- ============================================================================
+
+do $$
+declare
+  accounts constant text[][] := array[
+    array['d0000001-0000-4000-8000-000000000000', 'no.unclaimed@docufy.demo',      'Clean Account (No Unclaimed)'],
+    array['d0000002-0000-4000-8000-000000000000', 'first.offense@docufy.demo',     'First Offense Customer'],
+    array['d0000003-0000-4000-8000-000000000000', 'second.offense@docufy.demo',    'Second Offense Customer'],
+    array['d0000004-0000-4000-8000-000000000000', 'third.offense@docufy.demo',     'Third Offense Customer'],
+    array['d0000005-0000-4000-8000-000000000000', 'collected.on.time@docufy.demo', 'Collected On Time Customer'],
+    array['d0000006-0000-4000-8000-000000000000', 'collected.late@docufy.demo',    'Collected Late Customer'],
+    array['d0000007-0000-4000-8000-000000000000', 'advance.paid@docufy.demo',      'Advance Paid Customer'],
+    array['d0000008-0000-4000-8000-000000000000', 'within.window@docufy.demo',     'Within Window Customer']
+  ];
+  rec text[];
+begin
+  foreach rec slice 1 in array accounts
+  loop
+    insert into public.profiles (id, email, full_name, role, created_at, updated_at)
+    values (rec[1]::uuid, rec[2], rec[3], 'customer', now(), now())
+    on conflict (id) do update
+      set email = excluded.email, full_name = excluded.full_name, updated_at = now();
   end loop;
 end $$;
 
--- ── 1b. Profiles (separate block: a profile error cannot undo the login) ────
+
+-- ============================================================================
+-- SECTION 2..5 — ORDERS + COST BREAKDOWNS + PAYMENTS + STATUS TIMELINE
+-- All tied to '@docufy.demo' accounts. Timestamps are anchored to today's
+-- Manila midnight (base0) minus N days, so the "days overdue" is stable.
+--
+--   no.unclaimed        (d1) no orders
+--   first.offense       (d2) 1× COP completed, never collected   -> 1 offense
+--   second.offense      (d3) 2× COP completed, never collected   -> 2 offenses
+--   third.offense       (d4) 3× COP completed, never collected   -> 3 offenses
+--   collected.on.time   (d5) 1× COP, released SAME day (<=20:00) -> excluded
+--   collected.late      (d6) 1× COP, released NEXT day (after)   -> counted
+--   advance.paid        (d7) 1× online-paid (GCash), not COP     -> excluded
+--   within.window       (d8) 1× COP completed just now           -> not due yet
+-- ============================================================================
+
 do $$
 declare
-  u record;
-begin
-  for u in
-    select * from (values
-      ('11111111-1111-4111-8111-111111111111'::uuid, 'maria.santos@docufy.demo',  'Maria Santos'),
-      ('22222222-2222-4222-8222-222222222222'::uuid, 'juan.delacruz@docufy.demo', 'Juan Dela Cruz'),
-      ('33333333-3333-4333-8333-333333333333'::uuid, 'ana.reyes@docufy.demo',     'Ana Reyes'),
-      ('44444444-4444-4444-8444-444444444444'::uuid, 'pedro.lim@docufy.demo',     'Pedro Lim'),
-      ('55555555-5555-4555-8555-555555555555'::uuid, 'carlo.mendoza@docufy.demo', 'Carlo Mendoza'),
-      ('66666666-6666-4666-8666-666666666666'::uuid, 'liza.torres@docufy.demo',   'Liza Torres'),
-      ('77777777-7777-4777-8777-777777777777'::uuid, 'ryan.cruz@docufy.demo',     'Ryan Cruz')
-    ) as t(uid, email, full_name)
-  loop
-    begin
-      insert into public.profiles (id, full_name, role, email, active, suspended)
-      values (u.uid, u.full_name, 'customer', u.email, true, false)
-      on conflict (id) do update set
-        full_name = excluded.full_name,
-        role = 'customer',
-        email = excluded.email,
-        active = true,
-        suspended = false,
-        updated_at = now();
-
-      raise notice 'demo seed: ensured profile %', u.email;
-    exception when others then
-      raise warning 'demo seed: profile % FAILED — %', u.email, sqlerrm;
-    end;
-  end loop;
-end $$;
-
--- ── 2. Demo orders (one per scenario; two for the restricted customer) ───────
--- order_number is server-assigned, so it is never written here.
-insert into public.orders (
-  id, customer_id, customer_name, customer_email, status, order_source,
-  subtotal, addons_total, total, manual_total, payment_amount_paid,
-  notes, created_at, updated_at, status_updated_at
-) values
-  ('a1111111-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Maria Santos',  'maria.santos@docufy.demo',  'Completed', 'online', 180, 0, 180, 180, 180, 'DEMO SEED — Under Review (staff flagged).', now() - interval '2 days',  now() - interval '2 days',  now() - interval '2 days'),
-  ('a2222222-0000-4000-8000-000000000002', '22222222-2222-4222-8222-222222222222', 'Juan Dela Cruz','juan.delacruz@docufy.demo', 'Completed', 'online', 240, 0, 240, 240, 240, 'DEMO SEED — Excuse Requested.',            now() - interval '3 days',  now() - interval '3 days',  now() - interval '3 days'),
-  ('a3333333-0000-4000-8000-000000000003', '33333333-3333-4333-8333-333333333333', 'Ana Reyes',     'ana.reyes@docufy.demo',     'Completed', 'online', 150, 0, 150, 150, 150, 'DEMO SEED — Confirmed Unclaimed.',         now() - interval '5 days',  now() - interval '5 days',  now() - interval '5 days'),
-  ('a4444444-0000-4000-8000-000000000004', '44444444-4444-4444-8444-444444444444', 'Pedro Lim',     'pedro.lim@docufy.demo',     'Completed', 'online', 320, 0, 320, 320, 320, 'DEMO SEED — Excused.',                     now() - interval '6 days',  now() - interval '6 days',  now() - interval '6 days'),
-  ('a5555555-0000-4000-8000-000000000005', '55555555-5555-4555-8555-555555555555', 'Carlo Mendoza', 'carlo.mendoza@docufy.demo', 'Completed', 'online', 200, 0, 200, 200, 200, 'DEMO SEED — Confirmed unclaimed (1st offence).', now() - interval '20 days', now() - interval '20 days', now() - interval '20 days'),
-  ('a5555555-0000-4000-8000-000000000006', '55555555-5555-4555-8555-555555555555', 'Carlo Mendoza', 'carlo.mendoza@docufy.demo', 'Completed', 'online', 260, 0, 260, 260, 260, 'DEMO SEED — Confirmed unclaimed (2nd offence).', now() - interval '12 days', now() - interval '12 days', now() - interval '12 days'),
-  ('a6666666-0000-4000-8000-000000000007', '66666666-6666-4666-8666-666666666666', 'Liza Torres',   'liza.torres@docufy.demo',   'Released',  'online', 120, 0, 120, 120, 120, 'DEMO SEED — Good standing (no incident).', now() - interval '1 day',   now() - interval '1 day',   now() - interval '1 day')
-on conflict (id) do update set
-  customer_id = excluded.customer_id,
-  customer_name = excluded.customer_name,
-  customer_email = excluded.customer_email,
-  status = excluded.status,
-  order_source = excluded.order_source,
-  subtotal = excluded.subtotal,
-  addons_total = excluded.addons_total,
-  total = excluded.total,
-  manual_total = excluded.manual_total,
-  payment_amount_paid = excluded.payment_amount_paid,
-  notes = excluded.notes,
-  updated_at = excluded.updated_at,
-  status_updated_at = excluded.status_updated_at;
-
--- ── 3. Cost breakdowns (so Order Total renders from the matrix shape) ────────
-insert into public.order_cost_breakdowns (order_id, printing_cost, addons_cost, total) values
-  ('a1111111-0000-4000-8000-000000000001', 180, 0, 180),
-  ('a2222222-0000-4000-8000-000000000002', 240, 0, 240),
-  ('a3333333-0000-4000-8000-000000000003', 150, 0, 150),
-  ('a4444444-0000-4000-8000-000000000004', 320, 0, 320),
-  ('a5555555-0000-4000-8000-000000000005', 200, 0, 200),
-  ('a5555555-0000-4000-8000-000000000006', 260, 0, 260),
-  ('a6666666-0000-4000-8000-000000000007', 120, 0, 120)
-on conflict (order_id) do update set
-  printing_cost = excluded.printing_cost,
-  addons_cost = excluded.addons_cost,
-  total = excluded.total;
-
--- ── 4. Verified payments (so Payment & Balance reads "Paid") ─────────────────
-insert into public.payments (
-  id, order_id, method_name, amount, status, reference_number,
-  submitted_at, verified_at, verified_by
-) values
-  ('b1111111-0000-4000-8000-000000000001', 'a1111111-0000-4000-8000-000000000001', 'GCash', 180, 'verified', 'DEMO-MARIA',  now() - interval '2 days', now() - interval '2 days', null),
-  ('b2222222-0000-4000-8000-000000000002', 'a2222222-0000-4000-8000-000000000002', 'GCash', 240, 'verified', 'DEMO-JUAN',   now() - interval '3 days', now() - interval '3 days', null),
-  ('b3333333-0000-4000-8000-000000000003', 'a3333333-0000-4000-8000-000000000003', 'Maya',  150, 'verified', 'DEMO-ANA',    now() - interval '5 days', now() - interval '5 days', null),
-  ('b4444444-0000-4000-8000-000000000004', 'a4444444-0000-4000-8000-000000000004', 'GCash', 320, 'verified', 'DEMO-PEDRO',  now() - interval '6 days', now() - interval '6 days', null),
-  ('b5555555-0000-4000-8000-000000000005', 'a5555555-0000-4000-8000-000000000005', 'Cash',  200, 'verified', 'DEMO-CARLO1', now() - interval '20 days', now() - interval '20 days', null),
-  ('b5555555-0000-4000-8000-000000000006', 'a5555555-0000-4000-8000-000000000006', 'Cash',  260, 'verified', 'DEMO-CARLO2', now() - interval '12 days', now() - interval '12 days', null),
-  ('b6666666-0000-4000-8000-000000000007', 'a6666666-0000-4000-8000-000000000007', 'GCash', 120, 'verified', 'DEMO-LIZA',   now() - interval '1 day',  now() - interval '1 day',  null)
-on conflict (id) do update set
-  order_id = excluded.order_id,
-  method_name = excluded.method_name,
-  amount = excluded.amount,
-  status = excluded.status,
-  reference_number = excluded.reference_number,
-  submitted_at = excluded.submitted_at,
-  verified_at = excluded.verified_at;
-
--- ── 5. Unclaimed-order derivation scenarios ──────────────────────────────────
---     Orders + the order_status_history timeline that exercise every rule in
---     src/app/utils/unclaimedOrders.ts. These assume a 20:00 shop closing time.
---     Cash-on-Pickup orders past the deadline with no on-time Released count;
---     Released-before-deadline and advance/online-paid orders never count.
-do $$
-declare
-  base0 timestamptz := date_trunc('day', now() at time zone 'Asia/Manila') at time zone 'Asia/Manila';
-  d1  timestamptz := base0 - interval '1 day';
+  base0 timestamptz := (date_trunc('day', now() at time zone 'Asia/Manila')) at time zone 'Asia/Manila';
   d2  timestamptz := base0 - interval '2 days';
   d3  timestamptz := base0 - interval '3 days';
   d4  timestamptz := base0 - interval '4 days';
   d5  timestamptz := base0 - interval '5 days';
-  d6  timestamptz := base0 - interval '6 days';
   d12 timestamptz := base0 - interval '12 days';
   d20 timestamptz := base0 - interval '20 days';
+  cop text := 'Cash on Pickup: collect and pay at the shop.';
 begin
-  -- 5a. Orders (Cash-on-Pickup flagged via hold_reason; no payment row for the
-  --     uncollected ones, since the customer never paid).
+  -- ------------------------------------------------------------------ ORDERS
   insert into public.orders (
     id, customer_id, customer_name, customer_email, status, order_source,
     subtotal, addons_total, total, manual_total, payment_amount_paid,
     hold_reason, notes, created_at, updated_at, status_updated_at
   ) values
-    -- Maria — 1 unclaimed Cash-on-Pickup order -> 1st offense (warning only).
-    ('a7000001-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Maria Santos',  'maria.santos@docufy.demo',  'Completed', 'online', 150, 0, 150, 150, 0,   'Cash on Pickup: collect and pay at the shop.', 'DEMO SEED — unclaimed COP (counts).',              d3 + time '10:00', d3 + time '10:00', d3 + time '10:00'),
-    -- Maria — collected BEFORE the deadline (same day at 15:30) -> EXCLUDED.
-    ('a7000002-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', 'Maria Santos',  'maria.santos@docufy.demo',  'Released',  'online', 160, 0, 160, 160, 160, 'Cash on Pickup: collect and pay at the shop.', 'DEMO SEED — released before deadline (excluded).',  d4 + time '10:00', d4 + time '15:30', d4 + time '15:30'),
-    -- Juan — collected AFTER the deadline (next day at 09:00) -> STILL COUNTS.
-    ('a7000003-0000-4000-8000-000000000003', '22222222-2222-4222-8222-222222222222', 'Juan Dela Cruz','juan.delacruz@docufy.demo', 'Released',  'online', 220, 0, 220, 220, 220, 'Cash on Pickup: collect and pay at the shop.', 'DEMO SEED — released after deadline (counts).',     d3 + time '10:00', d2 + time '09:00', d2 + time '09:00'),
-    -- Ryan — 3 unclaimed COP orders -> 3rd+ offense (full advance required).
-    ('a7000004-0000-4000-8000-000000000004', '77777777-7777-4777-8777-777777777777', 'Ryan Cruz',     'ryan.cruz@docufy.demo',     'Completed', 'online', 200, 0, 200, 200, 0,   'Cash on Pickup: collect and pay at the shop.', 'DEMO SEED — unclaimed COP #1 (counts).',            d5 + time '10:00', d5 + time '10:00', d5 + time '10:00'),
-    ('a7000005-0000-4000-8000-000000000005', '77777777-7777-4777-8777-777777777777', 'Ryan Cruz',     'ryan.cruz@docufy.demo',     'Completed', 'online', 200, 0, 200, 200, 0,   'Cash on Pickup: collect and pay at the shop.', 'DEMO SEED — unclaimed COP #2 (counts).',            d4 + time '10:00', d4 + time '10:00', d4 + time '10:00'),
-    ('a7000006-0000-4000-8000-000000000006', '77777777-7777-4777-8777-777777777777', 'Ryan Cruz',     'ryan.cruz@docufy.demo',     'Completed', 'online', 200, 0, 200, 200, 0,   'Cash on Pickup: collect and pay at the shop.', 'DEMO SEED — unclaimed COP #3 (counts).',            d3 + time '10:00', d3 + time '10:00', d3 + time '10:00'),
-    -- Pedro — paid IN ADVANCE (GCash) past the deadline -> NEVER COUNTS.
-    ('a7000007-0000-4000-8000-000000000007', '44444444-4444-4444-8444-444444444444', 'Pedro Lim',     'pedro.lim@docufy.demo',     'Completed', 'online', 300, 0, 300, 300, 300, null,                                           'DEMO SEED — advance-paid, never counts.',           d5 + time '10:00', d5 + time '10:00', d5 + time '10:00')
+    -- first.offense — 1 uncollected COP
+    ('e0000001-0000-4000-8000-000000000000', 'd0000002-0000-4000-8000-000000000000', 'First Offense Customer',  'first.offense@docufy.demo',
+     'Completed', 'online', 150, 0, 150, 150, 0, cop, 'DEMO — uncollected cash-on-pickup (Level 1).',
+     d3 + time '10:00', d3 + time '10:00', d3 + time '10:00'),
+    -- second.offense — 2 uncollected COP
+    ('e0000002-0000-4000-8000-000000000000', 'd0000003-0000-4000-8000-000000000000', 'Second Offense Customer', 'second.offense@docufy.demo',
+     'Completed', 'online', 200, 0, 200, 200, 0, cop, 'DEMO — uncollected cash-on-pickup (Level 2, #1).',
+     d20 + time '10:00', d20 + time '10:00', d20 + time '10:00'),
+    ('e0000003-0000-4000-8000-000000000000', 'd0000003-0000-4000-8000-000000000000', 'Second Offense Customer', 'second.offense@docufy.demo',
+     'Completed', 'online', 200, 0, 200, 200, 0, cop, 'DEMO — uncollected cash-on-pickup (Level 2, #2).',
+     d12 + time '10:00', d12 + time '10:00', d12 + time '10:00'),
+    -- third.offense — 3 uncollected COP
+    ('e0000004-0000-4000-8000-000000000000', 'd0000004-0000-4000-8000-000000000000', 'Third Offense Customer',  'third.offense@docufy.demo',
+     'Completed', 'online', 150, 0, 150, 150, 0, cop, 'DEMO — uncollected cash-on-pickup (Level 3, #1).',
+     d5 + time '10:00', d5 + time '10:00', d5 + time '10:00'),
+    ('e0000005-0000-4000-8000-000000000000', 'd0000004-0000-4000-8000-000000000000', 'Third Offense Customer',  'third.offense@docufy.demo',
+     'Completed', 'online', 150, 0, 150, 150, 0, cop, 'DEMO — uncollected cash-on-pickup (Level 3, #2).',
+     d4 + time '10:00', d4 + time '10:00', d4 + time '10:00'),
+    ('e0000006-0000-4000-8000-000000000000', 'd0000004-0000-4000-8000-000000000000', 'Third Offense Customer',  'third.offense@docufy.demo',
+     'Completed', 'online', 150, 0, 150, 150, 0, cop, 'DEMO — uncollected cash-on-pickup (Level 3, #3).',
+     d3 + time '10:00', d3 + time '10:00', d3 + time '10:00'),
+    -- collected.on.time — COP collected BEFORE deadline (same day 15:00 < 20:00)
+    ('e0000007-0000-4000-8000-000000000000', 'd0000005-0000-4000-8000-000000000000', 'Collected On Time Customer', 'collected.on.time@docufy.demo',
+     'Released', 'online', 160, 0, 160, 160, 160, cop, 'DEMO — collected before the pickup deadline (excluded).',
+     d4 + time '10:00', d4 + time '15:00', d4 + time '15:00'),
+    -- collected.late — COP collected AFTER deadline (next day 09:00 > ready-day 20:00)
+    ('e0000008-0000-4000-8000-000000000000', 'd0000006-0000-4000-8000-000000000000', 'Collected Late Customer', 'collected.late@docufy.demo',
+     'Released', 'online', 220, 0, 220, 220, 220, cop, 'DEMO — collected after the pickup deadline (still counts).',
+     d3 + time '10:00', d2 + time '09:00', d2 + time '09:00'),
+    -- advance.paid — online paid, never COP (excluded)
+    ('e0000009-0000-4000-8000-000000000000', 'd0000007-0000-4000-8000-000000000000', 'Advance Paid Customer', 'advance.paid@docufy.demo',
+     'Completed', 'online', 300, 0, 300, 300, 300, null, 'DEMO — paid in advance online (never cash-on-pickup).',
+     d5 + time '10:00', d5 + time '10:00', d5 + time '10:00'),
+    -- within.window — completed just now; deadline not passed yet
+    ('e0000010-0000-4000-8000-000000000000', 'd0000008-0000-4000-8000-000000000000', 'Within Window Customer', 'within.window@docufy.demo',
+     'Completed', 'online', 180, 0, 180, 180, 0, cop, 'DEMO — just completed; pickup deadline not passed yet (excluded).',
+     now(), now(), now())
   on conflict (id) do update set
-    customer_id = excluded.customer_id,
-    customer_name = excluded.customer_name,
-    customer_email = excluded.customer_email,
-    status = excluded.status,
-    order_source = excluded.order_source,
-    subtotal = excluded.subtotal,
-    addons_total = excluded.addons_total,
-    total = excluded.total,
-    manual_total = excluded.manual_total,
-    payment_amount_paid = excluded.payment_amount_paid,
-    hold_reason = excluded.hold_reason,
-    notes = excluded.notes,
-    updated_at = excluded.updated_at,
-    status_updated_at = excluded.status_updated_at;
+    customer_id = excluded.customer_id, customer_name = excluded.customer_name,
+    customer_email = excluded.customer_email, status = excluded.status, order_source = excluded.order_source,
+    subtotal = excluded.subtotal, addons_total = excluded.addons_total, total = excluded.total,
+    manual_total = excluded.manual_total, payment_amount_paid = excluded.payment_amount_paid,
+    hold_reason = excluded.hold_reason, notes = excluded.notes,
+    created_at = excluded.created_at, updated_at = excluded.updated_at, status_updated_at = excluded.status_updated_at;
 
-  -- 5b. Cost breakdowns for the new orders.
-  insert into public.order_cost_breakdowns (order_id, printing_cost, addons_cost, total) values
-    ('a7000001-0000-4000-8000-000000000001', 150, 0, 150),
-    ('a7000002-0000-4000-8000-000000000002', 160, 0, 160),
-    ('a7000003-0000-4000-8000-000000000003', 220, 0, 220),
-    ('a7000004-0000-4000-8000-000000000004', 200, 0, 200),
-    ('a7000005-0000-4000-8000-000000000005', 200, 0, 200),
-    ('a7000006-0000-4000-8000-000000000006', 200, 0, 200),
-    ('a7000007-0000-4000-8000-000000000007', 300, 0, 300)
+  -- -------------------------------------------------------- COST BREAKDOWNS
+  -- Real table (order_id PK, printing_cost, addons_cost, total). printing_cost +
+  -- addons_cost must equal total; the demo orders have no add-ons.
+  insert into public.order_cost_breakdowns (order_id, printing_cost, addons_cost, total)
+  values
+    ('e0000001-0000-4000-8000-000000000000', 150, 0, 150),
+    ('e0000002-0000-4000-8000-000000000000', 200, 0, 200),
+    ('e0000003-0000-4000-8000-000000000000', 200, 0, 200),
+    ('e0000004-0000-4000-8000-000000000000', 150, 0, 150),
+    ('e0000005-0000-4000-8000-000000000000', 150, 0, 150),
+    ('e0000006-0000-4000-8000-000000000000', 150, 0, 150),
+    ('e0000007-0000-4000-8000-000000000000', 160, 0, 160),
+    ('e0000008-0000-4000-8000-000000000000', 220, 0, 220),
+    ('e0000009-0000-4000-8000-000000000000', 300, 0, 300),
+    ('e0000010-0000-4000-8000-000000000000', 180, 0, 180)
   on conflict (order_id) do update set
-    printing_cost = excluded.printing_cost,
-    addons_cost = excluded.addons_cost,
-    total = excluded.total;
+    printing_cost = excluded.printing_cost, addons_cost = excluded.addons_cost, total = excluded.total;
 
-  -- 5c. Payments for the COLLECTED / advance-paid orders only. The uncollected
-  --     Cash-on-Pickup orders deliberately have NO payment row (their method is
-  --     read from hold_reason), so they correctly read as unpaid.
-  insert into public.payments (
-    id, order_id, method_name, amount, status, reference_number,
-    submitted_at, verified_at, verified_by
-  ) values
-    ('b7000001-0000-4000-8000-000000000001', 'a7000002-0000-4000-8000-000000000002', 'Cash',  160, 'verified', 'DEMO-MARIA2', d4 + time '15:30', d4 + time '15:30', null),
-    ('b7000002-0000-4000-8000-000000000002', 'a7000003-0000-4000-8000-000000000003', 'Cash',  220, 'verified', 'DEMO-JUAN2',  d2 + time '09:00', d2 + time '09:00', null),
-    ('b7000003-0000-4000-8000-000000000003', 'a7000007-0000-4000-8000-000000000007', 'GCash', 300, 'verified', 'DEMO-PEDRO2', d5 + time '10:00', d5 + time '10:00', null)
+  -- --------------------------------------------------------------- PAYMENTS
+  -- Only collected / advance-paid orders have a verified payment. Uncollected
+  -- COP orders deliberately have NO payment row — they read as unpaid and their
+  -- method resolves to "Cash" via the cash-on-pickup hold reason.
+  insert into public.payments (id, order_id, method_name, amount, status, reference_number, submitted_at, verified_at, verified_by)
+  values
+    ('f0000001-0000-4000-8000-000000000000', 'e0000007-0000-4000-8000-000000000000', 'Cash',  160, 'verified', 'DEMO-ONTIME',  d4 + time '15:00', d4 + time '15:00', null),
+    ('f0000002-0000-4000-8000-000000000000', 'e0000008-0000-4000-8000-000000000000', 'Cash',  220, 'verified', 'DEMO-LATE',    d2 + time '09:00', d2 + time '09:00', null),
+    ('f0000003-0000-4000-8000-000000000000', 'e0000009-0000-4000-8000-000000000000', 'GCash', 300, 'verified', 'DEMO-ADVANCE', d5 + time '10:00', d5 + time '10:00', null)
   on conflict (id) do update set
-    order_id = excluded.order_id,
-    method_name = excluded.method_name,
-    amount = excluded.amount,
-    status = excluded.status,
-    reference_number = excluded.reference_number,
-    submitted_at = excluded.submitted_at,
-    verified_at = excluded.verified_at;
+    order_id = excluded.order_id, method_name = excluded.method_name, amount = excluded.amount,
+    status = excluded.status, reference_number = excluded.reference_number,
+    submitted_at = excluded.submitted_at, verified_at = excluded.verified_at;
 
-  -- 5d. Status timeline (only Completed / Released are used by the derivation).
-  insert into public.order_status_history (id, order_id, old_status, new_status, reason, changed_by, created_at) values
-    -- Existing demo orders — all reach Completed (ready for pickup).
-    ('c7000001-0000-4000-8000-000000000001', 'a1111111-0000-4000-8000-000000000001', null,             'Completed', 'DEMO SEED', null, d2  + time '10:00'),
-    ('c7000002-0000-4000-8000-000000000002', 'a2222222-0000-4000-8000-000000000002', null,             'Completed', 'DEMO SEED', null, d3  + time '10:00'),
-    ('c7000003-0000-4000-8000-000000000003', 'a3333333-0000-4000-8000-000000000003', null,             'Completed', 'DEMO SEED', null, d5  + time '10:00'),
-    ('c7000004-0000-4000-8000-000000000004', 'a4444444-0000-4000-8000-000000000004', null,             'Completed', 'DEMO SEED', null, d6  + time '10:00'),
-    ('c7000005-0000-4000-8000-000000000005', 'a5555555-0000-4000-8000-000000000005', null,             'Completed', 'DEMO SEED', null, d20 + time '10:00'),
-    ('c7000006-0000-4000-8000-000000000006', 'a5555555-0000-4000-8000-000000000006', null,             'Completed', 'DEMO SEED', null, d12 + time '10:00'),
-    ('c7000007-0000-4000-8000-000000000007', 'a6666666-0000-4000-8000-000000000007', null,             'Completed', 'DEMO SEED', null, d1  + time '10:00'),
-    ('c7000008-0000-4000-8000-000000000008', 'a6666666-0000-4000-8000-000000000007', 'Completed',      'Released',  'DEMO SEED', null, d1  + time '15:00'),
-    -- New derivation scenarios.
-    ('c7000009-0000-4000-8000-000000000009', 'a7000001-0000-4000-8000-000000000001', null,             'Completed', 'DEMO SEED', null, d3  + time '10:00'),
-    ('c7000010-0000-4000-8000-000000000010', 'a7000002-0000-4000-8000-000000000002', null,             'Completed', 'DEMO SEED', null, d4  + time '10:00'),
-    ('c7000011-0000-4000-8000-000000000011', 'a7000002-0000-4000-8000-000000000002', 'Completed',      'Released',  'DEMO SEED', null, d4  + time '15:30'),
-    ('c7000012-0000-4000-8000-000000000012', 'a7000003-0000-4000-8000-000000000003', null,             'Completed', 'DEMO SEED', null, d3  + time '10:00'),
-    ('c7000013-0000-4000-8000-000000000013', 'a7000003-0000-4000-8000-000000000003', 'Completed',      'Released',  'DEMO SEED', null, d2  + time '09:00'),
-    ('c7000014-0000-4000-8000-000000000014', 'a7000004-0000-4000-8000-000000000004', null,             'Completed', 'DEMO SEED', null, d5  + time '10:00'),
-    ('c7000015-0000-4000-8000-000000000015', 'a7000005-0000-4000-8000-000000000005', null,             'Completed', 'DEMO SEED', null, d4  + time '10:00'),
-    ('c7000016-0000-4000-8000-000000000016', 'a7000006-0000-4000-8000-000000000006', null,             'Completed', 'DEMO SEED', null, d3  + time '10:00'),
-    ('c7000017-0000-4000-8000-000000000017', 'a7000007-0000-4000-8000-000000000007', null,             'Completed', 'DEMO SEED', null, d5  + time '10:00')
+  -- ------------------------------------------------------ STATUS TIMELINE
+  -- Authoritative source the derivation reads. COP orders reach 'Completed'
+  -- (ready) on their ready day; collected ones additionally show 'Released'.
+  insert into public.order_status_history (id, order_id, old_status, new_status, reason, changed_by, created_at)
+  values
+    ('c0000001-0000-4000-8000-000000000000', 'e0000001-0000-4000-8000-000000000000', null,        'Completed', 'DEMO ready — cash on pickup',    null, d3 + time '10:00'),
+    ('c0000002-0000-4000-8000-000000000000', 'e0000002-0000-4000-8000-000000000000', null,        'Completed', 'DEMO ready — cash on pickup',    null, d20 + time '10:00'),
+    ('c0000003-0000-4000-8000-000000000000', 'e0000003-0000-4000-8000-000000000000', null,        'Completed', 'DEMO ready — cash on pickup',    null, d12 + time '10:00'),
+    ('c0000004-0000-4000-8000-000000000000', 'e0000004-0000-4000-8000-000000000000', null,        'Completed', 'DEMO ready — cash on pickup',    null, d5 + time '10:00'),
+    ('c0000005-0000-4000-8000-000000000000', 'e0000005-0000-4000-8000-000000000000', null,        'Completed', 'DEMO ready — cash on pickup',    null, d4 + time '10:00'),
+    ('c0000006-0000-4000-8000-000000000000', 'e0000006-0000-4000-8000-000000000000', null,        'Completed', 'DEMO ready — cash on pickup',    null, d3 + time '10:00'),
+    ('c0000007-0000-4000-8000-000000000000', 'e0000007-0000-4000-8000-000000000000', null,        'Completed', 'DEMO ready — cash on pickup',    null, d4 + time '10:00'),
+    ('c0000008-0000-4000-8000-000000000000', 'e0000007-0000-4000-8000-000000000000', 'Completed', 'Released',  'DEMO collected before deadline', null, d4 + time '15:00'),
+    ('c0000009-0000-4000-8000-000000000000', 'e0000008-0000-4000-8000-000000000000', null,        'Completed', 'DEMO ready — cash on pickup',    null, d3 + time '10:00'),
+    ('c0000010-0000-4000-8000-000000000000', 'e0000008-0000-4000-8000-000000000000', 'Completed', 'Released',  'DEMO collected after deadline',  null, d2 + time '09:00'),
+    ('c0000011-0000-4000-8000-000000000000', 'e0000009-0000-4000-8000-000000000000', null,        'Completed', 'DEMO ready — paid in advance',   null, d5 + time '10:00'),
+    ('c0000012-0000-4000-8000-000000000000', 'e0000010-0000-4000-8000-000000000000', null,        'Completed', 'DEMO ready — just completed',    null, now())
   on conflict (id) do update set
-    order_id = excluded.order_id,
-    old_status = excluded.old_status,
-    new_status = excluded.new_status,
-    reason = excluded.reason,
-    created_at = excluded.created_at;
+    order_id = excluded.order_id, old_status = excluded.old_status, new_status = excluded.new_status,
+    reason = excluded.reason, changed_by = excluded.changed_by, created_at = excluded.created_at;
 end $$;
 
--- ── 6. Summary ───────────────────────────────────────────────────────────────
-select p.email, p.full_name, p.role,
-       (select count(*) from public.orders o where o.customer_id = p.id) as demo_orders
+
+-- ============================================================================
+-- SECTION 6 — SUMMARY
+-- ============================================================================
+
+select
+  p.email,
+  p.full_name,
+  count(o.id)                                   as orders,
+  count(o.id) filter (where o.status = 'Released') as released,
+  count(o.id) filter (where o.hold_reason ilike '%Cash on Pickup%') as cash_on_pickup_orders
 from public.profiles p
+left join public.orders o on o.customer_id = p.id
 where p.email like '%@docufy.demo'
+group by p.email, p.full_name
 order by p.email;

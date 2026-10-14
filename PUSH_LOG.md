@@ -1047,3 +1047,15 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Updated the customer-facing unclaimed-order warning and Order Tracking so the warning and offense label reflect the real count, and removed the old "tell us why" excuse/explanation card.
 - Removed the old manual preview pieces entirely: the order-review modal, the customer violations section, the payment-restriction notice, the in-memory pickup-review store, and its demo seed.
 - Added a read-only order status-history timeline to order loading (degrading safely to empty when unavailable) and extended the demo SQL seed with demo accounts, orders, and status timelines that cover every unclaimed-order scenario.
+
+---
+
+## October 14, 2026 (2:20 PM PHT) - Francis William Garcia
+- Rebuilt the Unclaimed Orders page (admin + staff) into a card hub: three summary cards (Unclaimed Orders, Late Pick-up History, Customers Restricted) over a table of the orders that are still uncollected. The cards are the only way into the two new detail pages - they stay out of the sidebar on purpose.
+- Added two new Unclaimed Orders detail pages with their own admin and staff routes: Late Pick-up History (lists only orders that were collected after their pickup deadline, with a "Late By" column and figures in the details popup) and Customer Restrictions (the customers whose unclaimed count has restricted their payment options).
+- Added a "Back to Unclaimed Orders" button on both detail pages so they return to the Unclaimed Orders hub, and pointed the mobile back arrow at the same page.
+- Fixed the sidebar so card-only pages keep their parent highlighted: the Unclaimed Orders item now stays selected while viewing the History or Restrictions sub-pages instead of falling back to All Orders.
+- Pickup Monitoring: the "Unclaimed Orders" card now opens the sidebar Unclaimed Orders page instead of filtering the table, and the separate "Unclaimed" filter chip was removed.
+- Renamed the "Unclaimed Order History" card to "Late Pick-up History" and dropped its "View full history" hint.
+- Added a demo-data reset SQL that clears every seeded @docufy.demo account and its dependent rows (child-first, re-runnable) and refreshed the demo seed to match.
+- Show a "Logged in successfully" toast after a successful login.

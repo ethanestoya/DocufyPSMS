@@ -29,7 +29,7 @@ import {
   staffSections,
   findActiveModule,
   flattenSections,
-  childPathMatches,
+  resolveActiveChild,
   type NavModule,
   type NavSection,
 } from "../../utils/navigationConfig";
@@ -225,11 +225,12 @@ export default function MobileNavSheet({ router }: MobileNavSheetProps) {
             />
             <div className="flex flex-col items-stretch gap-1.5">
               {module.children!.map((childItem) => {
-                const isChildActive = childPathMatches(
-                  childItem,
-                  pathname,
-                  search,
-                );
+                const isChildActive =
+                  resolveActiveChild(
+                    module.children!,
+                    pathname,
+                    search,
+                  )?.path === childItem.path;
                 return (
                   <button
                     key={childItem.path}

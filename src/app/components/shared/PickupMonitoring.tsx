@@ -18,6 +18,7 @@ import {
   CalendarClock,
   PackageX,
 } from "lucide-react";
+import { useNavigate } from "react-router";
 import Layout from "../Layout";
 import StaffTimeInGate from "./StaffTimeInGate";
 import { ordersStore } from "../../utils/ordersStore";
@@ -56,7 +57,7 @@ interface PickupMonitoringProps {
 }
 
 type PickupState = "ready" | "overdue" | "collected";
-type PickupFilter = "all" | PickupState | "unclaimed";
+type PickupFilter = "all" | PickupState;
 
 const PICKUP_STATE_LABELS: Record<PickupState, string> = {
   ready: "Ready for Pickup",
@@ -69,7 +70,6 @@ const PICKUP_FILTERS: { key: PickupFilter; label: string }[] = [
   { key: "ready", label: "Ready for Pickup" },
   { key: "overdue", label: "Overdue for Pickup" },
   { key: "collected", label: "Picked Up" },
-  { key: "unclaimed", label: "Unclaimed" },
 ];
 
 const STATUS_LABELS: Record<string, string> = {
@@ -122,7 +122,11 @@ export default function PickupMonitoring({
   menuItems,
   userRole,
 }: PickupMonitoringProps) {
+  const navigate = useNavigate();
   const closingTime = useShopClosingTime();
+
+  const unclaimedBase =
+    userRole === "admin" ? "/admin/orders/unclaimed" : "/staff/queue/unclaimed";
 
   const [orders, setOrders] = useState<OrderRow[]>(() => ordersStore.getOrders());
   const [filter, setFilter] = useState<PickupFilter>("all");
@@ -189,9 +193,7 @@ export default function PickupMonitoring({
 
   const tableRows = useMemo(() => {
     let rows = [...pickupOrders];
-    if (filter === "unclaimed") {
-      rows = rows.filter((o) => recordById.has(o.id));
-    } else if (filter !== "all") {
+    if (filter !== "all") {
       rows = rows.filter((o) => stateById.get(o.id) === filter);
     }
     const q = search.trim().toLowerCase();
@@ -309,10 +311,7 @@ export default function PickupMonitoring({
               icon={PackageX}
               iconBg="bg-[#FDE8E8]"
               iconColor="text-[#B91C1C]"
-              active={filter === "unclaimed"}
-              onClick={() =>
-                setFilter((f) => (f === "unclaimed" ? "all" : "unclaimed"))
-              }
+              onClick={() => navigate(unclaimedBase)}
             />
           </div>
 

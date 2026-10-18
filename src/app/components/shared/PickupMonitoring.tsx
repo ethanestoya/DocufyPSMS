@@ -15,8 +15,9 @@ import {
   Eye,
   AlertTriangle,
   ClipboardList,
-  CalendarClock,
   PackageX,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useNavigate } from "react-router";
 import Layout from "../Layout";
@@ -26,7 +27,6 @@ import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { Label } from "../ui/label";
 import { SummaryCard } from "../ui/summary-card";
 import { DateRangeFilter } from "../ui/date-range-filter";
 import {
@@ -57,19 +57,16 @@ interface PickupMonitoringProps {
 }
 
 type PickupState = "ready" | "overdue" | "collected";
-type PickupFilter = "all" | PickupState;
+type PickupFilter = "all" | PickupState | "unclaimed";
 
-const PICKUP_STATE_LABELS: Record<PickupState, string> = {
-  ready: "Ready for Pickup",
-  overdue: "Overdue for Pickup",
-  collected: "Picked Up",
-};
+const PAGE_SIZE = 10;
 
 const PICKUP_FILTERS: { key: PickupFilter; label: string }[] = [
   { key: "all", label: "All" },
-  { key: "ready", label: "Ready for Pickup" },
-  { key: "overdue", label: "Overdue for Pickup" },
-  { key: "collected", label: "Picked Up" },
+  { key: "ready", label: "Ready" },
+  { key: "overdue", label: "Overdue" },
+  { key: "collected", label: "Picked up" },
+  { key: "unclaimed", label: "Unclaimed" },
 ];
 
 const STATUS_LABELS: Record<string, string> = {
@@ -84,15 +81,35 @@ const STATUS_LABELS: Record<string, string> = {
 const statusLabel = (status: string) =>
   STATUS_LABELS[status?.toLowerCase()] ?? status;
 
-function pickupStateClasses(state: PickupState): string {
-  switch (state) {
-    case "ready":
-      return "bg-[#EAF3FF] text-[#1D73EC] border-[#1D73EC]/30";
-    case "overdue":
-      return "bg-[#FDE8E8] text-[#B91C1C] border-[#DC2626]/40";
-    default:
-      return "bg-slate-100 text-slate-600 border-slate-200";
+// The Status column combines the pickup state with whether the order also
+// carries a derived unclaimed record: a collection made after the deadline
+// reads as "Picked up late" rather than a plain "Picked up".
+function rowStatus(
+  state: PickupState,
+  unclaimed: boolean,
+): { label: string; classes: string } {
+  if (state === "overdue") {
+    return {
+      label: "Overdue",
+      classes: "bg-[#FDE8E8] text-[#B91C1C] border-[#DC2626]/40",
+    };
   }
+  if (state === "ready") {
+    return {
+      label: "Ready for pickup",
+      classes: "bg-[#EAF3FF] text-[#1D73EC] border-[#1D73EC]/30",
+    };
+  }
+  if (unclaimed) {
+    return {
+      label: "Picked up late",
+      classes: "bg-[#FDE8E8] text-[#B91C1C] border-[#DC2626]/40",
+    };
+  }
+  return {
+    label: "Picked up",
+    classes: "bg-slate-100 text-slate-600 border-slate-200",
+  };
 }
 
 function paymentBadgeClasses(status: string): string {
@@ -133,6 +150,7 @@ export default function PickupMonitoring({
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [selected, setSelected] = useState<OrderRow | null>(null);
 
   useEffect(() => {
@@ -193,7 +211,9 @@ export default function PickupMonitoring({
 
   const tableRows = useMemo(() => {
     let rows = [...pickupOrders];
-    if (filter !== "all") {
+    if (filter === "unclaimed") {
+      rows = rows.filter((o) => recordById.has(o.id));
+    } else if (filter !== "all") {
       rows = rows.filter((o) => stateById.get(o.id) === filter);
     }
     const q = search.trim().toLowerCase();
@@ -219,6 +239,19 @@ export default function PickupMonitoring({
       return b.submittedAt.getTime() - a.submittedAt.getTime();
     });
   }, [pickupOrders, filter, stateById, recordById, search, dateFrom, dateTo]);
+
+  // Narrowing the list (filter, search or date range) sends it back to page 1,
+  // so a filter change can never leave you staring at an empty page 3.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, search, dateFrom, dateTo]);
+
+  const totalPages = Math.max(1, Math.ceil(tableRows.length / PAGE_SIZE));
+  const pageRows = useMemo(
+    () =>
+      tableRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [tableRows, currentPage],
+  );
 
   // Ready-for-pickup time: from the derived record, else the order's own
   // Completed transition. Released orders that were collected in time no longer
@@ -247,9 +280,7 @@ export default function PickupMonitoring({
       <StaffTimeInGate>
         <div className="flex flex-col space-y-5">
           <p className="max-w-2xl text-sm text-slate-500">
-            Track orders that are ready for pickup, overdue for pickup, or already
-            collected. Overdue status is computed automatically from each order's
-            status history and the shop's configured closing time.
+            Monitor orders awaiting collection.
           </p>
 
           {!isClosingTimeConfigured(closingTime) && (
@@ -273,65 +304,52 @@ export default function PickupMonitoring({
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <SummaryCard
-              label="Ready for Pickup"
+              label="Ready for pickup"
               value={counts.ready}
               icon={PackageCheck}
               iconBg="bg-[#EAF3FF]"
               iconColor="text-[#1D73EC]"
               active={filter === "ready"}
               onClick={() => setFilter((f) => (f === "ready" ? "all" : "ready"))}
+              trailing={<ChevronRight className="h-4 w-4 text-slate-300" />}
             />
             <SummaryCard
-              label="Overdue for Pickup"
+              label="Overdue"
               value={counts.overdue}
-              icon={CalendarClock}
+              icon={Clock}
               iconBg="bg-[#FDE8E8]"
               iconColor="text-[#B91C1C]"
               active={filter === "overdue"}
               onClick={() =>
                 setFilter((f) => (f === "overdue" ? "all" : "overdue"))
               }
+              trailing={<ChevronRight className="h-4 w-4 text-slate-300" />}
             />
             <SummaryCard
-              label="Picked Up"
-              value={counts.collected}
-              icon={Clock}
-              iconBg="bg-slate-100"
-              iconColor="text-slate-600"
-              active={filter === "collected"}
-              onClick={() =>
-                setFilter((f) => (f === "collected" ? "all" : "collected"))
-              }
-            />
-            <SummaryCard
-              label="Unclaimed Orders"
+              label="Unclaimed"
               value={counts.unclaimed}
               icon={PackageX}
               iconBg="bg-[#FDE8E8]"
               iconColor="text-[#B91C1C]"
               onClick={() => navigate(unclaimedBase)}
+              trailing={<ChevronRight className="h-4 w-4 text-slate-300" />}
             />
           </div>
 
           <Card className="p-4 border border-slate-100 shadow-sm shrink-0">
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col lg:flex-row lg:items-end gap-4">
-                <div className="flex-1 min-w-[200px]">
-                  <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    Search
-                  </Label>
-                  <div className="relative mt-1.5">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                    <Input
-                      aria-label="Search pickup orders"
-                      placeholder="Search order ID or customer..."
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      className="pl-10 bg-[#FBFDFF] border-gray-200 shadow-sm ring-1 ring-blue-300 rounded-lg"
-                    />
-                  </div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="group relative w-full sm:max-w-md">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#98A2B3] transition-colors group-focus-within:text-[#2F6FD6]" />
+                  <Input
+                    aria-label="Search pickup orders"
+                    placeholder="Search order or customer"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
                 <DateRangeFilter
                   value={{ from: dateFrom, to: dateTo }}
@@ -339,15 +357,11 @@ export default function PickupMonitoring({
                     setDateFrom(next.from);
                     setDateTo(next.to);
                   }}
-                  fromLabel="From"
-                  toLabel="To"
-                  className="w-full lg:w-[21rem]"
+                  compact
+                  className="w-full sm:w-[18rem]"
                 />
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Pickup Status
-                </span>
                 {PICKUP_FILTERS.map(({ key, label }) => {
                   const active = filter === key;
                   return (
@@ -377,12 +391,9 @@ export default function PickupMonitoring({
                 <thead className="bg-[#F2F7FF] border-b border-[#1D73EC]/10">
                   <tr>
                     {[
-                      "Order ID",
-                      "Customer",
-                      "Order Status",
-                      "Payment Status",
-                      "Pickup Status",
-                      "Ready for Pickup",
+                      "Order / Customer",
+                      "Status",
+                      "Payment",
                       "Pickup Deadline",
                       "Action",
                     ].map((h) => (
@@ -396,9 +407,9 @@ export default function PickupMonitoring({
                   </tr>
                 </thead>
                 <tbody className="bg-white">
-                  {tableRows.length === 0 ? (
+                  {pageRows.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-4 py-14">
+                      <td colSpan={5} className="px-4 py-14">
                         <div className="flex flex-col items-center text-center">
                           <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#1D73EC] ring-1 ring-[#1D73EC]/15">
                             <ClipboardList className="h-6 w-6" />
@@ -415,12 +426,12 @@ export default function PickupMonitoring({
                       </td>
                     </tr>
                   ) : (
-                    tableRows.map((order) => {
+                    pageRows.map((order) => {
                       const payment = payFor(order);
                       const state = stateById.get(order.id) ?? "collected";
-                      const readyAt = readyAtFor(order);
-                      const deadline = deadlineFor(order);
                       const isUnclaimed = recordById.has(order.id);
+                      const status = rowStatus(state, isUnclaimed);
+                      const deadline = deadlineFor(order);
                       return (
                         <tr
                           key={order.id}
@@ -428,74 +439,35 @@ export default function PickupMonitoring({
                           onClick={() => setSelected(order)}
                         >
                           <td className="px-4 py-3">
-                            <span className="font-mono text-xs text-gray-700">
+                            <div className="font-mono text-xs text-gray-700">
                               {order.displayId ?? order.id}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
+                            </div>
                             <div className="text-sm font-semibold text-gray-900">
                               {order.customer}
                             </div>
-                            {order.customerEmail && (
-                              <div className="text-xs text-gray-500">
-                                {order.customerEmail}
-                              </div>
-                            )}
                           </td>
                           <td className="px-4 py-3">
                             <Badge
                               variant="outline"
-                              className={`text-xs font-medium ${getStatusBadgeClasses(
-                                order.status,
-                              )}`}
+                              className={`text-xs font-medium ${status.classes}`}
                             >
-                              {statusLabel(order.status)}
+                              {status.label}
                             </Badge>
                           </td>
                           <td className="px-4 py-3">
-                            <Badge
-                              variant="outline"
-                              className={`text-xs font-semibold ${paymentBadgeClasses(
-                                payment.status,
-                              )}`}
-                            >
-                              {payment.status}
-                            </Badge>
-                            {payment.remaining > 0 && (
-                              <div className="mt-1 text-xs text-amber-700">
-                                Balance {formatCurrency(payment.remaining)}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge
-                              variant="outline"
-                              className={`text-xs font-semibold ${pickupStateClasses(
-                                state,
-                              )}`}
-                            >
-                              {PICKUP_STATE_LABELS[state]}
-                            </Badge>
-                            {isUnclaimed && state === "collected" && (
-                              <div className="mt-1 text-xs text-red-700">
-                                Collected after deadline
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            {readyAt ? (
-                              <>
-                                <div className="text-xs text-gray-700">
-                                  {formatPHDate(readyAt)}
-                                </div>
-                                <div className="text-xs text-gray-400">
-                                  {formatPHTime(readyAt)}
-                                </div>
-                              </>
-                            ) : (
-                              <span className="text-xs text-gray-400">
-                                {state === "collected" ? "—" : "Not available"}
+                            {payment.remaining > 0 ? (
+                              <span className="text-xs font-semibold text-amber-700">
+                                {formatCurrency(payment.remaining)} due
                               </span>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className={`text-xs font-semibold ${paymentBadgeClasses(
+                                  payment.status,
+                                )}`}
+                              >
+                                {payment.status}
+                              </Badge>
                             )}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
@@ -535,6 +507,63 @@ export default function PickupMonitoring({
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Footer — how many orders are in view, plus pagination. */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-gray-100 px-5 py-4">
+              <p className="text-sm text-slate-500">
+                Showing{" "}
+                <span className="font-semibold text-slate-700">
+                  {tableRows.length === 0
+                    ? 0
+                    : totalPages === 1
+                      ? tableRows.length
+                      : `${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(
+                          currentPage * PAGE_SIZE,
+                          tableRows.length,
+                        )}`}
+                </span>{" "}
+                of <span className="font-semibold text-slate-700">{tableRows.length}</span>{" "}
+                order{tableRows.length === 1 ? "" : "s"}
+              </p>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className="h-9 rounded-md border border-gray-200 bg-white px-3 text-slate-600 hover:border-[#2F6FD6] hover:bg-[#F2F7FF] hover:text-[#2F6FD6] disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" /> Prev
+                  </Button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
+                    <Button
+                      key={pg}
+                      type="button"
+                      onClick={() => setCurrentPage(pg)}
+                      className={
+                        pg === currentPage
+                          ? "h-9 w-9 rounded-md bg-[#2F6FD6] text-white shadow-sm shadow-[#2F6FD6]/30 hover:bg-[#2557b8]"
+                          : "h-9 w-9 rounded-md border border-gray-200 bg-white text-slate-600 hover:border-[#2F6FD6] hover:bg-[#F2F7FF] hover:text-[#2F6FD6]"
+                      }
+                    >
+                      {pg}
+                    </Button>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={currentPage === totalPages}
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(totalPages, p + 1))
+                    }
+                    className="h-9 rounded-md border border-gray-200 bg-white px-3 text-slate-600 hover:border-[#2F6FD6] hover:bg-[#F2F7FF] hover:text-[#2F6FD6] disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    Next <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              )}
             </div>
           </Card>
         </div>

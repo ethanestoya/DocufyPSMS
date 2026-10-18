@@ -87,14 +87,14 @@ export default function UnclaimedRestrictions({
             <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
               Search
             </Label>
-            <div className="relative mt-1.5 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <div className="group relative mt-1.5 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#98A2B3] transition-colors group-focus-within:text-[#2F6FD6]" />
               <Input
                 aria-label="Search restricted customers"
                 placeholder="Search customer..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 bg-[#FBFDFF] border-gray-200 shadow-sm ring-1 ring-blue-300 rounded-lg"
+                className="pl-10"
               />
             </div>
           </Card>

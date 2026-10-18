@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router";
 import {
   CreditCard,
@@ -16,16 +16,16 @@ import {
   Lock,
   Unlock,
   UserCheck,
-  Filter,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import Layout from "../Layout";
 import StaffTimeInGate from "./StaffTimeInGate";
 import { Card } from "../ui/card";
 import { DateRangeFilter } from "../ui/date-range-filter";
+import { ZoomSafeDropdown } from "../ui/zoom-safe-dropdown";
+import { FilterLabel } from "../ui/filter-label";
 import { SummaryCard } from "../ui/summary-card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -66,76 +66,6 @@ import {
 import { useAuth } from "../../contexts/AuthContext";
 import { PaymentDeadlineCountdown } from "./PaymentDeadlineCountdown";
 import { StartHereTag, PriorityBadge } from "../ui/priority-badge";
-
-/** Plain anchored dropdown for the filter selects — a `relative` wrapper
- *  with an `absolute` list underneath, so it stays under its trigger at any
- *  browser zoom without a portal. */
-function FilterDropdown({
-  value,
-  onChange,
-  options,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  options: { value: string; label: string }[];
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  const selected = options.find((o) => o.value === value);
-
-  return (
-    <div ref={ref} className="relative mt-1.5">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex h-9 w-full items-center justify-between gap-2 rounded-md border border-gray-200 bg-[#FBFDFF] px-3 py-2 text-sm shadow-sm ring-1 ring-blue-300 hover:border-[#2F6FD6] focus:outline-none focus:ring-2 focus:ring-blue-300"
-      >
-        <span className="flex items-center gap-2 truncate">
-          <Filter className="h-4 w-4 shrink-0 text-gray-500" />
-          <span className="truncate text-gray-800">{selected?.label ?? "Select"}</span>
-        </span>
-        <ChevronDown className={"h-4 w-4 shrink-0 text-gray-500 transition-transform" + (open ? " rotate-180" : "")} />
-      </button>
-
-      {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[10rem] overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
-          <ul className="py-1">
-            {options.map((o) => (
-              <li key={o.value}>
-                <button
-                  type="button"
-                  onClick={() => { onChange(o.value); setOpen(false); }}
-                  className={"flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-blue-50" +
-                    (o.value === value ? " font-medium text-[#2F6FD6]" : " text-gray-700")}
-                >
-                  {o.label}
-                  {o.value === value && <Check className="h-4 w-4 shrink-0 text-[#2F6FD6]" />}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // --- Types ---
 
@@ -854,14 +784,14 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
           <div className="flex flex-col lg:flex-row lg:flex-wrap lg:items-end gap-4">
             <div className="w-full lg:flex-1 lg:min-w-[200px]">
               <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Search</Label>
-              <div className="relative mt-1.5">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <div className="group relative mt-1.5">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#98A2B3] transition-colors group-focus-within:text-[#2F6FD6]" />
                 <Input
                   aria-label="Search payments"
                   placeholder="Search by customer, order ID, or reference..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-[#FBFDFF] border-gray-200 shadow-sm ring-1 ring-blue-300 rounded-lg"
+                  className="pl-10"
                 />
               </div>
             </div>
@@ -876,10 +806,12 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
               className="w-full lg:w-[21rem]"
             />
             <div className="w-full lg:w-48">
-              <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</Label>
-              <FilterDropdown
+              <FilterLabel applied={statusFilter !== "pending"}>Status</FilterLabel>
+              <ZoomSafeDropdown
+                className="mt-1.5"
                 value={statusFilter}
                 onChange={(v) => setStatusFilter(v as typeof statusFilter)}
+                applied={statusFilter !== "pending"}
                 options={[
                   { value: "pending",   label: "Pending" },
                   { value: "all",       label: "All Statuses" },
@@ -891,10 +823,12 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
               />
             </div>
             <div className="w-full lg:w-48">
-              <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Type</Label>
-              <FilterDropdown
+              <FilterLabel applied={typeFilter !== "all"}>Type</FilterLabel>
+              <ZoomSafeDropdown
+                className="mt-1.5"
                 value={typeFilter}
                 onChange={(v) => setTypeFilter(v as typeof typeFilter)}
+                applied={typeFilter !== "all"}
                 options={[
                   { value: "all",         label: "All Types" },
                   { value: "cash",        label: "Cash on Pickup" },
@@ -905,10 +839,12 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
             </div>
             {methodsInList.length > 0 && (
               <div className="w-full lg:w-48">
-                <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Method</Label>
-                <FilterDropdown
+                <FilterLabel applied={methodFilter !== "all"}>Method</FilterLabel>
+                <ZoomSafeDropdown
+                  className="mt-1.5"
                   value={methodFilter}
                   onChange={setMethodFilter}
+                  applied={methodFilter !== "all"}
                   options={[
                     { value: "all", label: "All Methods" },
                     ...methodsInList.map((m) => ({ value: m, label: m })),
@@ -917,21 +853,21 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
               </div>
             )}
             <div className="flex-none self-end">
-            <Button
-              variant="outline"
-              className="h-10 border-[#2F6FD6] text-[#2F6FD6] hover:bg-[#2F6FD6] hover:text-white"
-              onClick={() => {
-                setSearchQuery("");
-                setDateFrom("");
-                setDateTo("");
-                setStatusFilter("pending");
-                setTypeFilter("all");
-                setMethodFilter("all");
-              }}
-            >
-              <X className="h-4 w-4" />
-              Clear
-            </Button>
+              <Button
+                variant="outline"
+                className="h-9 border border-[#D5DCE6] bg-white text-[#64748B] hover:border-[#B7C3D4] hover:bg-[#FCFDFF] hover:text-[#475467] hover:translate-y-0 hover:shadow-none"
+                onClick={() => {
+                  setSearchQuery("");
+                  setDateFrom("");
+                  setDateTo("");
+                  setStatusFilter("pending");
+                  setTypeFilter("all");
+                  setMethodFilter("all");
+                }}
+              >
+                <X className="h-4 w-4" />
+                Clear filters
+              </Button>
             </div>
           </div>
         </Card>

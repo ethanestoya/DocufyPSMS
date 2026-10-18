@@ -7,6 +7,10 @@ import { ChevronDown, Check } from "lucide-react";
  * The trigger is wrapped in a `relative` container and the list renders as an
  * `absolute` child underneath it, so it stays aligned to the trigger at any
  * browser zoom without any portal or viewport measurement.
+ *
+ * Pass `applied` when the selected value is narrowing a list (i.e. it is not the
+ * control's default) — the trigger then takes the pale-blue "applied" surface, so
+ * a filtered list is visible without opening anything.
  */
 export function ZoomSafeDropdown({
   value,
@@ -17,6 +21,7 @@ export function ZoomSafeDropdown({
   className = "",
   triggerClassName = "",
   disabled = false,
+  applied = false,
 }: {
   value?: string;
   onChange?: (v: string) => void;
@@ -26,6 +31,7 @@ export function ZoomSafeDropdown({
   className?: string;
   triggerClassName?: string;
   disabled?: boolean;
+  applied?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -47,6 +53,7 @@ export function ZoomSafeDropdown({
   }, [open]);
 
   const selected = options.find((o) => o.value === value);
+  const marked = open || applied;
 
   return (
     <div ref={ref} className={`relative ${className}`}>
@@ -54,22 +61,32 @@ export function ZoomSafeDropdown({
         type="button"
         onClick={() => !disabled && setOpen((v) => !v)}
         disabled={disabled}
-        className={`flex h-10 w-full items-center justify-between gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm ring-1 ring-blue-300 hover:border-[#2F6FD6] focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-50 ${triggerClassName}`}
+        className={`flex h-9 w-full items-center justify-between gap-2 rounded-[10px] border px-3 py-2 text-sm transition-colors focus:outline-none disabled:cursor-not-allowed disabled:border-[#E4E7EC] disabled:bg-[#F8FAFC] disabled:text-[#9AA4B2] ${
+          open
+            ? "border-[#2F6FD6] ring-[3px] ring-[#2F6FD6]/20"
+            : applied
+              ? "border-[#9CBBEC] bg-[#F4F8FE]"
+              : "border-[#D5DCE6] bg-white hover:border-[#B7C3D4]"
+        } ${triggerClassName}`}
       >
         <span className="flex items-center gap-2 truncate">
           {Icon && <span className="shrink-0">{Icon}</span>}
-          <span className="truncate text-gray-800">
+          <span
+            className={`truncate ${applied ? "font-semibold text-[#1F4E9C]" : "text-[#1E293B]"}`}
+          >
             {selected?.label ?? placeholder}
           </span>
         </span>
         <ChevronDown
-          className={`h-4 w-4 shrink-0 text-gray-500 transition-transform${open ? " rotate-180" : ""}`}
+          className={`h-4 w-4 shrink-0 transition-transform${open ? " rotate-180" : ""} ${
+            marked ? "text-[#1F4E9C]" : "text-[#98A2B3]"
+          }`}
         />
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[10rem] overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
-          <ul className="py-1 max-h-60 overflow-auto">
+        <div className="absolute left-0 top-full z-50 mt-1.5 w-full min-w-[10rem] overflow-hidden rounded-[10px] border border-[#E4EBF5] bg-white shadow-[0_14px_30px_rgba(15,23,42,0.13)]">
+          <ul className="p-1 max-h-60 overflow-auto">
             {options.map((o) => (
               <li key={o.value}>
                 <button
@@ -79,7 +96,7 @@ export function ZoomSafeDropdown({
                     setOpen(false);
                   }}
                   disabled={o.disabled}
-                  className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-blue-50${o.disabled ? " cursor-not-allowed opacity-50 hover:bg-transparent" : ""}${o.value === value ? " font-medium text-[#2F6FD6]" : " text-gray-700"}`}
+                  className={`flex w-full items-center justify-between gap-2 rounded-[7px] px-2.5 py-2 text-left text-sm ${o.disabled ? "cursor-not-allowed text-[#B4BCC8] hover:bg-transparent" : "hover:bg-[#F2F7FF]"}${o.value === value ? " bg-[#F2F7FF] font-semibold text-[#2F6FD6]" : " text-gray-700"}`}
                 >
                   <span className="flex items-center gap-2 truncate">
                     {o.icon && <span className="shrink-0">{o.icon}</span>}
@@ -142,20 +159,24 @@ export function ZoomSafeActionDropdown({
         type="button"
         onClick={() => !disabled && setOpen((v) => !v)}
         disabled={disabled}
-        className={`flex h-9 w-full items-center justify-between gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm ring-1 ring-blue-300 hover:border-[#2F6FD6] focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-50 ${triggerClassName}`}
+        className={`flex h-9 w-full items-center justify-between gap-2 rounded-[10px] border px-3 py-2 text-sm transition-colors focus:outline-none disabled:cursor-not-allowed disabled:border-[#E4E7EC] disabled:bg-[#F8FAFC] disabled:text-[#9AA4B2] ${
+          open
+            ? "border-[#2F6FD6] ring-[3px] ring-[#2F6FD6]/20"
+            : "border-[#D5DCE6] bg-white hover:border-[#B7C3D4]"
+        } ${triggerClassName}`}
       >
         <span className="flex items-center gap-2 truncate">
           {icon && <span className="shrink-0">{icon}</span>}
-          <span className="truncate text-gray-800">{placeholder}</span>
+          <span className="truncate text-[#1E293B]">{placeholder}</span>
         </span>
         <ChevronDown
-          className={`h-4 w-4 shrink-0 text-gray-500 transition-transform${open ? " rotate-180" : ""}`}
+          className={`h-4 w-4 shrink-0 transition-transform${open ? " rotate-180 text-[#1F4E9C]" : " text-[#98A2B3]"}`}
         />
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[10rem] overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
-          <ul className="py-1 max-h-60 overflow-auto">
+        <div className="absolute left-0 top-full z-50 mt-1.5 w-full min-w-[10rem] overflow-hidden rounded-[10px] border border-[#E4EBF5] bg-white shadow-[0_14px_30px_rgba(15,23,42,0.13)]">
+          <ul className="p-1 max-h-60 overflow-auto">
             {options.map((o) => (
               <li key={o.value}>
                 <button
@@ -164,7 +185,7 @@ export function ZoomSafeActionDropdown({
                     onSelect(o.value);
                     setOpen(false);
                   }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-blue-50"
+                  className="flex w-full items-center gap-2 rounded-[7px] px-2.5 py-2 text-left text-sm text-gray-700 hover:bg-[#F2F7FF]"
                 >
                   {o.label}
                 </button>

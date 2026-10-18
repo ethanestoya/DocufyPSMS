@@ -1059,3 +1059,12 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Renamed the "Unclaimed Order History" card to "Late Pick-up History" and dropped its "View full history" hint.
 - Added a demo-data reset SQL that clears every seeded @docufy.demo account and its dependent rows (child-first, re-runnable) and refreshed the demo seed to match.
 - Show a "Logged in successfully" toast after a successful login.
+
+---
+
+## October 19, 2026 (1:55 AM PHT) - Francis William Garcia
+- Unified every filter and search control across the system into one field design: a white field with a single light outline at rest and a darker outline on hover, so blue is now reserved for focus and for filters that are actually narrowing the list instead of being used on every resting field.
+- Made an applied filter visible: a filter that is set now shows a pale-blue fill, a blue outline and a bolder blue value with a blue label, so you can tell at a glance which filters are on (automatic for date ranges, opt-in for status/type/method dropdowns).
+- Gave the Shop Status "Mark Paused" button a real presence: it is now a filled amber action at rest that darkens to solid amber on hover, and the "already open" / "already paused" states became quiet grey and dashed chips instead of faded, unreadable buttons.
+- Restyled Pickup Monitoring into the awaiting-collection workspace: three KPI cards (Ready for pickup / Overdue / Unclaimed), one search box plus a compact From-To date range over a status chip row, and a five-column table that reads the pickup outcome and Paid / amount due instead of raw order fields.
+- Restyled the Orders table row action button: quiet white with a light outline at rest, filling solid blue with white text on hover, so row actions no longer compete with the page's status colours.

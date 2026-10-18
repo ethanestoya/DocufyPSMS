@@ -995,14 +995,14 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
           <div className="flex flex-col lg:flex-row lg:items-end gap-4">
             <div className="flex-1 min-w-[200px]">
               <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Search</Label>
-              <div className="relative mt-1.5">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <div className="group relative mt-1.5">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#98A2B3] transition-colors group-focus-within:text-[#2F6FD6]" />
                 <Input
                   aria-label="Search orders"
                   placeholder="Search order ID, customer, or type..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-[#FBFDFF] border-gray-200 shadow-sm ring-1 ring-blue-300 rounded-lg"
+                  className="pl-10"
                 />
               </div>
             </div>
@@ -1225,7 +1225,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="text-xs border-2 border-[#1D73EC]/30 text-[#1D73EC] hover:bg-[#1D73EC] hover:text-white font-medium transition-colors"
+                                  className="rounded-lg border-[1.5px] border-[#D5DCE6] bg-white px-[13px] text-[11.5px] font-semibold text-[#344054] transition-colors hover:border-[#1D73EC] hover:bg-[#1D73EC] hover:text-white"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleOpenDetails(order);

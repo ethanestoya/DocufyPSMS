@@ -25,7 +25,6 @@ import {
   Briefcase,
   File,
   Settings,
-  Download,
   Eye,
   Lock,
   Unlock,
@@ -66,7 +65,8 @@ import { FileAttachments } from "../ui/file-attachments";
 import { ConfirmationDialog } from "../ui/confirmation-dialog";
 import { TableSkeleton } from "../ui/table-skeleton";
 import { useHydrating } from "../../utils/useHydrating";
-import { generateInvoiceData, generateInvoiceHTML, InvoiceData } from "../../utils/invoiceUtils";
+import { generateReceiptData } from "../../utils/invoiceUtils";
+import { OrderReceiptDialog } from "./OrderReceipt";
 import { pricingStore } from "../../utils/pricingStore";
 import { ORDER_STATUS_STYLES, getStatusBadgeClasses } from "../../utils/orderStatusPalette";
 import { inventoryStore } from "../../utils/inventoryStore";
@@ -123,8 +123,19 @@ type OrderType = {
     size: string;
     type: string;
     url?: string;
+    storagePath?: string;
+    printType?: string;
+    contentType?: string;
+    paperSize?: string;
+    pageCount?: number;
+    copies?: number;
+    colorMode?: string;
+    photoSize?: string;
+    photoQuantity?: number;
+    notes?: string;
   }[];
   paymentVerified?: boolean;
+  paymentVerifiedAt?: Date;
   paymentReferenceNumber?: string;
   orderSource: "online" | "walkin";
   paymentMethod?: string;
@@ -252,8 +263,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
     cancellationReason: "",
     holdReason: "",
   });
-  const [invoiceData, setInvoiceData] = useState<InvoiceData | null>(null);
-  const [showInvoicePreview, setShowInvoicePreview] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
 
   // Pagination
   const PAGE_SIZE = 10;
@@ -368,31 +378,6 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
         claimLock(order.id, myName);
       }
     }
-
-    // Generate invoice data if order is completed or released
-    if (order.status === 'completed' || order.status === 'released') {
-      try {
-        const invoice = generateInvoiceData({
-          ...order,
-          id: order.displayId ?? order.id,
-          customerName: order.customer,
-          date: formatPHDate(order.submittedAt, "long"),
-          fileName: order.attachedFiles?.[0]?.name || 'document.pdf',
-          status: order.status === 'completed' ? 'Completed' : order.status === 'released' ? 'Released' : order.status,
-          total: `₱${((!isNaN(order.costBreakdown?.total as number) ? Number(order.costBreakdown?.total ?? 0) : fallbackPrintTotal(order.pages, order.copies, order.type))).toFixed(2)}`,
-          printType: order.type,
-          paymentMethod: order.paymentMethod || (order.orderSource === 'walkin' ? 'Cash' : 'GCash'),
-          paymentVerified: order.paymentVerified || false,
-          colorMode: order.colorMode || (order.type === 'Colored' ? 'colored' : 'bw'),
-        });
-        setInvoiceData(invoice);
-      } catch (error) {
-        console.error('Error generating invoice:', error);
-        setInvoiceData(null);
-      }
-    } else {
-      setInvoiceData(null);
-    }
   };
 
   // Auto-open a specific order when arriving via a notification (?orderId=...)
@@ -406,25 +391,6 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
       handleOpenDetails(order);
     }
   }, [orders, searchParams]);
-
-  const handleDownloadInvoice = () => {
-    if (!invoiceData) {
-      toast.error("Invoice data is not available");
-      return;
-    }
-
-    const invoiceContent = generateInvoiceHTML(invoiceData);
-    const blob = new Blob([invoiceContent], { type: "text/html" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Invoice-${invoiceData.orderId}.html`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-    toast.success("Invoice downloaded successfully!");
-  };
 
   const handleUpdateStatus = (
     newStatus:
@@ -697,28 +663,6 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
     };
 
     setSelectedOrder(updatedSelectedOrder);
-
-    // Regenerate invoice data if order is now completed or released
-    if (pendingStatus === 'completed' || pendingStatus === 'released') {
-      try {
-        const invoice = generateInvoiceData({
-          ...updatedSelectedOrder,
-          id: updatedSelectedOrder.displayId ?? updatedSelectedOrder.id,
-          customerName: updatedSelectedOrder.customer,
-          date: formatPHDate(updatedSelectedOrder.submittedAt, "long"),
-          fileName: updatedSelectedOrder.attachedFiles?.[0]?.name || 'document.pdf',
-          status: pendingStatus === 'completed' ? 'Completed' : 'Released',
-          total: `₱${((!isNaN(updatedSelectedOrder.costBreakdown?.total as number) ? Number(updatedSelectedOrder.costBreakdown?.total ?? 0) : fallbackPrintTotal(updatedSelectedOrder.pages, updatedSelectedOrder.copies, updatedSelectedOrder.type))).toFixed(2)}`,
-          printType: updatedSelectedOrder.type,
-          paymentMethod: updatedSelectedOrder.paymentMethod || (updatedSelectedOrder.orderSource === 'walkin' ? 'Cash' : 'GCash'),
-          paymentVerified: updatedSelectedOrder.paymentVerified || false,
-          colorMode: updatedSelectedOrder.colorMode || (updatedSelectedOrder.type === 'Colored' ? 'colored' : 'bw'),
-        });
-        setInvoiceData(invoice);
-      } catch (error) {
-        console.error('Error generating invoice:', error);
-      }
-    }
 
     // Send notification to customer about status update
     const statusMessages: Record<string, string> = {
@@ -1627,111 +1571,102 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                   )}
                 </div>
 
-                {/* Invoice Section - Only show when order is Completed or Released */}
-                {(selectedOrder.status === 'completed' || selectedOrder.status === 'released') && invoiceData && (
-                  <div className="bg-white border-2 border-gray-300 rounded-xl overflow-hidden">
-                    <div className="px-4 py-2.5 border-b border-gray-200 bg-gray-50/50 flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-[#2F6FD6]" />
-                      <h3 className="text-sm font-bold text-[#1c1f26] uppercase tracking-wider flex items-center gap-2">
-                        Invoice
-                        <Badge className="bg-blue-100 text-blue-700 font-mono text-xs">
-                          {invoiceData.invoiceNumber}
-                        </Badge>
-                      </h3>
-                    </div>
-
-                    <div className="p-3">
-                      <div className="grid grid-cols-2 gap-px bg-gray-100 mb-3">
-                        <div className="bg-white p-3">
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                            Invoice Date
-                          </p>
-                          <p className="text-sm font-medium text-gray-900">
-                            {invoiceData.date}
-                          </p>
-                        </div>
-                        <div className="bg-white p-3">
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                            Total Amount
-                          </p>
-                          <p className="text-lg font-bold text-[#2F6FD6]">
-                            {invoiceData.totalAmount}
-                          </p>
-                        </div>
-                        <div className="bg-white p-3">
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                            Payment Method
-                          </p>
-                          <p className="text-sm font-medium text-gray-900">
-                            {invoiceData.paymentMethod}
-                          </p>
-                        </div>
-                        <div className="bg-white p-3">
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                            Payment Status
-                          </p>
-                          <Badge
-                            className={`text-xs font-medium ${
-                              invoiceData.paymentStatus === 'verified'
-                                ? "bg-blue-100 text-blue-700"
-                                : invoiceData.paymentStatus === 'cash'
-                                  ? "bg-gray-100 text-gray-700"
-                                  : "bg-yellow-100 text-yellow-700"
-                            }`}
-                          >
-                            {invoiceData.paymentStatus === 'verified' ? 'Verified' :
-                             invoiceData.paymentStatus === 'cash' ? 'Cash on Pickup' : 'Pending'}
+                {/* Order Receipt — available for every order, any status */}
+                {(() => {
+                  const receipt = generateReceiptData(selectedOrder);
+                  return (
+                    <div className="bg-white border-2 border-gray-300 rounded-xl overflow-hidden">
+                      <div className="px-4 py-2.5 border-b border-gray-200 bg-gray-50/50 flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-[#2F6FD6]" />
+                        <h3 className="text-sm font-bold text-[#1c1f26] uppercase tracking-wider flex items-center gap-2">
+                          Order Receipt
+                          <Badge className="bg-blue-100 text-blue-700 font-mono text-xs">
+                            {receipt.receiptNumber}
                           </Badge>
-                        </div>
+                        </h3>
                       </div>
 
-                      <div className="pt-3 border-t border-gray-200">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                          Cost Breakdown
-                        </p>
-                        <div className="space-y-1 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">
-                              Printing ({invoiceData.totalPages} pages × {invoiceData.copies} copies)
-                            </span>
-                            <span className="font-medium text-gray-900">
-                              ₱{(isNaN(invoiceData.costBreakdown.printingCost) ? 0 : invoiceData.costBreakdown.printingCost).toFixed(2)}
-                            </span>
+                      <div className="p-3">
+                        <div className="grid grid-cols-2 gap-px bg-gray-100 mb-3">
+                          <div className="bg-white p-3">
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                              Receipt Date
+                            </p>
+                            <p className="text-sm font-medium text-gray-900">
+                              {receipt.orderDate}
+                            </p>
                           </div>
-                          {invoiceData.addons.length > 0 && (
+                          <div className="bg-white p-3">
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                              Total Amount
+                            </p>
+                            <p className="text-lg font-bold text-[#2F6FD6]">
+                              {formatCurrency(receipt.total)}
+                            </p>
+                          </div>
+                          <div className="bg-white p-3">
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                              Payment Method
+                            </p>
+                            <p className="text-sm font-medium text-gray-900">
+                              {receipt.payment.method}
+                            </p>
+                          </div>
+                          <div className="bg-white p-3">
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                              Payment Status
+                            </p>
+                            <Badge
+                              className={`text-xs font-medium ${
+                                receipt.payment.status === "paid"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : receipt.payment.status === "unpaid"
+                                    ? "bg-gray-100 text-gray-700"
+                                    : "bg-yellow-100 text-yellow-700"
+                              }`}
+                            >
+                              {receipt.payment.statusLabel}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-gray-200">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                            Cost Breakdown
+                          </p>
+                          <div className="space-y-1 text-sm">
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Add-ons</span>
+                              <span className="text-gray-600">Printing</span>
                               <span className="font-medium text-gray-900">
-                                ₱{(isNaN(invoiceData.costBreakdown.addonsCost) ? 0 : invoiceData.costBreakdown.addonsCost).toFixed(2)}
+                                {formatCurrency(receipt.printingCost)}
                               </span>
                             </div>
-                          )}
+                            {receipt.addons.length > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Add-ons</span>
+                                <span className="font-medium text-gray-900">
+                                  {formatCurrency(receipt.addonsCost)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 mt-3">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowReceipt(true)}
+                            className="w-full border-2 border-[#2F6FD6]/30 text-[#2F6FD6] hover:bg-[#2F6FD6] hover:text-white font-medium"
+                          >
+                            <FileText className="w-4 h-4 mr-2" />
+                            View Receipt
+                          </Button>
                         </div>
                       </div>
-
-                      <div className="flex gap-2 mt-3">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowInvoicePreview(true)}
-                          className="flex-1 border-2 border-[#2F6FD6]/30 text-[#2F6FD6] hover:bg-[#2F6FD6] hover:text-white font-medium"
-                        >
-                          <FileText className="w-4 h-4 mr-2" />
-                          View Invoice
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleDownloadInvoice}
-                          className="flex-1 border-2 border-[#2F6FD6]/30 text-[#2F6FD6] hover:bg-[#2F6FD6] hover:text-white font-medium"
-                        >
-                          <Download className="w-4 h-4 mr-2" />
-                          Download Invoice
-                        </Button>
-                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Contextual workflow notes */}
                 {selectedOrder.status === "awaitingPayment" &&
@@ -2102,254 +2037,14 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
         />
       )}
 
-      <Dialog open={showInvoicePreview} onOpenChange={setShowInvoicePreview}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>
-              Invoice Preview - {invoiceData?.orderId || selectedOrder?.displayId || selectedOrder?.id}
-            </DialogTitle>
-            <DialogDescription>
-              View and download invoice for order {invoiceData?.orderId || selectedOrder?.displayId || selectedOrder?.id}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="overflow-auto max-h-[70vh] p-6 bg-white">
-            {invoiceData ? (
-              <>
-                {/* Invoice Header */}
-                <div className="text-center mb-8 border-b-2 border-[#2F6FD6] pb-6">
-                  <h1 className="text-3xl font-bold text-[#2F6FD6]">
-                    Docufy
-                  </h1>
-                  <p className="text-gray-600">Printing Services</p>
-                  <p className="text-sm text-gray-500">
-                    Room 4, Palawan State University - Main Campus,
-                    TBI Building, Puerto Princesa City, 5300 Palawan
-                  </p>
-                </div>
-
-                <h2 className="text-2xl font-bold text-[#2F6FD6] mb-6">
-                  INVOICE
-                </h2>
-
-                <div className="mb-6 space-y-3">
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Invoice Number:
-                    </span>
-                    <span className="text-gray-900">
-                      {invoiceData.invoiceNumber}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Order ID:
-                    </span>
-                    <span className="text-gray-900">{invoiceData.orderId}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Date:
-                    </span>
-                    <span className="text-gray-900">
-                      {invoiceData.date}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Customer:
-                    </span>
-                    <span className="text-gray-900">
-                      {invoiceData.customerName}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Payment Method:
-                    </span>
-                    <span className="text-gray-900">
-                      {invoiceData.paymentMethod}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Payment Status:
-                    </span>
-                    <Badge
-                      className={
-                        invoiceData.paymentStatus === 'verified'
-                          ? "bg-blue-100 text-blue-700"
-                          : invoiceData.paymentStatus === 'cash'
-                            ? "bg-gray-100 text-gray-700"
-                            : "bg-yellow-100 text-yellow-700"
-                      }
-                    >
-                      {invoiceData.paymentStatus === 'verified' ? 'Verified' :
-                       invoiceData.paymentStatus === 'cash' ? 'Cash on Pickup' : 'Pending'}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Order Source:
-                    </span>
-                    <Badge
-                      className={
-                        invoiceData.orderSource === 'online'
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-blue-100 text-blue-700"
-                      }
-                    >
-                      {invoiceData.orderSource === 'online' ? 'Online' : 'Walk-in'}
-                    </Badge>
-                  </div>
-                </div>
-
-                <h3 className="text-xl font-bold text-[#2F6FD6] mt-8 mb-4">
-                  Order Details
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Document:
-                    </span>
-                    <span className="text-gray-900">
-                      {invoiceData.fileName}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Total Pages:
-                    </span>
-                    <span className="text-gray-900">{invoiceData.totalPages} pages</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Copies:
-                    </span>
-                    <span className="text-gray-900">{invoiceData.copies}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Color Mode:
-                    </span>
-                    <span className="text-gray-900">
-                      {invoiceData.colorMode}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Paper Size:
-                    </span>
-                    <span className="text-gray-900">
-                      {invoiceData.paperSizeDisplay}
-                    </span>
-                  </div>
-                  {invoiceData.notes && (
-                    <div className="flex justify-between py-2 border-b">
-                      <span className="font-semibold text-gray-600">
-                        Special Instructions:
-                      </span>
-                      <span className="text-gray-900">
-                        {invoiceData.notes}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Add-ons Section */}
-                {invoiceData.addons.length > 0 && (
-                  <>
-                    <h3 className="text-xl font-bold text-[#2F6FD6] mt-8 mb-4">
-                      Add-ons
-                    </h3>
-                    <div className="space-y-3">
-                      {invoiceData.addons.map((addon, index) => (
-                        <div key={index} className="flex justify-between py-2 border-b">
-                          <span className="font-semibold text-gray-600">
-                            {addon.name} � {addon.quantity}:
-                          </span>
-                          <span className="text-gray-900">
-                            ₱{addon.subtotal.toFixed(2)}
-                          </span>
-                        </div>
-                      ))}
-                      <div className="flex justify-between py-3 border-t-2 border-[#2F6FD6]">
-                        <span className="font-bold text-gray-900">
-                          Add-ons Subtotal:
-                        </span>
-                        <span className="font-bold text-gray-900">
-                            ₱{(isNaN(invoiceData.costBreakdown.addonsCost) ? 0 : invoiceData.costBreakdown.addonsCost).toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* Cost Breakdown */}
-                <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-                  <h3 className="text-xl font-bold text-[#2F6FD6] mb-4">
-                    Cost Breakdown
-                  </h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between py-2">
-                      <span className="font-semibold text-gray-600">
-                        Printing Cost ({invoiceData.totalPages} pages � {invoiceData.copies} copies):
-                      </span>
-                      <span className="text-gray-900">
-                        ₱{(isNaN(invoiceData.costBreakdown.printingCost) ? 0 : invoiceData.costBreakdown.printingCost).toFixed(2)}
-                      </span>
-                    </div>
-                    {invoiceData.addons.length > 0 && (
-                      <div className="flex justify-between py-2">
-                        <span className="font-semibold text-gray-600">
-                          Add-ons:
-                        </span>
-                        <span className="text-gray-900">
-                          ₱{(isNaN(invoiceData.costBreakdown.addonsCost) ? 0 : invoiceData.costBreakdown.addonsCost).toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-8 pt-6 border-t-2 border-[#2F6FD6]">
-                  <div className="text-right">
-                    <p className="text-3xl font-bold text-[#2F6FD6]">
-                      Total: {invoiceData.totalAmount}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-12 text-center text-sm text-gray-600">
-                  <p>Thank you for choosing Docufy!</p>
-                  <p>
-                    For inquiries, please contact us at
-                    printwithdocufy@gmail.com
-                  </p>
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500">Invoice data is not available</p>
-              </div>
-            )}
-          </div>
-          <DialogFooter className="p-4 border-t">
-            <Button
-              variant="outline"
-              onClick={() => setShowInvoicePreview(false)}
-            >
-              Close
-            </Button>
-            <Button
-              onClick={handleDownloadInvoice}
-              className="bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Download Invoice
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Order Receipt Dialog */}
+      {selectedOrder && (
+        <OrderReceiptDialog
+          open={showReceipt}
+          onOpenChange={setShowReceipt}
+          data={generateReceiptData(selectedOrder)}
+        />
+      )}
       </StaffTimeInGate>
     </Layout>
   );

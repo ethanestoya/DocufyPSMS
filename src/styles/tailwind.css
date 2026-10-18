@@ -28,3 +28,70 @@
     transform: translateX(400%);
   }
 }
+
+/* ── Order Receipt printing (Print button → browser print → Save as PDF) ───
+   The receipt sheet carries the `order-receipt-print-area` class; everything
+   else on the page (app chrome, dialog frame, footer buttons) is hidden when
+   printing. A4 with a comfortable margin; blue panels print in color via
+   print-color-adjust; the itemized table repeats its header across pages. */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .order-receipt-print-area,
+  .order-receipt-print-area * {
+    visibility: visible !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .order-receipt-print-area {
+    position: absolute !important;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #fff !important;
+  }
+
+  /* Neutralize the dialog frame + scroll container so the receipt is never
+     clipped and nothing of the dialog chrome paints on the page. */
+  .order-receipt-print-shell,
+  .order-receipt-print-frame {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    transform: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+
+  .order-receipt-print-area table {
+    page-break-inside: auto;
+  }
+
+  .order-receipt-print-area thead {
+    display: table-header-group;
+  }
+
+  .order-receipt-print-area tr {
+    page-break-inside: avoid;
+  }
+}

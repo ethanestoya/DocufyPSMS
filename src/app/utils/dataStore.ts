@@ -89,6 +89,8 @@ export interface Order {
   paymentProof?: string;
   paymentReferenceNumber?: string;
   paymentVerified?: boolean;
+  // When the order's verified payment was recorded (ISO), for the receipt.
+  paymentVerifiedAt?: string;
   paymentProofUrl?: string;
   // Raw storage path of the upload payment proof (private `payment-proofs`
   // bucket) — needed to generate a signed URL at read time.
@@ -244,6 +246,7 @@ export function orderDtoToApp(dto: OrderDto): Order {
     paymentRowId: latestPayment?.id,
     paymentReferenceNumber: vp?.referenceNumber ?? undefined,
     paymentVerified: hasVerifiedPayment(dto.payments.map((p) => p.status)),
+    paymentVerifiedAt: vp?.verifiedAt?.toISOString(),
     paymentProofUrl: resolveStorageUrl(BUCKETS.paymentProofs, vp?.proofStoragePath ?? null) || undefined,
     proofStoragePath: vp?.proofStoragePath ?? undefined,
     fileName: firstFile?.originalName,

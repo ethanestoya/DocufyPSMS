@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router";
 import {
   LayoutDashboard,
@@ -8,7 +8,6 @@ import {
   Printer,
   Package as PackageIcon,
   Briefcase,
-  Download,
   Eye,
   AlertCircle,
   Calendar,
@@ -41,7 +40,8 @@ import { FileAttachments } from "../ui/file-attachments";
 import { dataStore } from "../../utils/dataStore";
 import { notificationStore } from "../../utils/notificationStore";
 import ShopStatusBanner from "../shared/ShopStatusBanner";
-import { generateInvoiceData, generateInvoiceHTML, InvoiceData } from "../../utils/invoiceUtils";
+import { OrderReceiptDialog } from "../shared/OrderReceipt";
+import { generateReceiptData } from "../../utils/invoiceUtils";
 import { pricingStore, formatPrice, type PricingValues } from "../../utils/pricingStore";
 import { pickupReview } from "../../utils/pickupReview";
 
@@ -71,15 +71,14 @@ const menuItems = [
 export default function OrderTracking() {
   const { orderId } = useParams();
   const navigate = useNavigate();
-  const [showInvoice, setShowInvoice] = useState(false);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
   const [showColorBreakdown, setShowColorBreakdown] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
   const [orderData, setOrderData] = useState(
     dataStore.getOrderById(orderId || ""),
   );
-  const [invoiceData, setInvoiceData] = useState<InvoiceData | null>(null);
   const [pricing, setPricing] = useState<PricingValues>(pricingStore.getPricing());
   // PREVIEW — customer explanation/response for a pickup issue (in-memory only).
   const [explanationText, setExplanationText] = useState("");
@@ -99,36 +98,23 @@ export default function OrderTracking() {
 
   useEffect(() => {
     const unsubscribe = dataStore.subscribe(() => {
-      const updatedOrder = dataStore.getOrderById(orderId || "");
-      setOrderData(updatedOrder);
-      // Regenerate invoice data when order changes
-      if (updatedOrder && (updatedOrder.status === 'Completed' || updatedOrder.status === 'Released')) {
-        try {
-          setInvoiceData(generateInvoiceData(updatedOrder));
-        } catch (error) {
-          console.error('Error generating invoice data:', error);
-        }
-      }
+      setOrderData(dataStore.getOrderById(orderId || ""));
     });
     return unsubscribe;
   }, [orderId]);
-
-  // Generate invoice data when component mounts or order completes
-  useEffect(() => {
-    if (orderData && (orderData.status === 'Completed' || orderData.status === 'Released')) {
-      try {
-        setInvoiceData(generateInvoiceData(orderData));
-      } catch (error) {
-        console.error('Error generating invoice data:', error);
-      }
-    }
-  }, [orderData?.status]);
 
   const currentOrderStatus = orderData?.status || "Awaiting Payment";
   const statusStyle = getOrderStatusStyle(currentOrderStatus);
   const currentOrderLabel = getCustomerStatusLabel(orderData);
   const holdReason = orderData?.holdReason;
   const canCancelOrder = ["In Queue", "Awaiting Payment"].includes(currentOrderStatus);
+
+  // The receipt is available for EVERY order (any status, incl. Canceled) —
+  // built fresh from the stored order on each render.
+  const receiptData = useMemo(
+    () => (orderData ? generateReceiptData(orderData) : null),
+    [orderData],
+  );
 
   // Determine if order is completed or released
   const isOrderCompleted =
@@ -153,29 +139,6 @@ export default function OrderTracking() {
         "This is a design preview — your response was not saved to the server.",
     });
     setExplanationText("");
-  };
-
-  const handleDownloadInvoice = () => {
-    if (!invoiceData) {
-      toast.error("Invoice data is not available");
-      return;
-    }
-
-    // Generate invoice content using dynamic data
-    const invoiceContent = generateInvoiceHTML(invoiceData);
-
-    const blob = new Blob([invoiceContent], {
-      type: "text/html",
-    });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Invoice-${orderId}.html`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-    toast.success("Invoice downloaded successfully!");
   };
 
   const handleDownloadFile = (fileName: string) => {
@@ -708,15 +671,15 @@ export default function OrderTracking() {
           </div>
         </Card>
 
-        {/* Invoice Section - Only show when order is Completed */}
-        {isOrderCompleted && invoiceData && (
+        {/* Order Receipt — available for every order, any status */}
+        {orderData && receiptData && (
           <Card className="p-6 bg-white shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-gray-900">
-                Invoice
+                Order Receipt
               </h2>
               <Badge className="bg-blue-100 text-blue-700">
-                {invoiceData.invoiceNumber}
+                {receiptData.receiptNumber}
               </Badge>
             </div>
 
@@ -725,47 +688,38 @@ export default function OrderTracking() {
                 <FileText className="w-5 h-5 text-[#2F6FD6]" />
                 <div className="flex-1">
                   <p className="font-medium text-gray-900">
-                    Invoice-{invoiceData.orderId}.html
+                    Receipt-{receiptData.receiptNumber}.html
                   </p>
                   <p className="text-sm text-gray-600">
-                    Generated on {invoiceData.date}
+                    Order date {receiptData.orderDate}
                   </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <p className="text-gray-600">Invoice Date</p>
-                  <p className="font-medium text-gray-900">
-                    {invoiceData.date}
+                  <p className="text-gray-600">Total</p>
+                  <p className="font-medium text-[#2F6FD6]">
+                    {formatCurrency(receiptData.total)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-600">Amount</p>
-                  <p className="font-medium text-[#2F6FD6]">
-                    {invoiceData.totalAmount}
+                  <p className="text-gray-600">Payment</p>
+                  <p className="font-medium text-gray-900">
+                    {receiptData.payment.statusLabel}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setShowInvoice(true)}
-                className="flex-1 border-[#2F6FD6] text-[#2F6FD6] hover:bg-white hover:text-[#2F6FD6] border-2 border-blue-200"
-              >
-                <Eye className="w-4 h-4 mr-2" />
-                View Invoice
-              </Button>
-              <Button
-                onClick={handleDownloadInvoice}
-                className="flex-1 bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Download Invoice
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              onClick={() => setShowReceipt(true)}
+              className="w-full border-[#2F6FD6] text-[#2F6FD6] hover:bg-white hover:text-[#2F6FD6] border-2 border-blue-200"
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              View Receipt
+            </Button>
           </Card>
         )}
 
@@ -877,227 +831,12 @@ export default function OrderTracking() {
         )}
       </div>
 
-      {/* Invoice Preview Dialog */}
-      <Dialog open={showInvoice} onOpenChange={setShowInvoice}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>
-              Invoice Preview - {invoiceData?.orderId || orderId}
-            </DialogTitle>
-            <DialogDescription>
-              View and download invoice for order {invoiceData?.orderId || orderId}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="overflow-auto max-h-[70vh] p-6 bg-white">
-            {invoiceData ? (
-              <>
-                {/* Invoice Header */}
-                <div className="text-center mb-8 border-b-2 border-[#2F6FD6] pb-6">
-                  <h1 className="text-3xl font-bold text-[#2F6FD6]">
-                    Docufy
-                  </h1>
-                  <p className="text-gray-600">Printing Services</p>
-                  <p className="text-sm text-gray-500">
-                    Room 4, Palawan State University - Main Campus,
-                    TBI Building, Puerto Princesa City, 5300 Palawan
-                  </p>
-                </div>
-
-                <h2 className="text-2xl font-bold text-[#2F6FD6] mb-6">
-                  INVOICE
-                </h2>
-
-                <div className="mb-6 space-y-3">
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Invoice Number:
-                    </span>
-                    <span className="text-gray-900">
-                      {invoiceData.invoiceNumber}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Order ID:
-                    </span>
-                    <span className="text-gray-900">{invoiceData.orderId}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Date:
-                    </span>
-                    <span className="text-gray-900">
-                      {invoiceData.date}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Customer:
-                    </span>
-                    <span className="text-gray-900">
-                      {invoiceData.customerName}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Payment Method:
-                    </span>
-                    <span className="text-gray-900">
-                      {invoiceData.paymentMethod}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Status:
-                    </span>
-                    <Badge
-                      className={`border ${getStatusBadgeClasses(invoiceData.status)}`}
-                    >
-                      {invoiceData.status}
-                    </Badge>
-                  </div>
-                </div>
-
-                <h3 className="text-xl font-bold text-[#2F6FD6] mt-8 mb-4">
-                  Order Details
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Document:
-                    </span>
-                    <span className="text-gray-900">
-                      {invoiceData.fileName}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Total Pages:
-                    </span>
-                    <span className="text-gray-900">{invoiceData.totalPages} pages</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Copies:
-                    </span>
-                    <span className="text-gray-900">{invoiceData.copies}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Color Mode:
-                    </span>
-                    <span className="text-gray-900">
-                      {invoiceData.colorMode}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold text-gray-600">
-                      Paper Size:
-                    </span>
-                    <span className="text-gray-900">
-                      {invoiceData.paperSizeDisplay}
-                    </span>
-                  </div>
-                  {invoiceData.notes && (
-                    <div className="flex justify-between py-2 border-b">
-                      <span className="font-semibold text-gray-600">
-                        Special Instructions:
-                      </span>
-                      <span className="text-gray-900">
-                        {invoiceData.notes}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Add-ons Section */}
-                {invoiceData.addons.length > 0 && (
-                  <>
-                    <h3 className="text-xl font-bold text-[#2F6FD6] mt-8 mb-4">
-                      Add-ons
-                    </h3>
-                    <div className="space-y-3">
-                      {invoiceData.addons.map((addon, index) => (
-                        <div key={index} className="flex justify-between py-2 border-b">
-                          <span className="font-semibold text-gray-600">
-                            {addon.name} × {addon.quantity}:
-                          </span>
-                          <span className="text-gray-900">
-                            ₱{addon.subtotal.toFixed(2)}
-                          </span>
-                        </div>
-                      ))}
-                      <div className="flex justify-between py-3 border-t-2 border-[#2F6FD6]">
-                        <span className="font-bold text-gray-900">
-                          Add-ons Subtotal:
-                        </span>
-                        <span className="font-bold text-gray-900">
-                          ₱{invoiceData.costBreakdown.addonsCost.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* Cost Breakdown */}
-                <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-                  <h3 className="text-xl font-bold text-[#2F6FD6] mb-4">
-                    Cost Breakdown
-                  </h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between py-2">
-                      <span className="font-semibold text-gray-600">
-                        Printing Cost ({invoiceData.totalPages} pages × {invoiceData.copies} copies):
-                      </span>
-                      <span className="text-gray-900">
-                        ₱{invoiceData.costBreakdown.printingCost.toFixed(2)}
-                      </span>
-                    </div>
-                    {invoiceData.addons.length > 0 && (
-                      <div className="flex justify-between py-2">
-                        <span className="font-semibold text-gray-600">
-                          Add-ons:
-                        </span>
-                        <span className="text-gray-900">
-                          ₱{invoiceData.costBreakdown.addonsCost.toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-8 pt-6 border-t-2 border-[#2F6FD6]">
-                  <div className="text-right">
-                    <p className="text-3xl font-bold text-[#2F6FD6]">
-                      Total: {invoiceData.totalAmount}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-12 text-center text-sm text-gray-600">
-                  <p>Thank you for choosing Docufy!</p>
-                  <p>
-                    For inquiries, please contact us at
-                    printwithdocufy@gmail.com
-                  </p>
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500">Invoice data is not available</p>
-              </div>
-            )}
-          </div>
-          <DialogFooter className="p-4 border-t">
-            <Button
-              variant="outline"
-              onClick={() => setShowInvoice(false)}
-            >
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Order Receipt Dialog */}
+      <OrderReceiptDialog
+        open={showReceipt}
+        onOpenChange={setShowReceipt}
+        data={receiptData}
+      />
 
       {/* Color Page Breakdown Dialog */}
       <Dialog open={showColorBreakdown} onOpenChange={setShowColorBreakdown}>

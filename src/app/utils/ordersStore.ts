@@ -24,9 +24,27 @@ type OrderType = {
   paymentDeadline?: Date;
   // Amount the customer reports having paid (online submissions).
   paymentAmountPaid?: number;
-  attachedFiles?: { name: string; size: string; type: string }[];
+  // Full AttachedFile objects flow through from dataStore at runtime; the
+  // optional spec fields power the order receipt's per-file rows.
+  attachedFiles?: {
+    name: string;
+    size: string;
+    type: string;
+    url?: string;
+    printType?: string;
+    contentType?: string;
+    paperSize?: string;
+    pageCount?: number;
+    copies?: number;
+    colorMode?: string;
+    photoSize?: string;
+    photoQuantity?: number;
+    notes?: string;
+  }[];
   paymentVerified?: boolean;
   paymentReferenceNumber?: string;
+  // When the order's verified payment was recorded (Date), for the receipt.
+  paymentVerifiedAt?: Date;
   paymentMethod?: string;
   paymentProofUrl?: string;
   orderSource: 'online' | 'walkin';
@@ -205,6 +223,7 @@ class OrdersStore {
       attachedFiles: order.attachedFiles || (order.fileName ? [{ name: order.fileName, size: '0 MB', type: 'PDF' }] : []),
       paymentVerified: order.paymentVerified || false,
       paymentReferenceNumber: order.paymentReferenceNumber,
+      paymentVerifiedAt: asDate(order.paymentVerifiedAt),
       paymentMethod: order.paymentMethod,
       orderSource: order.orderSource || (order.paymentMethod === 'Cash' ? 'walkin' : 'online'),
       customerEmail: order.customerEmail,

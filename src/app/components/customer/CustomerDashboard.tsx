@@ -41,6 +41,7 @@ import {
   type AnnouncementDetailData,
 } from "../shared/AnnouncementDetailsModal";
 import { getStatusBadgeClasses, getCustomerStatusLabel } from "../../utils/orderStatusPalette";
+import { UnclaimedOrderWarning } from "../shared/UnclaimedOrderWarning";
 
 const menuItems = [
   {
@@ -227,6 +228,9 @@ export default function CustomerDashboard() {
             Here's what's happening with your orders.
           </p>
         </div>
+
+        {/* First confirmed-unclaimed order warning (preview only) */}
+        <UnclaimedOrderWarning customerKey={user?.email} />
 
         {/* Announcement Banner */}
         {allAnnouncements

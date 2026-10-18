@@ -43,9 +43,36 @@ export const childPathMatches = (
 ): boolean => {
   const qIndex = child.path.indexOf("?");
   const base = qIndex === -1 ? child.path : child.path.slice(0, qIndex);
-  if (pathname !== base) return false;
+  const pathMatches = pathname === base || pathname.startsWith(`${base}/`);
+  if (!pathMatches) return false;
   if (qIndex === -1) return true;
-  return search === child.path.slice(qIndex);
+  // A query-specific child only matches its exact pathname + search.
+  return pathname === base && search === child.path.slice(qIndex);
+};
+
+/**
+ * Picks the most specific child matching the current location. Using the
+ * LONGEST matching base path means a deeper route (e.g. a card-only detail page
+ * like `/admin/orders/unclaimed/history`) still highlights its nearest parent
+ * child ("Unclaimed Orders") rather than the shorter catch-all child
+ * ("All Orders").
+ */
+export const resolveActiveChild = (
+  children: NavChild[],
+  pathname: string,
+  search: string,
+): NavChild | undefined => {
+  let best: NavChild | undefined;
+  let bestLen = -1;
+  for (const child of children) {
+    if (!childPathMatches(child, pathname, search)) continue;
+    const base = pathBase(child.path);
+    if (base.length > bestLen) {
+      bestLen = base.length;
+      best = child;
+    }
+  }
+  return best;
 };
 
 export const findActiveModule = (
@@ -55,9 +82,7 @@ export const findActiveModule = (
 ): NavModule | undefined =>
   modules.find((module) => {
     if (module.children && module.children.length > 0) {
-      return module.children.some((child) =>
-        childPathMatches(child, pathname, search),
-      );
+      return resolveActiveChild(module.children, pathname, search) !== undefined;
     }
     const base = pathBase(module.path);
     return pathname === base || pathname.startsWith(`${base}/`);

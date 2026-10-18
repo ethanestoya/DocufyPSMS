@@ -49,6 +49,7 @@ import {
   DialogFooter,
 } from "./ui/dialog";
 import { AnnouncementDetailsModal, type AnnouncementDetailData } from "./shared/AnnouncementDetailsModal";
+import { UnclaimedHeaderIndicator } from "./shared/UnclaimedHeaderIndicator";
 import { Button } from "./ui/button";
 import { TopProgressBar } from "./ui/top-progress-bar";
 import {
@@ -56,7 +57,7 @@ import {
   staffSections,
   findActiveModule,
   flattenSections,
-  childPathMatches,
+  resolveActiveChild,
   type NavModule,
   type NavSection,
 } from "../utils/navigationConfig";
@@ -515,11 +516,12 @@ export default function Layout({
             />
             <div className="flex flex-col items-stretch gap-1.5">
               {module.children!.map((child) => {
-                const isChildActive = childPathMatches(
-                  child,
-                  location.pathname,
-                  location.search,
-                );
+                const isChildActive =
+                  resolveActiveChild(
+                    module.children!,
+                    location.pathname,
+                    location.search,
+                  )?.path === child.path;
                 return (
                   <button
                     key={child.path}
@@ -1018,6 +1020,11 @@ export default function Layout({
                 {headerTimeStr}
               </span>
             </div>
+
+            {/* Unclaimed-order indicator (customers only) */}
+            {user?.role === "customer" && (
+              <UnclaimedHeaderIndicator customerKey={user?.email} />
+            )}
 
             {/* Notification Bell */}
             <div className="relative">

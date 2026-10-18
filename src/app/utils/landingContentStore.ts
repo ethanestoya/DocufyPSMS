@@ -36,6 +36,12 @@ export interface LandingPageContent {
   feature3Sub: string;
   shopHours: Array<{ label: string; hours: string }>;
   hoursNote: string;
+  // Structured pickup-deadline source for the unclaimed-order system: the shop's
+  // closing time as 24h "HH:mm". EMPTY by default (unconfigured) — when empty no
+  // pickup deadline can be computed, so no unclaimed offense is derived and the
+  // admin UI shows a "configure shop hours" warning. The free-text `shopHours`
+  // rows stay display-only.
+  shopClosingTime: string;
   locationLines: string[];
   mapEmbedUrl: string;
   contactEmail: string;
@@ -71,6 +77,7 @@ const defaults: LandingPageContent = {
     { label: "Saturday - Sunday", hours: "Closed" },
   ],
   hoursNote: "No noon break",
+  shopClosingTime: "",
   locationLines: [
     "Palawan State University - Main Campus",
     "Room 4, TBI Building",
@@ -202,7 +209,22 @@ function notify() {
 // cards exist.
 function normalizeContent(raw: unknown): LandingPageContent {
   const source = confirmServiceCards(migrateLegacyToContent(raw));
-  return { ...defaults, ...source };
+  const merged = { ...defaults, ...source };
+  // Only a valid 24h "HH:mm" is accepted; anything else (legacy/garbage) is
+  // treated as unconfigured so no deadline is invented from bad data.
+  merged.shopClosingTime = normalizeClosingTime(merged.shopClosingTime);
+  return merged;
+}
+
+// Coerce a stored closing time to a valid 24h "HH:mm", or "" when unconfigured.
+function normalizeClosingTime(value: unknown): string {
+  if (typeof value !== "string") return "";
+  const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+  if (!match) return "";
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return "";
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
 function migrateLegacyToContent(raw: unknown): Record<string, any> {

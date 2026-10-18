@@ -5,7 +5,8 @@ import {
   WifiOff,
   CalendarClock,
   Clock,
-  AlertTriangle,
+  Check,
+  Pause,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "../ui/card";
@@ -110,31 +111,51 @@ export default function ShopStatusControl() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {/* Mark Open — a quiet "this is the current state" chip while the shop
+                is open, and the filled primary way back when it is not. */}
             <Button
               type="button"
               disabled={state.status === "open"}
               onClick={() => applyStatus("open")}
-              className="border-[#2F6FD6] bg-[#2F6FD6] text-white hover:bg-[#1e5bb8] hover:border-[#1e5bb8] text-xs h-9 px-3 disabled:opacity-50"
+              className={
+                state.status === "open"
+                  ? "rounded-[10px] border border-solid border-[#E4E7EC] bg-[#F2F4F7] text-[#98A2B3] shadow-none hover:bg-[#F2F4F7] hover:text-[#98A2B3] hover:translate-y-0 hover:shadow-none text-xs h-9 px-3 disabled:opacity-100 disabled:bg-[#F2F4F7] disabled:border-[#E4E7EC] disabled:text-[#98A2B3] disabled:hover:bg-[#F2F4F7] disabled:hover:text-[#98A2B3]"
+                  : "rounded-[10px] border border-solid border-[#2F6FD6] bg-[#2F6FD6] text-white shadow-[0_1px_2px_rgba(47,111,214,0.22)] hover:bg-[#2557B8] hover:border-[#2557B8] hover:text-white text-xs h-9 px-3"
+              }
             >
-              <Wifi className="w-3.5 h-3.5 mr-1.5" />
+              {state.status === "open" ? (
+                <Check className="w-3.5 h-3.5 mr-1.5" />
+              ) : (
+                <Wifi className="w-3.5 h-3.5 mr-1.5" />
+              )}
               Mark Open
             </Button>
+            {/* Mark Paused — tonal amber at rest (so it reads as a real action
+                without competing with the blue primary), solid amber on hover,
+                and a settled "already paused" state instead of a faded ghost. */}
             <Button
               type="button"
-              variant="outline"
               disabled={state.status === "paused"}
               onClick={openPause}
-              className="border-amber-300 text-amber-700 bg-white hover:bg-amber-600 hover:border-amber-600 hover:text-white text-xs h-9 px-3 disabled:opacity-50"
+              className={
+                state.status === "paused"
+                  ? "rounded-[10px] border border-dashed border-[#E3C79B] bg-[#F8FAFC] text-[#B08A4A] shadow-none hover:bg-[#F8FAFC] hover:text-[#B08A4A] hover:translate-y-0 hover:shadow-none text-xs h-9 px-3 disabled:opacity-100 disabled:bg-[#F8FAFC] disabled:border-[#E3C79B] disabled:text-[#B08A4A] disabled:hover:bg-[#F8FAFC] disabled:hover:text-[#B08A4A]"
+                  : "rounded-[10px] border border-solid border-[#F5CE8A] bg-[#FFF8EB] text-[#8A5007] shadow-[0_1px_2px_rgba(138,80,7,0.08)] hover:bg-[#E08A00] hover:border-[#E08A00] hover:text-white hover:-translate-y-px hover:shadow-[0_5px_12px_rgba(224,138,0,0.30)] active:translate-y-0 active:bg-[#C2740A] active:border-[#C2740A] active:text-white active:shadow-[inset_0_2px_5px_rgba(90,50,0,0.22)] focus-visible:border-[#F5CE8A] focus-visible:ring-2 focus-visible:ring-[#E08A00] focus-visible:ring-offset-2 focus-visible:ring-offset-white text-xs h-9 px-3"
+              }
             >
-              <AlertTriangle className="w-3.5 h-3.5 mr-1.5" />
-              Mark Paused
+              {state.status === "paused" ? (
+                <Check className="w-3.5 h-3.5 mr-1.5" />
+              ) : (
+                <Pause className="w-3.5 h-3.5 mr-1.5" />
+              )}
+              {state.status === "paused" ? "Already Paused" : "Mark Paused"}
             </Button>
             <Button
               type="button"
               variant="outline"
               disabled={state.status === "closed-scheduled"}
               onClick={() => applyStatus("closed-scheduled")}
-              className="border-slate-300 text-slate-600 bg-white hover:bg-slate-600 hover:border-slate-600 hover:text-white text-xs h-9 px-3 disabled:opacity-50"
+              className="rounded-[10px] border-slate-300 text-slate-600 bg-white hover:bg-slate-600 hover:border-slate-600 hover:text-white text-xs h-9 px-3 disabled:opacity-50"
             >
               <CalendarClock className="w-3.5 h-3.5 mr-1.5" />
               Mark Closed (Scheduled)
@@ -178,7 +199,7 @@ export default function ShopStatusControl() {
               data-primary-action
               disabled={!reason.trim()}
               onClick={() => applyStatus("paused", { reason: reason.trim(), eta: eta.trim() || undefined })}
-              className="bg-amber-600 hover:bg-amber-700 text-white"
+              className="bg-[#E08A00] border-[#E08A00] text-white hover:bg-[#C2740A] hover:border-[#C2740A]"
             >
               Pause Docufy
             </Button>

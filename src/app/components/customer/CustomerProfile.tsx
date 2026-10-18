@@ -9,7 +9,6 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
 import { ConfirmationDialog } from '../ui/confirmation-dialog';
-import OrderViolationsSection from '../shared/OrderViolationsSection';
 import { useAuth, type User as AuthUser } from '../../contexts/AuthContext';
 import { PasswordStrengthIndicator, validatePassword } from '../ui/password-strength-indicator';
 import { isDataUrl } from '../../utils/supabaseAvatar';
@@ -463,9 +462,6 @@ export default function CustomerProfile() {
             </div>
           </Card>
         )}
-
-        {/* Order Violations & Restrictions (preview workflow) */}
-        <OrderViolationsSection role="customer" customerKey={user?.email} />
 
         {/* Account Security */}
         <Card className="bg-white shadow-sm">

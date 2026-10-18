@@ -170,6 +170,20 @@ export interface PaymentDto {
   verifiedAt: Date | null;
 }
 
+// One status transition from `order_status_history`, oldest-first. The unclaimed
+// derivation reads the timeline (when an order reached `Completed` / `Released`)
+// rather than the order's CURRENT status, so a later `Released` never erases the
+// record that the order was once overdue.
+export interface StatusHistoryDto {
+  id: string;
+  orderId: string;
+  oldStatus: OrderStatus | null;
+  newStatus: OrderStatus;
+  reason: string | null;
+  changedBy: string | null;
+  createdAt: Date;
+}
+
 export interface OrderDto {
   id: string;
   orderNumber: number;
@@ -205,6 +219,13 @@ export interface OrderDto {
   addons: OrderAddonDto[];
   costBreakdown: CostBreakdownDto | null;
   payments: PaymentDto[];
+  // Status timeline, oldest-first. Empty when the order has no history rows OR
+  // when the caller's permissions block the read (see statusHistoryUnavailable).
+  statusHistory: StatusHistoryDto[];
+  // True when the `order_status_history` read itself failed for this fetch — the
+  // UI shows an "unclaimed-order information unavailable" notice instead of
+  // silently treating the empty timeline as "no offenses".
+  statusHistoryUnavailable?: boolean;
 }
 
 // Display ID helper: the DB sequence lives in `order_number` (identity), and

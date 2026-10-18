@@ -37,6 +37,7 @@ import {
 import { toast } from "sonner";
 import Layout from "../Layout";
 import StaffTimeInGate from "./StaffTimeInGate";
+import { UnclaimedOrderWarning } from "./UnclaimedOrderWarning";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
@@ -87,8 +88,11 @@ import {
 } from "../../utils/pricingStore";
 import PaymentMethodQRPanel from "./PaymentMethodQR";
 import { CashOnPickupAcknowledgement } from "./CashOnPickupAcknowledgement";
-import PaymentRestrictionNotice from "./PaymentRestrictionNotice";
-import { pickupReview } from "../../utils/pickupReview";
+import {
+  CASH_ON_PICKUP_BLOCKED_MESSAGE,
+  CASH_ON_PICKUP_MIN_CONFIRMED_OFFENSES,
+} from "../../utils/unclaimedPolicy";
+import { useUnclaimedOffenses } from "../../utils/useUnclaimedOffenses";
 import LegalPolicyDialog from "./LegalPolicyDialog";
 import {
   shopStatusStore,
@@ -873,11 +877,23 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
   // is collected at the shop when the order is picked up.
   const isLowValueCash = !isOnline && flowTier === "none";
 
-  // Cash on Pickup is unavailable ONLY for full-payment tier orders
-  // (≥ fullPaymentThreshold → online only). Down-payment tier orders keep
-  // every option selectable: cash gets a 50% down payment, and online methods
-  // default to a down payment with the full option available on the next page.
-  const cashDisabled = isFullTier;
+  // Cash on Pickup is unavailable for full-payment tier orders
+  // (≥ fullPaymentThreshold → online only) AND — per the finalized second-
+  // offense rule — for any customer with >= 2 confirmed unclaimed-order
+  // offenses on record. Down-payment tier orders keep every option selectable.
+  // The count is derived from the customer's authoritative order data + status
+  // timeline (never stored), and re-renders automatically on data changes.
+  const { count: confirmedOffenseCount } = useUnclaimedOffenses(user?.email);
+  const cashRestrictedByOffense =
+    !isWalkin &&
+    confirmedOffenseCount >= CASH_ON_PICKUP_MIN_CONFIRMED_OFFENSES;
+  const cashDisabled = isFullTier || cashRestrictedByOffense;
+
+  // Reason-specific copy for the disabled Cash on Pickup option (offense rule
+  // takes precedence over the high-value threshold message).
+  const cashDisabledReason = cashRestrictedByOffense
+    ? CASH_ON_PICKUP_BLOCKED_MESSAGE
+    : `Not available for orders ₱${fullPaymentThreshold.toLocaleString()} and above`;
 
   // No in-stock paper means document/vellum/sticker files can't be printed at all.
   const hasPaperStock = availablePaperSizes.some((s) => s.inStock);
@@ -1164,7 +1180,9 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
 
     if (!isWalkin && paymentMethod === "cash" && cashDisabled) {
       toast.error(
-        `Cash on Pickup is not available for orders ₱${fullPaymentThreshold.toLocaleString()} and above. Please pay online via one of the available payment methods.`,
+        cashRestrictedByOffense
+          ? CASH_ON_PICKUP_BLOCKED_MESSAGE
+          : `Cash on Pickup is not available for orders ₱${fullPaymentThreshold.toLocaleString()} and above. Please pay online via one of the available payment methods.`,
       );
       return;
     }
@@ -1541,6 +1559,10 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
           <ArrowLeft className="h-5 w-5" />
           <span className="text-sm font-medium">Back</span>
         </button>
+      )}
+      {/* First confirmed-unclaimed order warning (preview only) */}
+      {!isWalkin && (
+        <UnclaimedOrderWarning customerKey={user?.email} variant="slim" />
       )}
       {!isWalkin && isResumed && submittedOrderId && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -2962,11 +2984,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                             ? undefined
                             : () => setPaymentMethod("cash")
                         }
-                        title={
-                          cashDisabled
-                            ? `Cash on Pickup is not available for orders ₱${fullPaymentThreshold.toLocaleString()} and above`
-                            : undefined
-                        }
+                        title={cashDisabled ? cashDisabledReason : undefined}
                       >
                         {paymentMethod === "cash" && (
                           <span className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#2F6FD6] rounded-full" />
@@ -2977,12 +2995,14 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                             <Banknote className="w-5 h-5 text-blue-600" />
                           </div>
                           <div className="min-w-[8rem] flex-1">
-                            <Label htmlFor="cash" className={`font-semibold cursor-pointer ${cashDisabled ? "text-gray-500" : "text-gray-900"}`}>
+                            <Label htmlFor="cash" className={`font-semibold ${cashDisabled ? "text-gray-500 cursor-not-allowed" : "text-gray-900 cursor-pointer"}`}>
                               Cash on Pickup
                             </Label>
                             {cashDisabled ? (
                               <p className="text-xs text-amber-600 font-medium">
-                                {`Not available for orders ₱${fullPaymentThreshold.toLocaleString()} and above`}
+                                {cashRestrictedByOffense
+                                  ? "Unavailable — second confirmed offense"
+                                  : `Not available for orders ₱${fullPaymentThreshold.toLocaleString()} and above`}
                               </p>
                             ) : (
                               <p className="text-xs text-gray-500">
@@ -2997,28 +3017,14 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                           )}
                         </div>
                       </div>
+
+                      {cashRestrictedByOffense && (
+                        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-relaxed @min-[720px]:col-span-2">
+                          {CASH_ON_PICKUP_BLOCKED_MESSAGE}
+                        </p>
+                      )}
                     </div>
                   </RadioGroup>
-
-                  {!isWalkin &&
-                    (() => {
-                      // PREVIEW — show the proposed advance-payment restriction
-                      // notice only when a session preview restriction exists for
-                      // this customer. It does NOT change cashDisabled/enforcement.
-                      const restriction = pickupReview.getRestriction(
-                        user?.email || "",
-                      );
-                      if (!restriction.active) return null;
-                      return (
-                        <div className="mt-4">
-                          <PaymentRestrictionNotice
-                            preview
-                            reason={restriction.reason}
-                            duration={undefined}
-                          />
-                        </div>
-                      );
-                    })()}
 
                   {isOnline && (
                     <div className="mt-6">

@@ -915,14 +915,14 @@ export default function InventoryManagement({
 
         {/* Toolbar */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
-          <div className="relative w-full sm:max-w-xs">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+          <div className="group relative w-full sm:max-w-xs">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3] transition-colors group-focus-within:text-[#2F6FD6]" />
             <Input
               aria-label="Search inventory items"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search items..."
-              className="pl-10 bg-[#FBFDFF] border-gray-200 shadow-sm ring-1 ring-blue-300 rounded-lg"
+              className="pl-10"
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">

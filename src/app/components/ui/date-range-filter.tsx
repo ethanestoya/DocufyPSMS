@@ -255,9 +255,16 @@ const disabled = React.useMemo<Matcher | undefined>(() => {
   // The calendar jumps to whatever month the typed value lives in.
   const defaultMonth = isoToDate(value.from) ?? isoToDate(value.to);
 
+  // A date range that is set is a filter that is narrowing the list, so the two
+  // boxes take the "applied" treatment (pale blue fill, blue hairline, bolder
+  // value) and their labels go blue with a dot — legible without opening the
+  // calendar.
+  const applied = Boolean(value.from || value.to);
+
   const boxClass = cn(
-    "h-10 rounded-md bg-[#FBFDFF] pr-10 text-sm ring-blue-300 ring-1",
-    compact && "h-9 text-xs",
+    "h-9 rounded-[10px] bg-white pr-10 text-sm",
+    compact && "text-xs",
+    applied && "border-[#9CBBEC] bg-[#F4F8FE] font-semibold text-[#1F4E9C]",
     inputClassName,
   );
 
@@ -306,10 +313,14 @@ const disabled = React.useMemo<Matcher | undefined>(() => {
             <span className="flex items-center gap-2">
               <span
                 className={cn(
-                  "shrink-0 text-xs font-medium text-[#54606E]",
+                  "flex shrink-0 items-center gap-1.5 text-xs font-medium",
+                  applied ? "text-[#2F6FD6]" : "text-[#54606E]",
                   compact && "text-[11px]",
                 )}
               >
+                {applied ? (
+                  <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#2F6FD6]" />
+                ) : null}
                 {label}
               </span>
               <span className="relative flex-1">
@@ -321,10 +332,14 @@ const disabled = React.useMemo<Matcher | undefined>(() => {
             <div className="min-w-0">
               <Label
                 className={cn(
-                  "mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500",
+                  "mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide",
+                  applied ? "text-[#2F6FD6]" : "text-gray-500",
                   compact && "text-[10px]",
                 )}
               >
+                {applied ? (
+                  <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#2F6FD6]" />
+                ) : null}
                 {label}
               </Label>
               <div className="relative">{input}{icon}</div>

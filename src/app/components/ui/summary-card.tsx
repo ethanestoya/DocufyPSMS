@@ -17,6 +17,8 @@ export interface SummaryCardProps {
   onClick?: () => void;
   className?: string;
   chipClassName?: string;
+  /** Optional trailing node (e.g. a chevron hinting the card leads somewhere). */
+  trailing?: React.ReactNode;
 }
 
 export function SummaryCard({
@@ -35,6 +37,7 @@ export function SummaryCard({
   onClick,
   className = "",
   chipClassName = "",
+  trailing,
 }: SummaryCardProps) {
   const clickable = typeof onClick === "function";
   const isActive = active && !highlight;
@@ -81,6 +84,7 @@ export function SummaryCard({
           </div>
         )}
       </div>
+      {trailing !== undefined && <div className="shrink-0">{trailing}</div>}
     </div>
   );
 }

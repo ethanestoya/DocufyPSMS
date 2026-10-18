@@ -1003,11 +1003,79 @@ New entries are added at the bottom, below the most recent one, so the log reads
 
 ---
 
+## October 11, 2026 (6:19 AM PHT) - Francis William Garcia
+- Redesigned the pickup order-review modal into a clean, sectioned layout: a compact header (customer name, order ID, submitted date & time, and the order status badge) sits above four at-a-glance overview cards - Payment & Balance, Pickup Readiness, Pickup Deadline, and Pickup Reminders - and the old separate order-summary strip was removed.
+- Reworked the review body so the incident workflow reads in one place: an "Unclaimed-order Review" section shows the incident status badge and confirmed-incident count with the customer explanation and the private staff note side by side, followed by a slim blue "Preview mode" note that states decisions only update temporary preview state.
+- Turned the Admin decision into three compact action cards - Keep under review, Confirm unclaimed order, and Excuse incident - each with an icon, short description, and chevron; the old separate "Review Incident" action was dropped so the modal itself is the review space.
+- Moved the second-offence advance-payment options (50% deposit / full advance / remove restriction) into a secondary dialog that appears only when a repeat offence is relevant, instead of showing them inline on every order.
+- Updated the Pickup Monitoring and Unclaimed Orders modals to the same compact header and wider layout. All preview-only rules, role gating (Staff flag/note, Admin decides), incident statuses, and note flows were preserved and nothing is saved, enforced, or written to a real customer record.
+
+---
+
+## October 13, 2026 (12:00 PM PHT) - Francis William Garcia
+- Redesigned the customer Order Tracking pickup information card: pickup date and time are now derived from the order's own timeline (when it last changed status) instead of a hardcoded date, and the row shows a separate pickup-status badge (Ready for Pickup / Picked Up / Unclaimed) so the collection state is never confused with the printing status. The card moved above the Order Details section, reads compactly, and uses a highlighted blue background on both desktop and mobile.
+- On mobile, the pickup location row now shows a "View Shop Location" button that opens the shop map and photos dialog instead of the full address text; desktop still shows the full address. The location itself always comes from the admin-managed shop content rather than a fixed string.
+- Made the Order Tracking "Payment Method and Status" and "Invoice" cards collapsible on mobile to match the Order Details card, and removed the redundant "Basic Information" heading from the Order Details section.
+- Added a customer-facing unclaimed-order warning card (preview only) on the Dashboard, My Orders, and print-request pages: it appears when the customer has a confirmed-unclaimed order and links straight to that order's tracking page.
+- Merged demo orders into the Pickup Monitoring and Unclaimed Orders pages and seed their preview incidents once per load, so the pickup workflow can be shown with data without touching any real order.
+- Added a demo-customer SQL seed (auth users, profiles, and orders) plus a login diagnostic script, and an `isDemo` flag on the order type so preview-only demo orders are never written to the database.
+
+---
+
+## October 13, 2026 (1:16 PM PHT) - Francis William Garcia
+- Showed the Unclaimed badge beside "Current Status": a confirmed-unclaimed order now displays a small amber "Unclaimed" badge on the right side of the Current Status label row, so the customer sees the incident at a glance without opening the pickup card.
+
+---
+
+## October 13, 2026 (11:08 PM PHT) - Francis William Garcia
+- Finalized the second-offense penalty rule: a customer with a second confirmed unclaimed-order offense can no longer choose Cash on Pickup. The rule is enforced at the single order-submission chokepoint (so a manipulated selection is rejected before anything is saved) and mirrored in the checkout UI, with walk-in sales exempt.
+- Added confirmed-offense counting and a Cash-on-Pickup restriction helper to the pickup-review preview store, matching the customer by email case-insensitively.
+- Updated the Cash on Pickup option on the print request so it now reads "Unavailable — second confirmed offense" with the full explanation, and refreshes live when the offense ledger changes; removed the old "restriction duration pending policy approval" preview notice from checkout.
+- Updated the customer account violation preview and the payment restriction notice to the finalized wording, dropping the placeholder "duration pending approval" line.
+- Stopped seeding the demo 50%-deposit restriction so the demo customer now demonstrates the Cash on Pickup restriction instead.
+- Order Tracking: replaced the plain Unclaimed badge with a clearer amber warning — a compact clickable warning on mobile that opens a details dialog, and an inline amber note on desktop — each showing the offense label (First/Second/...) derived from the customer's real confirmed incidents.
+- Merged the Pickup Date, Pickup Time, and Pickup Location rows into one pickup-information container on Order Tracking.
+
+---
+
+## October 14, 2026 (1:53 AM PHT) - Francis William Garcia
+- Replaced the manual unpaid/unclaimed-order review workflow with an automatic, data-driven system: an order's unclaimed status and a customer's offense count are now worked out from the real order data and its order status timeline, so nothing has to be flagged, excused, or confirmed by hand and no separate offense ledger is stored.
+- Added a Shop Closing Time setting on the Landing Page editor: the daily pickup deadline is now calculated from it, and the admin pickup/unclaimed pages show a clear "configure shop hours" warning until it is set (nothing is ever marked unclaimed before then).
+- Rebuilt the Pickup Monitoring page around plain, honest states - ready, collected, or overdue - with a read-only details view, replacing the manual review panel.
+- Rebuilt the Unclaimed Orders page into two clear lists: the unclaimed-order history and the customers who currently have a restriction, with search and a date range.
+- Made payment restrictions fully automatic based on a customer's unclaimed-order count: the 1st offense is a warning only, the 2nd disables Cash on Pickup and requires a 50% deposit or full advance, and the 3rd and beyond requires full advance. Outstanding balance and account suspension stay separate from this.
+- Updated the customer-facing unclaimed-order warning and Order Tracking so the warning and offense label reflect the real count, and removed the old "tell us why" excuse/explanation card.
+- Removed the old manual preview pieces entirely: the order-review modal, the customer violations section, the payment-restriction notice, the in-memory pickup-review store, and its demo seed.
+- Added a read-only order status-history timeline to order loading (degrading safely to empty when unavailable) and extended the demo SQL seed with demo accounts, orders, and status timelines that cover every unclaimed-order scenario.
+
+---
+
+## October 14, 2026 (2:20 PM PHT) - Francis William Garcia
+- Rebuilt the Unclaimed Orders page (admin + staff) into a card hub: three summary cards (Unclaimed Orders, Late Pick-up History, Customers Restricted) over a table of the orders that are still uncollected. The cards are the only way into the two new detail pages - they stay out of the sidebar on purpose.
+- Added two new Unclaimed Orders detail pages with their own admin and staff routes: Late Pick-up History (lists only orders that were collected after their pickup deadline, with a "Late By" column and figures in the details popup) and Customer Restrictions (the customers whose unclaimed count has restricted their payment options).
+- Added a "Back to Unclaimed Orders" button on both detail pages so they return to the Unclaimed Orders hub, and pointed the mobile back arrow at the same page.
+- Fixed the sidebar so card-only pages keep their parent highlighted: the Unclaimed Orders item now stays selected while viewing the History or Restrictions sub-pages instead of falling back to All Orders.
+- Pickup Monitoring: the "Unclaimed Orders" card now opens the sidebar Unclaimed Orders page instead of filtering the table, and the separate "Unclaimed" filter chip was removed.
+- Renamed the "Unclaimed Order History" card to "Late Pick-up History" and dropped its "View full history" hint.
+- Added a demo-data reset SQL that clears every seeded @docufy.demo account and its dependent rows (child-first, re-runnable) and refreshed the demo seed to match.
+- Show a "Logged in successfully" toast after a successful login.
+
+---
+
 ## October 19, 2026 (12:48 AM PHT) - aeprnts
 - Replaced the invoice with one adaptive Order Receipt for every order: the old "View/Download Invoice" card (gated to Completed/Released) and its hand-rolled preview dialog - duplicated on customer Order Tracking and the staff/admin order details - are gone. Every order now shows a compact Order Receipt card with its receipt number (RCPT-...), date, total, and payment status, opening a shared receipt dialog that works for any status, including Canceled orders (with a red banner and the stored cancellation reason). Walk-in receipts remain staff/admin only.
 - Receipt totals are now trustworthy: figures come only from the stored cost breakdown (never recalculated), the receipt reuses the existing payment calculation for paid/balance, and the payment-status label was fixed - it used to read off the order status instead of the payment, so it could say the wrong thing.
 - Added Print / Save as PDF and Download to the receipt: the dialog prints via plain CSS (A4 page rules that neutralize the dialog's fixed positioning so nothing is clipped) with no new dependencies, and Download saves a self-contained styled HTML file. Receipt files itemize every attached file (or show an honest order-summary line for file-less photocopy walk-ins), and fabricated placeholder emails are filtered out.
 - Orders now carry a payment-recorded timestamp: a new paymentVerifiedAt field (mapped from the verified-payments table) lets the receipt show when payment was recorded instead of inventing a date. No financial calculation, payment verification, permission, status transition, schema, or dependency changed. Typecheck + build pass.
+
+---
+
+## October 19, 2026 (1:55 AM PHT) - Francis William Garcia
+- Unified every filter and search control across the system into one field design: a white field with a single light outline at rest and a darker outline on hover, so blue is now reserved for focus and for filters that are actually narrowing the list instead of being used on every resting field.
+- Made an applied filter visible: a filter that is set now shows a pale-blue fill, a blue outline and a bolder blue value with a blue label, so you can tell at a glance which filters are on (automatic for date ranges, opt-in for status/type/method dropdowns).
+- Gave the Shop Status "Mark Paused" button a real presence: it is now a filled amber action at rest that darkens to solid amber on hover, and the "already open" / "already paused" states became quiet grey and dashed chips instead of faded, unreadable buttons.
+- Restyled Pickup Monitoring into the awaiting-collection workspace: three KPI cards (Ready for pickup / Overdue / Unclaimed), one search box plus a compact From-To date range over a status chip row, and a five-column table that reads the pickup outcome and Paid / amount due instead of raw order fields.
+- Restyled the Orders table row action button: quiet white with a light outline at rest, filling solid blue with white text on hover, so row actions no longer compete with the page's status colours.
 
 ---
 

@@ -22,6 +22,9 @@ import {
 import { hasVerifiedPayment } from '../../lib/db/paymentsRepo';
 import { createWalkInTransaction } from '../../lib/db/walkInRepo';
 import { auditLogStore } from './auditLogStore';
+import { CASH_ON_PICKUP_BLOCKED_MESSAGE } from './unclaimedPolicy';
+import { getCustomerPolicy, toUnclaimedOrderLikes } from './unclaimedOrders';
+import { landingContentStore } from './landingContentStore';
 import { resolveStorageUrl, BUCKETS, uploadObjectAndGetPath, removeObjectsIfPresent } from '../../lib/db/storage';
 import { formatOrderNumber } from '../../lib/db/types';
 import type { OrderDto, OrderFileDto } from '../../lib/db/types';
@@ -137,6 +140,13 @@ export interface Order {
   statusUpdatedAt?: string; // ISO string - tracks when status was last changed
   createdAt?: string; // ISO string - tracks when order was created
   lastUpdatedAt?: string; // ISO string - tracks any update to the order
+  // Status timeline (oldest-first) from `order_status_history`. Drives the
+  // unclaimed-order derivation (when the order reached Completed / Released),
+  // so it is independent of the order's current status.
+  statusHistory?: Array<{ status: string; oldStatus?: string | null; at: string }>;
+  // True when the history read failed for this fetch — surfaces an "unclaimed
+  // info unavailable" notice instead of implying zero offenses.
+  statusHistoryUnavailable?: boolean;
 }
 
 export interface Notification {
@@ -280,6 +290,12 @@ export function orderDtoToApp(dto: OrderDto): Order {
     statusUpdatedAt: dto.statusUpdatedAt.toISOString(),
     createdAt: dto.createdAt.toISOString(),
     lastUpdatedAt: dto.updatedAt.toISOString(),
+    statusHistory: (dto.statusHistory ?? []).map((h) => ({
+      status: h.newStatus,
+      oldStatus: h.oldStatus,
+      at: h.createdAt.toISOString(),
+    })),
+    statusHistoryUnavailable: dto.statusHistoryUnavailable,
   };
 }
 
@@ -444,6 +460,27 @@ class DataStore {
         : typeof suppliedCustomerId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(suppliedCustomerId)
           ? suppliedCustomerId
           : input.actorId ?? null;
+
+    // FINALIZED RULE — once a customer has enough DERIVED unclaimed Cash-on-
+    // Pickup orders, Cash on Pickup is blocked for their future orders. The
+    // count comes from the real order + status-history timeline (never a local
+    // ledger), and an unconfigured closing time derives nothing, so this guard
+    // only fires on a real, computed restriction. Enforced HERE at the single
+    // order-submission chokepoint (the same path every print request flows
+    // through), NOT only in checkout, so a manipulated selection is still
+    // rejected before any row or file is written. Walk-in sales are exempt.
+    if (!isWalkin && input.paymentMethod === 'Cash') {
+      const customerKey = input.customerEmail ?? input.actorId ?? null;
+      const closingTime = landingContentStore.getContent().shopClosingTime;
+      const policy = getCustomerPolicy(
+        toUnclaimedOrderLikes(this.orders),
+        customerKey,
+        closingTime,
+      );
+      if (policy.cashOnPickupDisabled) {
+        throw new Error(CASH_ON_PICKUP_BLOCKED_MESSAGE);
+      }
+    }
 
     const row: CreateOrderInput = {
       customerId,

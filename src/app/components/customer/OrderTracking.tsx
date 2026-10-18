@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router";
 import {
   LayoutDashboard,
@@ -14,8 +14,12 @@ import {
   File,
   ShoppingCart,
   ChevronDown,
+  ChevronRight,
   X,
   ArrowLeft,
+  MapPin,
+  Info,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import Layout from "../Layout";
@@ -43,7 +47,28 @@ import ShopStatusBanner from "../shared/ShopStatusBanner";
 import { OrderReceiptDialog } from "../shared/OrderReceipt";
 import { generateReceiptData } from "../../utils/invoiceUtils";
 import { pricingStore, formatPrice, type PricingValues } from "../../utils/pricingStore";
-import { pickupReview } from "../../utils/pickupReview";
+import { landingContentStore, DEFAULT_MAP_EMBED } from "../../utils/landingContentStore";
+import { computeOrderPayment } from "../shared/OrderPaymentSummary";
+import { shopPhotosStore, type ShopPhoto } from "../../utils/shopPhotosStore";
+import { useUnclaimedOffenses } from "../../utils/useUnclaimedOffenses";
+
+const OFFENSE_WORDS: Record<number, string> = {
+  1: "First",
+  2: "Second",
+  3: "Third",
+  4: "Fourth",
+  5: "Fifth",
+  6: "Sixth",
+  7: "Seventh",
+  8: "Eighth",
+  9: "Ninth",
+  10: "Tenth",
+};
+
+/** "First" / "Second" / … for small ordinals; a numeric fallback beyond ten. */
+function ordinalWord(n: number): string {
+  return OFFENSE_WORDS[n] ?? `${n}th`;
+}
 
 const menuItems = [
   {
@@ -73,6 +98,7 @@ export default function OrderTracking() {
   const navigate = useNavigate();
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [showPaymentDetails, setShowPaymentDetails] = useState(false);
   const [showColorBreakdown, setShowColorBreakdown] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
@@ -80,12 +106,27 @@ export default function OrderTracking() {
     dataStore.getOrderById(orderId || ""),
   );
   const [pricing, setPricing] = useState<PricingValues>(pricingStore.getPricing());
-  // PREVIEW — customer explanation/response for a pickup issue (in-memory only).
-  const [explanationText, setExplanationText] = useState("");
-  const [, setPickupTick] = useState(0);
+  const [shopContent, setShopContent] = useState(() => landingContentStore.getContent());
+  const [shopLocationOpen, setShopLocationOpen] = useState(false);
+  const [showShopPhotos, setShowShopPhotos] = useState(false);
+  const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
+  const [unclaimedDialogOpen, setUnclaimedDialogOpen] = useState(false);
+  const [shopPhotos, setShopPhotos] = useState<ShopPhoto[]>(() => shopPhotosStore.getPhotos());
 
   useEffect(() => {
-    return pickupReview.subscribe(() => setPickupTick((t) => t + 1));
+    const load = () => setShopContent(landingContentStore.getContent());
+    const unsubscribe = landingContentStore.subscribe(load);
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    const load = () => setShopPhotos(shopPhotosStore.getPhotos());
+    const unsubscribe = shopPhotosStore.subscribe(load);
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -122,24 +163,79 @@ export default function OrderTracking() {
     currentOrderStatus === "Released";
   const isAwaitingPayment = currentOrderStatus === "Awaiting Payment";
 
-  // PREVIEW — the pickup-issue response area appears only once Admin has flagged
-  // this order for review, or when the customer has already submitted an
-  // explanation. It is never shown for orders with no pickup issue.
-  const pickupIncident = pickupReview.getIncident(orderId || "");
-  const showPickupResponse =
-    isOrderCompleted &&
-    (pickupIncident?.status === "pending_review" ||
-      !!pickupIncident?.customerExplanation);
+  // Derived unclaimed-offense state for this order's customer (shared source of
+  // truth — recomputed from the authoritative order data + status timeline,
+  // never stored). The record for THIS order tells us whether it went unclaimed.
+  const { summary: unclaimedSummary } = useUnclaimedOffenses(orderData?.customerEmail);
+  const isUnclaimed =
+    unclaimedSummary?.records.some((r) => r.orderId === (orderId || "")) ?? false;
 
-  const handleSubmitExplanation = () => {
-    if (!orderId || !explanationText.trim()) return;
-    pickupReview.setCustomerExplanation(orderId, explanationText.trim());
-    toast.info("Explanation submitted (preview).", {
-      description:
-        "This is a design preview — your response was not saved to the server.",
-    });
-    setExplanationText("");
-  };
+  // ── Pickup information — real data only. The pickup date/time come from the
+  // order timeline (when it last changed status), the location from the
+  // admin-configured shop content, and the status from the order + the
+  // pickup-incident preview state — nothing here is hardcoded.
+  const orderTotalNumber = (() => {
+    if (orderData?.costBreakdown?.total != null) return orderData.costBreakdown.total;
+    const raw: unknown = orderData?.total;
+    if (typeof raw === "number") return raw;
+    const parsed = parseFloat(String(raw ?? "").replace(/[^\d.]/g, ""));
+    return Number.isFinite(parsed) ? parsed : 0;
+  })();
+
+  const pickupRemaining = orderData
+    ? computeOrderPayment({
+        total: orderTotalNumber,
+        costBreakdown: orderData.costBreakdown,
+        paymentVerified: orderData.paymentVerified,
+        downPaymentRequired: orderData.downPaymentRequired,
+        downPaymentVerified: orderData.downPaymentVerified,
+        downPaymentAmount: orderData.downPaymentAmount,
+        fullPaymentRequired: orderData.fullPaymentRequired,
+        fullPaymentVerified: orderData.fullPaymentVerified,
+        fullPaymentAmount: orderData.fullPaymentAmount,
+      }).remaining
+    : 0;
+
+  const pickupStatus = isUnclaimed
+    ? { label: "Unclaimed", className: "bg-[#FFF5D6] text-[#92400E] border-[#F59E0B]/40" }
+    : currentOrderStatus === "Released"
+      ? { label: "Picked Up", className: "bg-[#E0F7F5] text-[#0F766E] border-[#159A9C]/40" }
+      : { label: "Ready for Pickup", className: "bg-[#E8F7D8] text-[#3B7A1E] border-[#55A630]/40" };
+
+  const pickupTimelineInstant =
+    orderData?.statusUpdatedAt ?? orderData?.lastUpdatedAt ?? orderData?.createdAt;
+  const pickupDate = pickupTimelineInstant
+    ? formatPHDate(pickupTimelineInstant, "long")
+    : "";
+  const pickupTime = pickupTimelineInstant
+    ? formatPHTime(pickupTimelineInstant)
+    : "";
+  const pickupLocation = (shopContent.locationLines || [])
+    .filter(Boolean)
+    .join(", ");
+
+  const UNCLAIMED_MESSAGE =
+    "This order was recorded as unclaimed and is no longer available for collection. Please contact the shop if you need assistance.";
+
+  const pickupNote = isUnclaimed
+    ? UNCLAIMED_MESSAGE
+    : currentOrderStatus === "Released"
+      ? "This order has already been collected. Thank you for choosing Docufy."
+      : pickupRemaining > 0
+        ? `Bring a valid ID and your order reference when collecting. A remaining balance of ${formatCurrency(pickupRemaining)} can be paid at the shop.`
+        : "Bring a valid ID and your order reference when collecting your order during shop hours.";
+
+  // Offense label — the rank of THIS order among the customer's unclaimed
+  // orders (chronological), never hardcoded: a first unclaimed order reads
+  // "First Offense", a repeat reads "Second Offense", etc. Left blank when the
+  // rank cannot be resolved from the derived data.
+  const unclaimedOffenseLabel = (() => {
+    if (!isUnclaimed || !unclaimedSummary) return "";
+    const rank = unclaimedSummary.records.findIndex(
+      (r) => r.orderId === (orderId || ""),
+    );
+    return rank >= 0 ? `${ordinalWord(rank + 1)} Offense` : "";
+  })();
 
   const handleDownloadFile = (fileName: string) => {
     const content = `[Docufy PSMS - Palawan State University]\nFile: ${fileName}\nOrder ID: ${orderId}\n\nThis is a placeholder download for the submitted document.\nActual file content would be served from the server.`;
@@ -307,10 +403,20 @@ export default function OrderTracking() {
                 <X className={`w-5 h-5 ${statusStyle.icon}`} />
               )}
             </div>
-            <div className="min-w-0">
-              <p className="text-sm text-gray-500 font-medium">
-                Current Status
-              </p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm text-gray-500 font-medium">
+                  Current Status
+                </p>
+                {isUnclaimed && (
+                  <Badge
+                    variant="outline"
+                    className="border text-xs font-semibold bg-[#FFF5D6] text-[#92400E] border-[#F59E0B]/40"
+                  >
+                    Unclaimed
+                  </Badge>
+                )}
+              </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="font-bold text-gray-900 text-2xl">
                   {currentOrderLabel}
@@ -319,6 +425,118 @@ export default function OrderTracking() {
             </div>
           </div>
         </Card>
+        )}
+
+        {/* Pickup Information — shown above Order Details once the order is in
+            the pickup phase (Completed = ready, Released = collected). */}
+        {isOrderCompleted && (
+          <Card className="gap-0 p-4 sm:p-6 bg-blue-50 border border-blue-200 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white text-[#1D73EC]">
+                  <MapPin className="h-5 w-5" />
+                </span>
+                <h2 className="truncate text-xl font-semibold text-gray-900">
+                  Pickup Information
+                </h2>
+              </div>
+              {!isUnclaimed && (
+                <Badge variant="outline" className={`border text-xs font-semibold ${pickupStatus.className}`}>
+                  {pickupStatus.label}
+                </Badge>
+              )}
+            </div>
+
+            <div className="mt-4 min-w-0 overflow-hidden rounded-lg border border-blue-100 bg-white">
+              <div className="grid grid-cols-1 sm:grid-cols-2">
+                <div className="min-w-0 p-3">
+                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                    <Calendar className="h-4 w-4 flex-shrink-0 text-[#1D73EC]" />
+                    Pickup Date
+                  </div>
+                  <p className="mt-1 break-words text-base font-semibold text-gray-900">
+                    {pickupDate || "Not available"}
+                  </p>
+                </div>
+                <div className="min-w-0 border-t border-blue-100 p-3 sm:border-l sm:border-t-0">
+                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                    <Clock className="h-4 w-4 flex-shrink-0 text-[#1D73EC]" />
+                    Pickup Time
+                  </div>
+                  <p className="mt-1 break-words text-base font-semibold text-gray-900">
+                    {pickupTime || "Not available"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="min-w-0 border-t border-blue-100 p-3">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <PackageIcon className="h-4 w-4 flex-shrink-0 text-[#1D73EC]" />
+                  Pickup Location
+                </div>
+                <p className="mt-1 hidden break-words text-sm font-medium text-gray-800 sm:block">
+                  {pickupLocation || "Docufy Printing Services"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShopLocationOpen(true)}
+                  className="mt-2 inline-flex h-9 items-center gap-2 rounded-xl bg-[#1D73EC] px-4 text-sm font-semibold text-white transition-all hover:bg-[#1D73EC]/90 active:scale-[0.97] sm:hidden"
+                >
+                  <MapPin className="h-4 w-4" />
+                  View Shop Location
+                </button>
+              </div>
+            </div>
+
+            {isUnclaimed ? (
+              <>
+                {/* Mobile: compact, clickable unclaimed warning — the full
+                    message opens in a floating dialog. Desktop keeps the
+                    existing inline warning presentation below. */}
+                <button
+                  type="button"
+                  onClick={() => setUnclaimedDialogOpen(true)}
+                  aria-haspopup="dialog"
+                  aria-label="Unclaimed Order — view details"
+                  className="mt-3 flex w-full items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-left transition-colors hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 sm:hidden"
+                >
+                  <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-amber-100">
+                    <AlertTriangle className="h-5 w-5 text-amber-600" aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-amber-900">
+                      Unclaimed Order
+                    </span>
+                    {unclaimedOffenseLabel && (
+                      <span className="mt-0.5 block text-xs font-medium text-amber-700">
+                        {unclaimedOffenseLabel}
+                      </span>
+                    )}
+                  </span>
+                  <ChevronRight
+                    className="h-5 w-5 flex-shrink-0 text-amber-600"
+                    aria-hidden="true"
+                  />
+                </button>
+
+                {/* Desktop: inline warning using the same amber container
+                    styling as the mobile compact warning. */}
+                <div className="mt-3 hidden rounded-lg border border-amber-200 bg-amber-50 p-3 sm:block">
+                  <p className="flex items-start gap-2 text-sm text-amber-900">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+                    <span>{pickupNote}</span>
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="mt-3 rounded-lg border border-blue-100 border-l-4 border-l-[#1D73EC] bg-white p-3">
+                <p className="flex items-start gap-2 text-sm text-gray-600">
+                  <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1D73EC]" />
+                  <span>{pickupNote}</span>
+                </p>
+              </div>
+            )}
+          </Card>
         )}
 
         {/* Order Summary */}
@@ -337,12 +555,7 @@ export default function OrderTracking() {
           </h2>
           <div className={`${showOrderDetails ? "block" : "hidden"} sm:block`}>
 
-          {/* Basic Information */}
           <div className="mb-3">
-            <h3 className="text-md font-semibold text-gray-800 mb-3 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-[#2F6FD6]" />
-              Basic Information
-            </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-xs text-gray-600">Order ID</Label>
@@ -548,11 +761,20 @@ export default function OrderTracking() {
 
         {/* Payment Method and Status */}
         <Card className="p-6 bg-white shadow-sm gap-0">
-          <h2 className="text-xl font-semibold text-gray-900 mb-3">
+          <button
+            type="button"
+            onClick={() => setShowPaymentDetails((isOpen) => !isOpen)}
+            aria-expanded={showPaymentDetails}
+            className="flex w-full items-center justify-between text-left sm:hidden"
+          >
+            <span className="text-xl font-semibold text-gray-900">Payment Method and Status</span>
+            <ChevronDown className={`h-5 w-5 text-[#2F6FD6] transition-transform duration-200 ${showPaymentDetails ? "rotate-180" : ""}`} />
+          </button>
+          <h2 className="mb-3 hidden text-xl font-semibold text-gray-900 sm:block">
             Payment Method and Status
           </h2>
 
-          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-4">
+          <div className={`p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-4 ${showPaymentDetails ? "block" : "hidden"} sm:block`}>
             {/* Payment Method */}
             <div>
               <p className="text-sm font-medium text-gray-600 mb-1">
@@ -723,112 +945,6 @@ export default function OrderTracking() {
           </Card>
         )}
 
-        {/* Pickup Information - Only show when order is Completed */}
-        {isOrderCompleted && (
-          <Card className="p-6 bg-blue-50 border border-blue-200">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Pickup Information
-            </h2>
-
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <Calendar className="w-5 h-5 text-[#1D73EC] mt-0.5" />
-                <div>
-                  <p className="font-medium text-gray-900">
-                    Pick-Up Date
-                  </p>
-                  <p className="text-gray-700">
-                    March 5, 2026 (Ready)
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <Clock className="w-5 h-5 text-[#1D73EC] mt-0.5" />
-                <div>
-                  <p className="font-medium text-gray-900">
-                    Pick-Up Time
-                  </p>
-                  <p className="text-gray-700">
-                    3:00 PM – 5:00 PM
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <PackageIcon className="w-5 h-5 text-[#1D73EC] mt-0.5" />
-                <div>
-                  <p className="font-medium text-gray-900">
-                    Pickup Location
-                  </p>
-                  <p className="text-gray-700">
-                    Docufy PSMS · Room 4, TBI Building, Palawan
-                    State University
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 p-3 bg-white rounded-lg">
-              <p className="text-sm text-gray-600">
-                <strong>Note:</strong> Please bring a valid ID
-                when picking up your order. Remaining balance (if
-                any) can be paid at pickup.
-              </p>
-            </div>
-          </Card>
-        )}
-
-        {/* Pickup Issue Response (PREVIEW workflow) — shown only for orders
-            flagged for review. In-memory preview; nothing is saved. */}
-        {showPickupResponse && (
-          <Card className="p-6 bg-white border border-[#1D73EC]/20">
-            <div className="flex flex-wrap items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-[#1D73EC]" />
-              <h2 className="text-lg font-semibold text-gray-900">
-                Pickup Issue Response
-              </h2>
-              <span className="rounded-md bg-[#F2F7FF] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#1D73EC] ring-1 ring-[#1D73EC]/20">
-                Preview
-              </span>
-            </div>
-            <p className="mt-2 text-sm text-gray-600">
-              This order was flagged for a pickup review. You can explain what
-              happened below. Admin reviews your response before making a final
-              decision.
-            </p>
-
-            {pickupIncident?.customerExplanation ? (
-              <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Your submitted explanation
-                </p>
-                <p className="mt-1 text-sm text-gray-700">
-                  {pickupIncident.customerExplanation}
-                </p>
-              </div>
-            ) : (
-              <div className="mt-4 space-y-3">
-                <Textarea
-                  rows={3}
-                  value={explanationText}
-                  onChange={(e) => setExplanationText(e.target.value)}
-                  placeholder="e.g. I was out of town and couldn't collect the order on time."
-                />
-                <Button
-                  onClick={handleSubmitExplanation}
-                  disabled={!explanationText.trim()}
-                  className="bg-[#1D73EC] text-white hover:bg-[#10316B] disabled:opacity-40"
-                >
-                  Submit Explanation
-                </Button>
-              </div>
-            )}
-
-            <p className="mt-3 text-xs text-gray-500">
-              Preview only — the pickup policy and valid excuses are still
-              awaiting client approval, so this response is not saved.
-            </p>
-          </Card>
-        )}
       </div>
 
       {/* Order Receipt Dialog */}
@@ -971,6 +1087,121 @@ export default function OrderTracking() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Shop Location Dialog */}
+      <Dialog open={shopLocationOpen} onOpenChange={setShopLocationOpen}>
+        <DialogContent className="sm:max-w-lg" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-[#1D73EC]" /> Shop Location
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            {shopContent.locationLines?.[0] ||
+              "Palawan State University - Main Campus, Puerto Princesa City, Palawan"}
+          </p>
+          <div className="overflow-hidden rounded-xl border-2 border-blue-100">
+            <iframe
+              title="Docufy Printing Services - Shop Location"
+              src={shopContent.mapEmbedUrl || DEFAULT_MAP_EMBED}
+              className="h-72 w-full border-0"
+              loading="lazy"
+              allowFullScreen
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </div>
+          {shopPhotos.length > 0 && (
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => setShowShopPhotos((open) => !open)}
+                className="flex items-center gap-2 text-sm font-medium text-[#1D73EC] transition-colors hover:text-[#155bb8]"
+              >
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform duration-200 ${
+                    showShopPhotos ? "rotate-180" : ""
+                  }`}
+                />
+                {showShopPhotos ? "Hide Shop Photos" : "View Shop Photos"}
+              </button>
+              {showShopPhotos && (
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {shopPhotos.map((photo) => (
+                    <button
+                      key={photo.id}
+                      type="button"
+                      onClick={() => setLightboxPhoto(photo.dataUrl)}
+                      className="cursor-pointer"
+                    >
+                      <img
+                        src={photo.dataUrl}
+                        alt="Shop location"
+                        className="h-24 w-full rounded-lg border border-gray-200 object-cover transition-all hover:ring-2 hover:ring-[#1D73EC]"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Unclaimed Order Warning Dialog (opened from the mobile compact warning) */}
+      <Dialog open={unclaimedDialogOpen} onOpenChange={setUnclaimedDialogOpen}>
+        <DialogContent
+          className="max-h-[85vh] overflow-y-auto sm:max-w-md"
+          aria-describedby={undefined}
+        >
+          <DialogHeader>
+            <div className="flex items-center gap-3 text-left">
+              <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-amber-100">
+                <AlertTriangle className="h-6 w-6 text-amber-600" aria-hidden="true" />
+              </span>
+              <div className="min-w-0 text-left">
+                <DialogTitle className="text-lg text-amber-900">
+                  Unclaimed Order
+                </DialogTitle>
+                {unclaimedOffenseLabel && (
+                  <p className="mt-0.5 text-xs font-medium text-amber-700">
+                    {unclaimedOffenseLabel}
+                  </p>
+                )}
+              </div>
+            </div>
+          </DialogHeader>
+
+          <p className="text-sm leading-relaxed text-gray-600">{UNCLAIMED_MESSAGE}</p>
+
+          <DialogFooter>
+            <Button
+              onClick={() => setUnclaimedDialogOpen(false)}
+              className="w-full border-transparent bg-[#1D73EC] text-white hover:bg-[#10316B] sm:w-auto"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {lightboxPhoto && (
+        <Dialog open onOpenChange={() => setLightboxPhoto(null)}>
+          <DialogContent className="sm:max-w-2xl p-0 bg-black border-0 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setLightboxPhoto(null)}
+              className="absolute top-3 right-3 z-10 rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black/80"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <img
+              src={lightboxPhoto}
+              alt="Shop location full view"
+              className="max-h-[80vh] w-full object-contain"
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </Layout>
   );
 }

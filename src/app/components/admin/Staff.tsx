@@ -16,7 +16,6 @@ import {
   Eye,
   EyeOff,
   Search,
-  Filter,
   Mail,
   X,
   Banknote,
@@ -39,6 +38,7 @@ import { Label } from "../ui/label";
 import { PasswordStrengthIndicator, validatePassword } from "../ui/password-strength-indicator";
 import { useAuth } from "../../contexts/AuthContext";
 import { ZoomSafeDropdown } from "../ui/zoom-safe-dropdown";
+import { FilterLabel } from "../ui/filter-label";
 import {
   Dialog,
   DialogContent,
@@ -691,25 +691,25 @@ export default function Staff() {
           <div className="flex flex-col lg:flex-row lg:items-end gap-4">
             <div className="w-full sm:max-w-xs">
               <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Search</Label>
-              <div className="relative mt-1.5">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <div className="group relative mt-1.5">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#98A2B3] transition-colors group-focus-within:text-[#2F6FD6]" />
                 <Input
                   aria-label="Search staff"
                   placeholder="Search by name, email, or ID..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-[#FBFDFF] border-gray-200 shadow-sm ring-1 ring-blue-300 rounded-lg"
+                  className="pl-10"
                 />
               </div>
             </div>
             <div className="w-full lg:w-48">
-              <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</Label>
+              <FilterLabel applied={filterStatus !== "all"}>Status</FilterLabel>
               <ZoomSafeDropdown
                 value={filterStatus}
                 onChange={setFilterStatus}
                 placeholder="All Statuses"
-                icon={<Filter className="w-4 h-4 text-gray-500" />}
                 className="mt-1.5"
+                applied={filterStatus !== "all"}
                 options={[
                   { value: "all", label: "All Statuses" },
                   { value: "active", label: "Active" },
@@ -719,11 +719,11 @@ export default function Staff() {
             </div>
             <Button
               variant="outline"
-              className="h-10 border-[#2F6FD6] text-[#2F6FD6] hover:bg-[#2F6FD6] hover:text-white"
+              className="h-9 border border-[#D5DCE6] bg-white text-[#64748B] hover:border-[#B7C3D4] hover:bg-[#FCFDFF] hover:text-[#475467] hover:translate-y-0 hover:shadow-none"
               onClick={() => { setSearchQuery(""); setFilterStatus("all"); }}
             >
               <X className="h-4 w-4" />
-              Clear
+              Clear filters
             </Button>
           </div>
           </div>

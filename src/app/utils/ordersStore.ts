@@ -82,6 +82,12 @@ type OrderType = {
   statusUpdatedAt?: Date; // Tracks when status was last changed
   createdAt?: Date; // Tracks when order was created
   lastUpdatedAt?: Date; // Tracks any update to the order
+  // Status timeline (oldest-first) from `order_status_history`, used by the
+  // unclaimed-order derivation (when the order reached Completed / Released).
+  statusHistory?: { status: string; oldStatus?: string | null; at: Date }[];
+  // True when the history read failed for this fetch — surfaces an "unclaimed
+  // info unavailable" notice rather than implying zero offenses.
+  statusHistoryUnavailable?: boolean;
 };
 
 type Subscriber = () => void;
@@ -253,6 +259,18 @@ class OrdersStore {
       createdAt: asDate(order.createdAt),
       lastUpdatedAt: asDate(order.lastUpdatedAt),
       manualTotal: order.manualTotal,
+      statusHistory: (order.statusHistory ?? [])
+        .map((h: any) => {
+          const at = asDate(h.at);
+          return at
+            ? { status: String(h.status), oldStatus: h.oldStatus ?? null, at }
+            : null;
+        })
+        .filter(
+          (h: any): h is { status: string; oldStatus: string | null; at: Date } =>
+            h !== null,
+        ),
+      statusHistoryUnavailable: order.statusHistoryUnavailable,
     };
   }
 

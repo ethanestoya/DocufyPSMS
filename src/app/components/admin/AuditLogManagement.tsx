@@ -32,6 +32,7 @@ import { Card } from "../ui/card";
 import { DateRangeFilter } from "../ui/date-range-filter";
 import { SummaryCard } from "../ui/summary-card";
 import { ZoomSafeDropdown } from "../ui/zoom-safe-dropdown";
+import { FilterLabel } from "../ui/filter-label";
 import {
   Dialog,
   DialogContent,
@@ -338,57 +339,72 @@ export default function AuditLogManagement() {
               <Label className="mb-1.5 block text-sm font-medium text-slate-700">
                 Search
               </Label>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <div className="group relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3] transition-colors group-focus-within:text-[#2F6FD6]" />
                 <Input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="User, reference, or module…"
-                  className="h-10 rounded-md bg-[#FBFDFF] pl-10 ring-blue-300 ring-1"
+                  className="pl-10"
                 />
               </div>
             </div>
 
             <div className="lg:col-span-2">
-              <Label className="mb-1.5 block text-sm font-medium text-slate-700">
+              <FilterLabel
+                applied={roleFilter !== ALL}
+                className="mb-1.5 text-sm font-medium text-slate-700 normal-case tracking-normal"
+              >
                 Role
-              </Label>
+              </FilterLabel>
               <ZoomSafeDropdown
                 value={roleFilter}
                 onChange={setRoleFilter}
                 options={ROLE_OPTIONS}
                 className="w-full"
+                applied={roleFilter !== ALL}
               />
             </div>
 
             <div className="lg:col-span-2">
-              <Label className="mb-1.5 block text-sm font-medium text-slate-700">
+              <FilterLabel
+                applied={actionFilter !== ALL}
+                className="mb-1.5 text-sm font-medium text-slate-700 normal-case tracking-normal"
+              >
                 Action
-              </Label>
+              </FilterLabel>
               <ZoomSafeDropdown
                 value={actionFilter}
                 onChange={setActionFilter}
                 options={ACTION_OPTIONS}
                 className="w-full"
+                applied={actionFilter !== ALL}
               />
             </div>
 
             <div className="lg:col-span-2">
-              <Label className="mb-1.5 block text-sm font-medium text-slate-700">
+              <FilterLabel
+                applied={moduleFilter !== ALL}
+                className="mb-1.5 text-sm font-medium text-slate-700 normal-case tracking-normal"
+              >
                 Module
-              </Label>
+              </FilterLabel>
               <ZoomSafeDropdown
                 value={moduleFilter}
                 onChange={setModuleFilter}
                 options={MODULE_OPTIONS}
                 className="w-full"
+                applied={moduleFilter !== ALL}
               />
             </div>
 
             <div className="lg:col-span-4">
-              <Label className="mb-1.5 block text-sm font-medium text-slate-700">
+              <FilterLabel
+                applied={Boolean(fromDate || toDate)}
+                className="mb-1.5 text-sm font-medium text-slate-700 normal-case tracking-normal"
+              >
                 Date Range
-              </Label>
+              </FilterLabel>
               <DateRangeFilter
                 value={{ from: fromDate, to: toDate }}
                 onChange={(next) => {

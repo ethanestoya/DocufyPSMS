@@ -29,6 +29,9 @@ PHASE*_LOG*.docx
 ~$*.docx
 dev_readme.md
 
+# Tool artifacts (screenshots captured while verifying a change)
+.openchamber/screenshots/
+
 # Project docs / misc files not required for the system
 ATTRIBUTIONS.md
 COMPLETED_FEATURES.md

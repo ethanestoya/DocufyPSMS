@@ -29,15 +29,78 @@
   }
 }
 
-/* ── Order Receipt printing (Print button → browser print → Save as PDF) ───
-   The receipt sheet carries the `order-receipt-print-area` class; everything
-   else on the page (app chrome, dialog frame, footer buttons) is hidden when
-   printing. A4 with a comfortable margin; blue panels print in color via
-   print-color-adjust; the itemized table repeats its header across pages. */
+/* ── Order Receipt document window ──────────────────────────────────────────
+   The receipt opens in a spacious document WINDOW rather than a small modal:
+   a compact header, the A4-width document centered on a neutral surface, and
+   a footer holding Download and Close. The document surface is the only scroll
+   region, so the page never sits inside a scroll box of its own.
+
+   These rules override the shared dialog's centered/floating/padded shell
+   (base `top-[50%] left-[50%] translate-*`, `p-6`, `gap-4`, `rounded-lg`,
+   `sm:max-w-lg`). They are deliberately overridden again by the `@media print`
+   block BELOW, which comes later in this file and therefore wins among
+   equal-specificity `!important` rules. */
+.order-receipt-viewer {
+  /* The shared dialog centers itself with Tailwind's translate utilities, which
+     read these two custom properties. Zero them here, then center with
+     `inset: 0; margin: auto` and no transform at all: a transform-based center
+     gets rewritten by the CSS minifier (translate → transform), after which it
+     COMPOSES with the utilities instead of replacing them and throws the window
+     off the screen in a production build. */
+  --tw-translate-x: 0 !important;
+  --tw-translate-y: 0 !important;
+  position: fixed !important;
+  inset: 0 !important;
+  margin: auto !important;
+  width: min(1120px, calc(100vw - 2rem)) !important;
+  height: min(900px, calc(100dvh - 2rem)) !important;
+  max-width: none !important;
+  max-height: none !important;
+  transform: none !important;
+  translate: none !important;
+  scale: none !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 12px !important;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28) !important;
+  background: #ffffff !important;
+  overflow: hidden !important;
+  z-index: 60 !important;
+  animation: none !important;
+}
+
+/* The shared dialog's corner close button becomes the window's header close:
+   pinned inside the header band, clear of the title. */
+.order-receipt-viewer [data-slot="dialog-close"] {
+  top: 1rem !important;
+  right: 1rem !important;
+  z-index: 2;
+  color: #6b7280;
+}
+
+@media (min-width: 640px) {
+  .order-receipt-viewer [data-slot="dialog-close"] {
+    top: 1.15rem !important;
+    right: 1.4rem !important;
+  }
+}
+
+/* ── Order Receipt printing (browser print → Save as PDF) ───────────────────
+   The window no longer offers a Print button, but these rules stay so the
+   browser's own print (Ctrl+P) still yields a clean receipt: only the document
+   prints — the window header, footer and shell are hidden. A4 with a
+   comfortable margin; blue panels print in color via print-color-adjust; the
+   itemized table repeats its header across pages. */
 @media print {
   @page {
     size: A4;
     margin: 14mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
   }
 
   body * {
@@ -63,24 +126,42 @@
     margin: 0 !important;
     box-shadow: none !important;
     border: none !important;
+    border-radius: 0 !important;
     background: #fff !important;
   }
 
-  /* Neutralize the dialog frame + scroll container so the receipt is never
-     clipped and nothing of the dialog chrome paints on the page. */
+  /* Neither the window header nor its footer ever prints. */
+  .order-receipt-toolbar,
+  .order-receipt-footer {
+    display: none !important;
+  }
+
+  /* Neutralize the viewer shell + scroll container so a multi-page receipt is
+     never clipped and nothing of the viewer chrome paints on the page. */
   .order-receipt-print-shell,
   .order-receipt-print-frame {
     position: static !important;
     top: auto !important;
     left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
     transform: none !important;
+    translate: none !important;
+    scale: none !important;
+    display: block !important;
+    width: auto !important;
+    height: auto !important;
     max-height: none !important;
+    min-height: 0 !important;
     overflow: visible !important;
     padding: 0 !important;
     margin: 0 !important;
+    gap: 0 !important;
     border: none !important;
+    border-radius: 0 !important;
     box-shadow: none !important;
     background: #fff !important;
+    animation: none !important;
   }
 
   .order-receipt-print-area table {
@@ -92,6 +173,12 @@
   }
 
   .order-receipt-print-area tr {
+    page-break-inside: avoid;
+  }
+
+  /* Panels that shouldn't be split across a page boundary. */
+  .order-receipt-print-area .order-receipt-keep {
+    break-inside: avoid;
     page-break-inside: avoid;
   }
 }

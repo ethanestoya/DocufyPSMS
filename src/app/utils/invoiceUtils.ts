@@ -8,12 +8,14 @@
 // is ever fabricated — a value the data doesn't have simply doesn't render.
 
 import { computeOrderPayment } from "../components/shared/OrderPaymentSummary";
-import { formatPHDate, formatPHTime } from "./pht";
+import { formatPHDate, formatPHTime, formatPHDateTime } from "./pht";
 
 // ── Input (accepts both the dataStore app Order and the ordersStore shape) ───
 
 export interface ReceiptFileInput {
   name: string;
+  /** File format label (PDF / Document / Image …) — shown under the file name. */
+  type?: string;
   printType?: string;
   contentType?: string;
   paperSize?: string;
@@ -74,6 +76,8 @@ export interface ReceiptOrderInput {
 
 export interface ReceiptFileItem {
   name: string;
+  /** File format label (PDF / Document / Image …). */
+  fileType?: string;
   printTypeLabel?: string;
   contentTypeLabel?: string;
   paperSizeLabel?: string;
@@ -278,9 +282,7 @@ export function generateReceiptData(order: ReceiptOrderInput): ReceiptData {
   }
 
   const verifiedAt = asDate(order.paymentVerifiedAt);
-  const verifiedAtLabel = verifiedAt
-    ? `${formatPHDate(verifiedAt, "short")} · ${formatPHTime(verifiedAt)}`
-    : undefined;
+  const verifiedAtLabel = verifiedAt ? formatPHDateTime(verifiedAt) : undefined;
 
   // ── Files ────────────────────────────────────────────────────────────────
   const rawFiles = order.attachedFiles ?? (order.fileName ? [{ name: order.fileName }] : []);
@@ -288,6 +290,7 @@ export function generateReceiptData(order: ReceiptOrderInput): ReceiptData {
     const isPhoto = (f.printType || "").toLowerCase() === "photo";
     return {
       name: f.name,
+      fileType: f.type,
       printTypeLabel: label(PRINT_TYPE_LABELS, f.printType),
       contentTypeLabel: isPhoto ? undefined : label(CONTENT_TYPE_LABELS, f.contentType),
       paperSizeLabel: label(PAPER_SIZE_LABELS, f.paperSize),
@@ -315,11 +318,9 @@ export function generateReceiptData(order: ReceiptOrderInput): ReceiptData {
     orderSummaryLine = parts.length ? parts.join(" · ") : undefined;
   }
 
-  // Order date: prefer real timestamps, fall back to the preformatted string.
+  // Order date: prefer real timestamps (date + time), fall back to the string.
   const created = asDate(order.createdAt) ?? asDate(order.submittedAt);
-  const orderDate = created
-    ? formatPHDate(created, "long")
-    : order.date || "—";
+  const orderDate = created ? formatPHDateTime(created) : order.date || "—";
 
   const statusKey = order.status ?? "";
   const statusLabel = STATUS_LABELS[statusKey] ?? (statusKey || "—");
@@ -373,49 +374,61 @@ const LOCATION_LINES = [
 ];
 const CONTACT_EMAIL = "printwithdocufy@gmail.com";
 
-export function generateReceiptHTML(data: ReceiptData): string {
-  const filesHTML =
-    data.files.length === 1
-      ? (() => {
-          const f = data.files[0];
-          const specs: string[] = [];
-          if (f.printTypeLabel) specs.push(esc(f.printTypeLabel));
-          if (f.contentTypeLabel) specs.push(esc(f.contentTypeLabel));
-          if (f.paperSizeLabel) specs.push(esc(f.paperSizeLabel));
-          if (f.pageCount != null) specs.push(`${f.pageCount} page${f.pageCount === 1 ? "" : "s"}`);
-          specs.push(`${f.copies} cop${f.copies === 1 ? "y" : "ies"}`);
-          if (f.colorModeLabel) specs.push(esc(f.colorModeLabel));
-          if (f.photoSize) specs.push(`${esc(f.photoSize)}${f.photoQuantity ? ` · ${f.photoQuantity} pcs` : ""}`);
-          return `
-  <div class="file-card">
-    <div class="file-name">${esc(f.name)}</div>
-    <div class="file-specs">${specs.join(" · ")}</div>
-    ${f.notes ? `<div class="file-notes">Notes: ${esc(f.notes)}</div>` : ""}
-  </div>`;
-        })()
-      : data.files.length > 1
-        ? `
-  <table>
-    <thead>
-      <tr><th>File</th><th>Type</th><th>Paper</th><th>Pages</th><th>Copies</th><th>Color</th></tr>
-    </thead>
-    <tbody>
-      ${data.files
-        .map(
-          (f) => `<tr>
-        <td>${esc(f.name)}${f.photoSize ? ` (${esc(f.photoSize)}${f.photoQuantity ? ` × ${f.photoQuantity}` : ""})` : ""}</td>
-        <td>${esc(f.printTypeLabel || "—")}${f.contentTypeLabel ? `<br><span class="muted">${esc(f.contentTypeLabel)}</span>` : ""}</td>
-        <td>${esc(f.paperSizeLabel || "—")}</td>
+export function generateReceiptHTML(
+  data: ReceiptData,
+  logoDataUrl?: string,
+): string {
+  // One file: a compact detail block. Several files: a traditional itemized
+  // table whose long names wrap inside their cell (table-fixed + word-break)
+  // instead of widening the table.
+  const photoSuffix = (f: (typeof data.files)[number]) =>
+    f.photoSize
+      ? ` <span class="muted">(${esc(f.photoSize)}${f.photoQuantity ? ` × ${f.photoQuantity}` : ""})</span>`
+      : "";
+
+  const fileRows = data.files
+    .map(
+      (f, i) => `<tr>
+        <td class="c-num">${i + 1}</td>
+        <td><span class="fname">${esc(f.name)}</span>${photoSuffix(f)}${f.fileType ? `<br><span class="muted">${esc(f.fileType)}</span>` : ""}</td>
         <td>${f.pageCount ?? "—"}</td>
         <td>${f.copies}</td>
+        <td>${esc(f.paperSizeLabel || "—")}</td>
         <td>${esc(f.colorModeLabel || "—")}</td>
       </tr>`,
-        )
-        .join("\n      ")}
+    )
+    .join("\n      ");
+
+  const singleFileHTML = (() => {
+    const f = data.files[0];
+    return `<div class="file-card">
+    <div class="fname" style="font-size:13.5px">${esc(f.name)}${photoSuffix(f)}</div>
+    ${f.fileType ? `<div class="muted" style="margin-top:2px">${esc(f.fileType)}</div>` : ""}
+    <div class="specgrid">
+      <div><div class="k">Pages</div><div class="v">${f.pageCount ?? "—"}</div></div>
+      <div><div class="k">Copies</div><div class="v">${f.copies}</div></div>
+      <div><div class="k">Paper</div><div class="v">${esc(f.paperSizeLabel || "—")}</div></div>
+      <div><div class="k">Color Mode</div><div class="v">${esc(f.colorModeLabel || "—")}</div></div>
+    </div>
+    ${f.notes ? `<div class="muted" style="margin-top:8px">Notes: ${esc(f.notes)}</div>` : ""}
+  </div>`;
+  })();
+
+  const itemsHTML =
+    data.files.length === 1
+      ? singleFileHTML
+      : data.files.length > 1
+        ? `<table>
+    <colgroup><col style="width:6%"><col><col style="width:11%"><col style="width:11%"><col style="width:17%"><col style="width:21%"></colgroup>
+    <thead>
+      <tr><th>No.</th><th>File Name</th><th>Pages</th><th>Copies</th><th>Paper</th><th>Color Mode</th></tr>
+    </thead>
+    <tbody>
+      ${fileRows}
     </tbody>
   </table>`
         : data.orderSummaryLine
-          ? `<div class="file-card"><div class="file-name">${esc(data.orderSummaryLine)}</div></div>`
+          ? `<div class="file-card"><div class="fname">${esc(data.orderSummaryLine)}</div></div>`
           : "";
 
   const addonsHTML =
@@ -423,12 +436,13 @@ export function generateReceiptHTML(data: ReceiptData): string {
       ? `
   <h3>Add-ons</h3>
   <table>
+    <colgroup><col><col style="width:14%"><col style="width:22%"><col style="width:22%"></colgroup>
     <thead><tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Subtotal</th></tr></thead>
     <tbody>
       ${data.addons
         .map(
           (a) =>
-            `<tr><td>${esc(a.name)}</td><td>${a.quantity}</td><td>${php(a.unitPrice)}</td><td>${php(a.subtotal)}</td></tr>`,
+            `<tr><td><span class="fname">${esc(a.name)}</span></td><td>${a.quantity}</td><td>${php(a.unitPrice)}</td><td>${php(a.subtotal)}</td></tr>`,
         )
         .join("\n      ")}
     </tbody>
@@ -439,6 +453,15 @@ export function generateReceiptHTML(data: ReceiptData): string {
     ? `<div class="canceled-banner">This order was canceled${data.cancellationReason ? ` — ${esc(data.cancellationReason)}` : "."}</div>`
     : "";
 
+  const badgeClass =
+    data.payment.status === "paid"
+      ? "paid"
+      : data.payment.status === "partially_paid"
+        ? "partial"
+        : data.payment.status === "pending_verification"
+          ? "pending"
+          : "due";
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -447,104 +470,129 @@ export function generateReceiptHTML(data: ReceiptData): string {
 <style>
   @page { size: A4; margin: 14mm; }
   * { box-sizing: border-box; }
-  body { font-family: Arial, Helvetica, sans-serif; color: #1c1f26; margin: 0; padding: 28px; max-width: 720px; margin: 0 auto; font-size: 13px; }
-  .header { text-align: center; border-bottom: 3px solid #2F6FD6; padding-bottom: 16px; margin-bottom: 20px; }
-  .logo { font-size: 26px; font-weight: bold; color: #2F6FD6; letter-spacing: -0.5px; }
-  .sub { color: #555; margin: 4px 0 0; }
-  .addr { font-size: 11px; color: #777; margin: 6px 0 0; line-height: 1.5; }
-  h2.title { color: #2F6FD6; font-size: 20px; margin: 0 0 12px; }
-  .meta { background: #F2F7FF; border: 1px solid #D6E7FB; border-radius: 8px; padding: 12px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; margin-bottom: 18px; }
-  .meta div { font-size: 12px; }
-  .meta .k { color: #666; font-weight: 600; }
-  .canceled-banner { background: #FEF2F2; border: 1px solid #FECACA; color: #B91C1C; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-weight: 600; }
-  .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; }
-  .party { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 14px; }
-  .party h4 { margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #666; }
-  .party p { margin: 2px 0; font-size: 12px; }
-  h3 { color: #2F6FD6; font-size: 14px; margin: 18px 0 8px; }
-  table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  th { text-align: left; background: #F8FAFC; color: #555; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; padding: 7px 10px; border-bottom: 1px solid #e5e7eb; }
-  td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
-  .file-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 14px; }
-  .file-name { font-weight: 600; }
-  .file-specs { color: #666; font-size: 12px; margin-top: 4px; }
-  .file-notes { color: #888; font-size: 11px; margin-top: 4px; }
-  .muted { color: #888; font-size: 11px; }
-  .cost { background: #F8FAFC; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 16px; margin-top: 14px; }
-  .cost .row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 12px; }
-  .total { background: #2F6FD6; color: #fff; border-radius: 8px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 15px; font-weight: 700; }
-  .payment { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 16px; margin-top: 14px; }
-  .payment .row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; }
-  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
-  .badge.paid { background: #ECFDF5; color: #047857; }
-  .badge.partial { background: #FFFBEB; color: #B45309; }
-  .badge.due { background: #FEF2F2; color: #B91C1C; }
-  .badge.pending { background: #FEF3C7; color: #92400E; }
-  .footer { margin-top: 28px; text-align: center; color: #777; font-size: 11px; border-top: 1px solid #e5e7eb; padding-top: 14px; line-height: 1.6; }
-  .disclaimer { font-size: 10px; color: #999; font-style: italic; margin-top: 8px; }
+  /* The exported file is a document: always render it light, even when the
+     viewer's browser is in dark mode. */
+  html { color-scheme: only light; background: #e9edf3; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #1c1f26; background: #fff; margin: 0 auto; padding: 26px 28px; max-width: 794px; font-size: 12.5px; }
+  .hdr { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+  .brand { display: flex; gap: 11px; align-items: center; }
+  .brand img { width: 44px; height: 44px; object-fit: contain; }
+  .word { font-size: 24px; font-weight: 800; color: #2F6FD6; letter-spacing: -0.5px; line-height: 1; }
+  .sub { font-size: 12px; font-weight: 700; color: #2F6FD6; margin-top: 3px; }
+  .addr { margin-top: 9px; color: #4b5563; font-size: 11px; line-height: 1.55; }
+  .rt { text-align: right; }
+  .rt h1 { margin: 0; font-size: 22px; font-weight: 800; color: #2F6FD6; letter-spacing: 0.5px; }
+  .rno { margin-top: 6px; font-size: 11px; color: #6b7280; }
+  .rno b { color: #1c1f26; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px; }
+  .rule { height: 2.5px; background: #2F6FD6; border-radius: 2px; margin: 14px 0; }
+  .canceled-banner { background: #FEF2F2; border: 1px solid #FECACA; color: #B91C1C; border-radius: 8px; padding: 10px 14px; margin: 0 0 14px; font-weight: 600; }
+  .info { background: #F2F7FF; border: 1px solid #dbe9fb; border-radius: 8px; display: flex; padding: 14px 18px; gap: 0 22px; }
+  .info .col { flex: 1; min-width: 0; }
+  .info .col:first-child { border-right: 1px solid #cfe0f7; padding-right: 22px; }
+  .info h3 { margin: 0 0 9px; font-size: 12px; color: #2F6FD6; font-weight: 700; }
+  .fld { margin-bottom: 8px; }
+  .fld .k { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; font-weight: 700; }
+  .fld .v { font-size: 12.5px; font-weight: 600; margin-top: 1px; word-break: break-word; }
+  .vrow { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; margin-bottom: 8px; }
+  .vrow .k { color: #4b5563; }
+  .vrow .v { font-weight: 600; text-align: right; }
+  .pill { display: inline-block; background: #dbe9fb; color: #2557b8; border-radius: 999px; padding: 1px 11px; font-size: 10.5px; font-weight: 700; }
+  .sec { margin-top: 15px; }
+  .sec h3, h3 { margin: 0 0 5px; color: #2F6FD6; font-size: 12.5px; font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; font-size: 11.5px; table-layout: fixed; margin-top: 6px; }
+  thead th { background: #F6F9FE; color: #4b5563; text-transform: uppercase; font-size: 9px; letter-spacing: 0.05em; text-align: left; padding: 8px; border-bottom: 1px solid #e5e7eb; }
+  tbody td { padding: 8px; border-bottom: 1px solid #eef2f6; vertical-align: top; word-break: break-word; }
+  .c-num { width: 26px; }
+  .fname { font-weight: 600; }
+  .muted { color: #9ca3af; font-size: 10px; }
+  .file-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 14px; margin-top: 6px; }
+  .specgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px 18px; margin-top: 10px; }
+  .specgrid .k { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; font-weight: 700; }
+  .specgrid .v { font-size: 12.5px; font-weight: 600; margin-top: 1px; word-break: break-word; }
+  @media (max-width: 520px) { .specgrid { grid-template-columns: repeat(2, 1fr); } }
+  .sumwrap { display: flex; justify-content: flex-end; margin-top: 12px; }
+  .sum { width: 280px; }
+  .sum .row { display: flex; justify-content: space-between; padding: 5px 2px; font-size: 12px; color: #374151; }
+  .sum .totrow { display: flex; justify-content: space-between; padding: 8px 2px 0; margin-top: 5px; border-top: 1.5px solid #2F6FD6; font-size: 15px; font-weight: 800; color: #2F6FD6; }
+  .payrow { display: flex; font-size: 12px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; gap: 12px; }
+  .payrow .k { flex: 0 0 180px; width: 180px; color: #4b5563; }
+  .payrow .v { font-weight: 600; }
+  .badge { display: inline-block; border-radius: 999px; padding: 1px 11px; font-size: 10.5px; font-weight: 700; }
+  .badge.paid { background: #dcfce7; color: #15803d; }
+  .badge.partial { background: #fef3c7; color: #b45309; }
+  .badge.due { background: #fee2e2; color: #b91c1c; }
+  .badge.pending { background: #fef3c7; color: #92400e; }
+  .foot { margin-top: 18px; padding-top: 13px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; }
+  .disc { font-size: 10px; color: #6b7280; line-height: 1.55; max-width: 360px; }
+  .thanks { text-align: right; }
+  .thanks .t { font-family: "Segoe Script", "Brush Script MT", cursive; font-size: 21px; color: #2F6FD6; }
+  .thanks .s { font-size: 10.5px; color: #6b7280; }
 </style>
 </head>
 <body>
-  <div class="header">
-    <div class="logo">Docufy</div>
-    <p class="sub">Printing Services</p>
-    <p class="addr">${LOCATION_LINES.map(esc).join("<br>")}</p>
+  <div class="hdr">
+    <div>
+      <div class="brand">
+        ${logoDataUrl ? `<img src="${logoDataUrl}" alt="">` : ""}
+        <div><div class="word">DocuFy</div><div class="sub">Printing Services</div></div>
+      </div>
+      <div class="addr">${LOCATION_LINES.map(esc).join("<br>")}<br>${esc(CONTACT_EMAIL)}</div>
+    </div>
+    <div class="rt">
+      <h1>ORDER RECEIPT</h1>
+      <div class="rno">Receipt No. : <b>${esc(data.receiptNumber)}</b></div>
+    </div>
   </div>
+
+  <div class="rule"></div>
 
   ${cancellationHTML}
 
-  <h2 class="title">ORDER RECEIPT</h2>
-  <div class="meta">
-    <div><span class="k">Receipt No.</span><br>${esc(data.receiptNumber)}</div>
-    <div><span class="k">Order No.</span><br>${esc(data.orderDisplayId)}</div>
-    <div><span class="k">Order Date</span><br>${esc(data.orderDate)}</div>
-    <div><span class="k">Order Status</span><br>${esc(data.statusLabel)}</div>
-    <div><span class="k">Source</span><br>${data.isWalkin ? "Walk-in" : "Online"}</div>
+  <div class="info">
+    <div class="col">
+      <h3>Customer Information</h3>
+      <div class="fld"><div class="k">Name</div><div class="v">${esc(data.customerName)}</div></div>
+      ${data.customerEmail ? `<div class="fld"><div class="k">Email</div><div class="v">${esc(data.customerEmail)}</div></div>` : ""}
+    </div>
+    <div class="col">
+      <h3>Order Information</h3>
+      <div class="vrow"><span class="k">Order No.</span><span class="v">${esc(data.orderDisplayId)}</span></div>
+      <div class="vrow"><span class="k">Order Date</span><span class="v">${esc(data.orderDate)}</span></div>
+      <div class="vrow"><span class="k">Order Status</span><span class="v"><span class="pill">${esc(data.statusLabel)}</span></span></div>
+      <div class="vrow"><span class="k">Order Source</span><span class="v">${data.isWalkin ? "Walk-in" : "Online"}</span></div>
+    </div>
   </div>
 
-  <div class="parties">
-    <div class="party">
-      <h4>Billed To</h4>
-      <p><strong>${esc(data.customerName)}</strong></p>
-      ${data.customerEmail ? `<p>${esc(data.customerEmail)}</p>` : ""}
-    </div>
-    <div class="party">
-      <h4>Docufy Printing Services</h4>
-      ${LOCATION_LINES.map((l) => `<p>${esc(l)}</p>`).join("")}
-      <p>${esc(CONTACT_EMAIL)}</p>
-    </div>
-  </div>
+  <div class="rule"></div>
 
   <h3>Order Items</h3>
-  ${filesHTML || `<div class="file-card"><div class="file-name">—</div></div>`}
-  ${data.notes ? `<p class="muted" style="margin-top:8px">Notes: ${esc(data.notes)}</p>` : ""}
+  ${itemsHTML}
+  ${data.notes && data.files.length !== 1 ? `<p class="muted" style="margin-top:6px">Notes: ${esc(data.notes)}</p>` : ""}
   ${addonsHTML}
 
-  <div class="cost">
-    <div class="row"><span>Printing cost</span><span>${php(data.printingCost)}</span></div>
-    ${
-      data.addons.length > 0
-        ? `<div class="row"><span>Add-ons (${data.addons.length})</span><span>${php(data.addonsCost)}</span></div>`
-        : ""
-    }
-  </div>
-  <div class="total"><span>Total</span><span>${php(data.total)}</span></div>
-
-  <h3>Payment</h3>
-  <div class="payment">
-    <div class="row"><span>Method</span><span><strong>${esc(data.payment.method)}</strong></span></div>
-    <div class="row"><span>Status</span><span class="badge ${data.payment.status === "paid" ? "paid" : data.payment.status === "partially_paid" ? "partial" : data.payment.status === "pending_verification" ? "pending" : "due"}">${esc(data.payment.statusLabel)}</span></div>
-    <div class="row"><span>Amount paid</span><span>${php(data.payment.amountPaid)}</span></div>
-    <div class="row"><span>Balance</span><span>${php(data.payment.balance)}</span></div>
-    ${data.payment.reference ? `<div class="row"><span>Reference No.</span><span>${esc(data.payment.reference)}</span></div>` : ""}
-    ${data.payment.verifiedAtLabel ? `<div class="row"><span>Payment recorded</span><span>${esc(data.payment.verifiedAtLabel)}</span></div>` : ""}
+  <div class="sumwrap">
+    <div class="sum">
+      <div class="row"><span>Printing Cost</span><span>${php(data.printingCost)}</span></div>
+      ${data.addons.length > 0 ? `<div class="row"><span>Add-ons</span><span>${php(data.addonsCost)}</span></div>` : ""}
+      <div class="totrow"><span>Order Total</span><span>${php(data.total)}</span></div>
+    </div>
   </div>
 
-  <div class="footer">
-    <p>Thank you for choosing Docufy!</p>
-    <p>For inquiries, please contact us at ${esc(CONTACT_EMAIL)}</p>
-    <p class="disclaimer">This receipt serves as a record of your order and, where applicable, payment recorded by Docufy PSMS. It is not a tax invoice.</p>
-    <p class="disclaimer">Generated ${esc(data.generatedAtLabel)}</p>
+  <div class="rule"></div>
+
+  <div class="sec">
+    <h3>Payment Summary</h3>
+    <div class="payrow"><span class="k">Payment Method</span><span class="v">${esc(data.payment.method)}</span></div>
+    ${data.payment.reference ? `<div class="payrow"><span class="k">Payment Reference</span><span class="v">${esc(data.payment.reference)}</span></div>` : ""}
+    ${data.payment.verifiedAtLabel ? `<div class="payrow"><span class="k">Payment Date</span><span class="v">${esc(data.payment.verifiedAtLabel)}</span></div>` : ""}
+    <div class="payrow"><span class="k">Status</span><span class="v"><span class="badge ${badgeClass}">${esc(data.payment.statusLabel)}</span></span></div>
+    <div class="payrow"><span class="k">Amount Paid</span><span class="v">${php(data.payment.amountPaid)}</span></div>
+    <div class="payrow"><span class="k">Remaining Balance</span><span class="v">${php(data.payment.balance)}</span></div>
+  </div>
+
+  <div class="foot">
+    <div class="disc">This receipt serves as a record of your order and, where applicable, payment recorded by DocuFy PSMS. It is not a tax invoice.<br>Generated ${esc(data.generatedAtLabel)}</div>
+    <div class="thanks"><div class="t">Thank you</div><div class="s">for choosing DocuFy!</div></div>
   </div>
 </body>
 </html>`;

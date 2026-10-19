@@ -1102,3 +1102,10 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Synced the penalty-system branch up to invoice, so both branches now carry the same work: the new adaptive Order Receipt for every order, the receipt viewer window, and the PDF/PNG downloads sit on top of the penalty-system changes instead of only on invoice.
 - The sync is a plain fast-forward, not a merge: every penalty-system commit was already inside invoice, so nothing was rewritten, no merge commit was created and no conflict arose - the branch simply caught up to the work it already contained.
 - No code changed in this sync; it only changes which branch carries the receipt work, so the collaborator's branch and invoice can no longer drift apart.
+
+---
+
+## October 19, 2026 (10:15 PM PHT) - Francis William Garcia
+- Added a `deployment` branch: a release line the live site is built from, kept separate from the `penalty-system` work branch so nothing goes public until a change is deliberately merged across.
+- Set the deploy hand-off: Ethan's fork tracks `deployment` and his Vercel project builds that branch, so syncing it on his fork is what triggers a rebuild.
+- Left `deployment` at the same commit as `penalty-system` with no extra commits, so the first merge across is a clean fast-forward.

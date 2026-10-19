@@ -1095,3 +1095,10 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Added feedback and safety: the pressed button shows a spinner while the receipt is being prepared, both buttons lock while one is working, and a failure reports itself instead of silently doing nothing.
 - Kept it self-contained: no new dependency, no server, and the PDF library loads only when a PDF is actually downloaded, so nobody who never downloads one pays for it in page weight.
 - Nothing about orders, payments, pricing, permissions or statuses changed - this is only how the file leaves the app. Typecheck + build pass.
+
+---
+
+## October 19, 2026 (6:00 PM PHT) - aeprnts
+- Synced the penalty-system branch up to invoice, so both branches now carry the same work: the new adaptive Order Receipt for every order, the receipt viewer window, and the PDF/PNG downloads sit on top of the penalty-system changes instead of only on invoice.
+- The sync is a plain fast-forward, not a merge: every penalty-system commit was already inside invoice, so nothing was rewritten, no merge commit was created and no conflict arose - the branch simply caught up to the work it already contained.
+- No code changed in this sync; it only changes which branch carries the receipt work, so the collaborator's branch and invoice can no longer drift apart.

@@ -12,11 +12,14 @@
 // `order-receipt-viewer` in tailwind.css): a control toolbar pinned across the
 // top and the A4-width page on a neutral surface below, scrolling only at the
 // viewer's own edge — never a small modal with a scroll box around the page.
-// The same markup is what prints (Print / Save as PDF via @media print) and
-// what downloads (the self-contained HTML export).
+// The same markup is what prints (the browser's own Ctrl+P, via @media print)
+// and what the two Download buttons export: the self-contained HTML export is
+// measured and then drawn onto a canvas, which saves as a PDF (A4, spilling onto
+// extra pages if the receipt is long) or as a PNG image.
 
 import React from "react";
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, Image as ImageIcon } from "lucide-react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -438,28 +441,220 @@ async function logoToDataUrl(src: string): Promise<string | undefined> {
   }
 }
 
-async function downloadReceipt(data: ReceiptData, logo: string) {
-  const logoDataUrl = await logoToDataUrl(logo);
-  const html = generateReceiptHTML(data, logoDataUrl);
-  const blob = new Blob([html], { type: "text/html" });
+// The export caps its own page at 794px wide — A4 at 96dpi — so that is the
+// width the receipt is measured and rasterized at.
+const RECEIPT_SHEET_WIDTH = 794;
+// The page the receipt prints on: A4 with the same 14mm margin as @page.
+const A4_WIDTH_PT = 595.28;
+const A4_HEIGHT_PT = 841.89;
+const A4_MARGIN_PT = 39.685;
+
+function saveBlob(blob: Blob, filename: string) {
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `Receipt-${data.receiptNumber}.html`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
-  window.URL.revokeObjectURL(url);
   document.body.removeChild(a);
+  // Released late, like every other download in the app: revoking a blob URL
+  // while the browser is still reading it can cancel the save.
+  setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+}
+
+/**
+ * Draw the receipt onto a canvas at `scale`× — the one step both exports share.
+ *
+ * It renders the SAME document the HTML export builds (inline <style>, the logo
+ * already inlined as a data URL), so the file looks exactly like what the viewer
+ * shows and no network request is made. The document is first laid out in an
+ * off-screen iframe at its own 794px sheet width so it can be measured, then
+ * serialized as XHTML and wrapped in a single SVG <foreignObject> image: the
+ * only way to rasterize markup without pulling in a dependency. Everything in
+ * that image is inline, so nothing is fetched and the canvas is never tainted.
+ */
+async function renderReceiptCanvas(
+  data: ReceiptData,
+  logo: string,
+  scale: number,
+): Promise<HTMLCanvasElement> {
+  const logoDataUrl = await logoToDataUrl(logo);
+  const html = generateReceiptHTML(data, logoDataUrl);
+
+  const frame = document.createElement("iframe");
+  frame.setAttribute("aria-hidden", "true");
+  frame.style.cssText = `position:fixed;left:-10000px;top:0;width:${RECEIPT_SHEET_WIDTH}px;height:600px;border:0;visibility:hidden`;
+  document.body.appendChild(frame);
+
+  try {
+    const doc = await new Promise<Document>((resolve, reject) => {
+      const settle = () => {
+        const parsed = frame.contentDocument;
+        if (parsed?.body) resolve(parsed);
+        else reject(new Error("The receipt could not be prepared."));
+      };
+      frame.onload = settle;
+      frame.srcdoc = html;
+      // A srcdoc frame that never fires load must not hang the button.
+      window.setTimeout(settle, 4000);
+    });
+
+    // The logo is a local data URL; wait for it so it paints as an image
+    // rather than an empty box.
+    await Promise.all(
+      Array.from(doc.images).map(
+        (img) =>
+          new Promise<void>((resolve) => {
+            if (img.complete) {
+              resolve();
+              return;
+            }
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+          }),
+      ),
+    );
+
+    const sheet = doc.body;
+    const width = RECEIPT_SHEET_WIDTH;
+    const height = Math.max(
+      1,
+      Math.ceil(Math.max(sheet.scrollHeight, sheet.offsetHeight)),
+    );
+
+    // XMLSerializer closes void tags (<br>, <img>) the way XML requires; the
+    // stylesheet is escaped because it is emitted as character data.
+    const css = Array.from(doc.querySelectorAll("style"))
+      .map((style) => style.textContent ?? "")
+      .join("\n")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;");
+    const markup = Array.from(sheet.childNodes)
+      .map((node) => new XMLSerializer().serializeToString(node))
+      .join("");
+    const svg =
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
+      `<foreignObject x="0" y="0" width="100%" height="100%">` +
+      `<body xmlns="http://www.w3.org/1999/xhtml" style="margin:0;background:#ffffff">` +
+      `<style>${css}</style>${markup}` +
+      `</body></foreignObject></svg>`;
+
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("The receipt could not be rendered."));
+      img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(width * scale);
+    canvas.height = Math.round(height * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("The receipt could not be rendered.");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    return canvas;
+  } finally {
+    document.body.removeChild(frame);
+  }
+}
+
+function canvasToPng(canvas: HTMLCanvasElement): Promise<ArrayBuffer> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        reject(new Error("The receipt could not be rendered."));
+        return;
+      }
+      resolve(await blob.arrayBuffer());
+    }, "image/png");
+  });
+}
+
+async function downloadReceiptImage(data: ReceiptData, logo: string) {
+  const canvas = await renderReceiptCanvas(data, logo, 2);
+  const bytes = await canvasToPng(canvas);
+  saveBlob(new Blob([bytes], { type: "image/png" }), `Receipt-${data.receiptNumber}.png`);
+}
+
+async function downloadReceiptPdf(data: ReceiptData, logo: string) {
+  const canvas = await renderReceiptCanvas(data, logo, 3);
+  // Imported here so the PDF library stays out of the main bundle.
+  const { PDFDocument } = await import("pdf-lib");
+  const pdf = await PDFDocument.create();
+
+  const contentWidth = A4_WIDTH_PT - A4_MARGIN_PT * 2;
+  const contentHeight = A4_HEIGHT_PT - A4_MARGIN_PT * 2;
+  const ptPerPx = contentWidth / canvas.width;
+  const pagePx = contentHeight / ptPerPx;
+  const pageCount = Math.max(1, Math.ceil(canvas.height / pagePx));
+
+  for (let page = 0; page < pageCount; page += 1) {
+    // Page boundaries share an edge (floor on both sides) so nothing is lost or
+    // repeated between pages, and the last page always reaches the end.
+    const top = Math.floor(page * pagePx);
+    const bottom =
+      page === pageCount - 1 ? canvas.height : Math.floor((page + 1) * pagePx);
+    const sliceHeight = bottom - top;
+    if (sliceHeight <= 0) break;
+
+    let source = canvas;
+    if (pageCount > 1) {
+      const slice = document.createElement("canvas");
+      slice.width = canvas.width;
+      slice.height = sliceHeight;
+      const sliceCtx = slice.getContext("2d");
+      if (!sliceCtx) throw new Error("The receipt could not be rendered.");
+      sliceCtx.fillStyle = "#ffffff";
+      sliceCtx.fillRect(0, 0, slice.width, slice.height);
+      sliceCtx.drawImage(
+        canvas,
+        0,
+        top,
+        slice.width,
+        sliceHeight,
+        0,
+        0,
+        slice.width,
+        slice.height,
+      );
+      source = slice;
+    }
+
+    const embedded = await pdf.embedPng(new Uint8Array(await canvasToPng(source)));
+    const drawWidth = contentWidth;
+    // Clamped so a slice that rounded a fraction of a pixel tall can never
+    // spill past the page's bottom margin.
+    const drawHeight = Math.min(
+      contentHeight,
+      drawWidth * (embedded.height / embedded.width),
+    );
+    pdf
+      .addPage([A4_WIDTH_PT, A4_HEIGHT_PT])
+      .drawImage(embedded, {
+        x: A4_MARGIN_PT,
+        y: A4_HEIGHT_PT - A4_MARGIN_PT - drawHeight,
+        width: drawWidth,
+        height: drawHeight,
+      });
+  }
+
+  const bytes = await pdf.save();
+  saveBlob(
+    new Blob([new Uint8Array(bytes)], { type: "application/pdf" }),
+    `Receipt-${data.receiptNumber}.pdf`,
+  );
 }
 
 /**
  * The receipt viewer. It opens over the current screen as a spacious document
  * WINDOW — never a new tab, never a route change: a compact header (document
  * icon, title, receipt number, subtitle, close), the A4-width receipt centered
- * on a neutral surface, and a footer holding Download and Close. The document
- * surface is the ONLY scroll region, so the page itself never sits inside a
- * scroll box. Printing is deliberately not offered here (the browser's own
- * print still yields a clean receipt via the `@media print` rules). Nothing
+ * on a neutral surface, and a footer holding Download PDF, Download PNG and
+ * Close. The document surface is the ONLY scroll region, so the page itself
+ * never sits inside a scroll box. Both downloads are built from the same markup
+ * the sheet shows, on the spot, with no server and no new dependency. Nothing
  * here touches order, payment, pricing, permission or status logic.
  */
 export function OrderReceiptDialog({
@@ -472,6 +667,23 @@ export function OrderReceiptDialog({
   data: ReceiptData | null;
 }) {
   const logo = useLogo();
+  const [busy, setBusy] = React.useState<"pdf" | "png" | null>(null);
+
+  // Rasterizing takes a moment; the button that was pressed shows the spinner
+  // and both downloads lock so the same receipt can't be rendered twice.
+  const download = async (format: "pdf" | "png") => {
+    if (!data || busy) return;
+    setBusy(format);
+    try {
+      if (format === "pdf") await downloadReceiptPdf(data, logo);
+      else await downloadReceiptImage(data, logo);
+      toast.success(format === "pdf" ? "Receipt downloaded as PDF." : "Receipt downloaded as PNG.");
+    } catch {
+      toast.error("Could not prepare the receipt file. Use the browser's Print → Save as PDF instead.");
+    } finally {
+      setBusy(null);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -515,19 +727,34 @@ export function OrderReceiptDialog({
           )}
         </div>
 
-        {/* Footer — outside the document, never printed. Download stays
+        {/* Footer — outside the document, never printed. The two downloads stay
             secondary; Close carries the primary styling and the Enter key. */}
-        <div className="order-receipt-footer flex items-center justify-end gap-3 border-t border-gray-200 bg-white px-4 py-3 sm:gap-4 sm:px-6">
+        <div className="order-receipt-footer flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 bg-white px-4 py-3 sm:gap-3 sm:px-6">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => data && downloadReceipt(data, logo)}
-            disabled={!data}
-            title="Downloads a standalone HTML copy of the receipt"
+            onClick={() => download("pdf")}
+            disabled={!data || busy !== null}
+            loading={busy === "pdf"}
+            loadingText="Preparing…"
+            title="Downloads the receipt as an A4 PDF document"
             className="border-2 border-blue-200 text-[#2F6FD6] hover:bg-white hover:text-[#2F6FD6]"
           >
             <Download className="mr-1.5 h-4 w-4" />
-            Download
+            Download PDF
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => download("png")}
+            disabled={!data || busy !== null}
+            loading={busy === "png"}
+            loadingText="Preparing…"
+            title="Downloads the receipt as a PNG image"
+            className="border-2 border-blue-200 text-[#2F6FD6] hover:bg-white hover:text-[#2F6FD6]"
+          >
+            <ImageIcon className="mr-1.5 h-4 w-4" />
+            Download PNG
           </Button>
           <Button
             data-primary-action

@@ -1085,3 +1085,13 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Made the receipt scroll in exactly one place: only the middle band scrolls, so the page stays centered at full size with no nested scrollbar, no clipped column, and no sideways scrolling, on desktop and on phones alike.
 - Fixed a centering bug that only appeared in a production build: the CSS minifier rewrites the `translate` centering into `transform`, which would have thrown the window off-screen in the built app while looking perfectly fine in development. The window is now centered without any transform, and the built stylesheet was checked for it.
 - Brought this branch up to date with the penalty-system work (automatic unclaimed-order restrictions, Late Pick-up History and Customer Restrictions pages) by merging it in, so the receipt sits on top of the latest pickup work; the receipt itself does not touch any of that logic.
+
+---
+
+## October 19, 2026 (5:53 PM PHT) - aeprnts
+- Replaced the receipt's HTML download with PDF and PNG: the single Download button (which saved a web page that opened in a browser rather than a file you can print or send) is now two buttons, Download PDF and Download PNG, and Close is unchanged.
+- Made both files look exactly like the receipt on screen: they are built from the same document the receipt already exported, so nothing is re-designed for the download and nothing is fetched from the network.
+- Made the PDF a real A4 document with the same 14mm margins the receipt prints with, and a receipt too long for one page now continues onto further pages instead of being cut off.
+- Added feedback and safety: the pressed button shows a spinner while the receipt is being prepared, both buttons lock while one is working, and a failure reports itself instead of silently doing nothing.
+- Kept it self-contained: no new dependency, no server, and the PDF library loads only when a PDF is actually downloaded, so nobody who never downloads one pays for it in page weight.
+- Nothing about orders, payments, pricing, permissions or statuses changed - this is only how the file leaves the app. Typecheck + build pass.

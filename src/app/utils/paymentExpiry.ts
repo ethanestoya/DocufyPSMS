@@ -11,10 +11,17 @@
 // Configurable (never hardcoded): the deadline windows themselves are set per
 // order at creation time from pricingStore; if a shop disables expiry
 // (window = 0) no deadline is stored and nothing auto-cancels.
+//
+// Where the sweep runs: primarily on the SERVER via the `expire_overdue_orders`
+// SECURITY DEFINER function (also scheduled by pg_cron every minute), so
+// deadlines expire — and notifications go out — even while no browser is open.
+// The local loop below stays as an idempotent FALLBACK for when that SQL
+// function hasn't been installed yet or isn't reachable.
 import { dataStore, type Order } from './dataStore';
 import { notificationStore } from './notificationStore';
 import { formatPHDateTime } from './pht';
 import { shopStatusStore } from './shopStatusStore';
+import { runServerExpiry } from '../../lib/db/paymentExpiryRepo';
 
 export const PAYMENT_DEADLINE_EXPIRED_REASON = 'Payment Deadline Expired';
 
@@ -36,10 +43,7 @@ export function isOrderExpired(order: Order, now: Date = new Date()): boolean {
 }
 
 // Cancel every expired awaiting-payment order. Dedup via clearing the deadline.
-export async function expireOverdueOrders(): Promise<void> {
-  // While the shop is paused, deadlines are frozen — no auto-cancellations.
-  if (!shopStatusStore.isOperational()) return;
-
+async function expireOverdueOrdersLocally(): Promise<void> {
   const now = new Date();
 
   for (const order of dataStore.getOrders()) {
@@ -74,9 +78,26 @@ export async function expireOverdueOrders(): Promise<void> {
   }
 }
 
+// Run the sweep on the server when possible (single writer, notifies even with
+// no browser open); otherwise fall back to the local loop. Both paths are
+// idempotent — clearing the deadline stops any second pass from re-firing.
+let sweeping = false;
+export async function expireOverdueOrders(): Promise<void> {
+  // While the shop is paused, deadlines are frozen — no auto-cancellations.
+  if (!shopStatusStore.isOperational()) return;
+  if (sweeping) return;
+  sweeping = true;
+  try {
+    const cancelledOnServer = await runServerExpiry();
+    if (cancelledOnServer !== null) return;
+    await expireOverdueOrdersLocally();
+  } finally {
+    sweeping = false;
+  }
+}
+
 // Evaluate once on load and then on a lightweight interval so deadlines expire
-// even while the page is sitting open. (Pure demo timing — a real backend
-// would use scheduled jobs.)
+// even while the page is sitting open.
 void expireOverdueOrders();
 const EXPIRY_CHECK_INTERVAL_MS = 30_000;
 setInterval(() => {

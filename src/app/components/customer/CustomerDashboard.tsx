@@ -229,7 +229,7 @@ export default function CustomerDashboard() {
           </p>
         </div>
 
-        {/* First confirmed-unclaimed order warning (preview only) */}
+        {/* Unclaimed-order warning — derived from the customer's real order history */}
         <UnclaimedOrderWarning customerKey={user?.email} />
 
         {/* Announcement Banner */}

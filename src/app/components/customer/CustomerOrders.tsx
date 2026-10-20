@@ -133,7 +133,7 @@ export default function CustomerOrders() {
 
         <ShopStatusBanner />
 
-        {/* First confirmed-unclaimed order warning (preview only) */}
+        {/* Unclaimed-order warning — derived from the customer's real order history */}
         <UnclaimedOrderWarning customerKey={user?.email} />
 
         {/* ── Top Action Bar ─────────────────────────────────── */}

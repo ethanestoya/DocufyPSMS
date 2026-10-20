@@ -90,7 +90,6 @@ import PaymentMethodQRPanel from "./PaymentMethodQR";
 import { CashOnPickupAcknowledgement } from "./CashOnPickupAcknowledgement";
 import {
   CASH_ON_PICKUP_BLOCKED_MESSAGE,
-  CASH_ON_PICKUP_MIN_CONFIRMED_OFFENSES,
 } from "../../utils/unclaimedPolicy";
 import { useUnclaimedOffenses } from "../../utils/useUnclaimedOffenses";
 import LegalPolicyDialog from "./LegalPolicyDialog";
@@ -224,7 +223,6 @@ interface PrintTransactionProps {
 // the system once the customer actually submits their payment reference, and so
 // returning to the print request resumes where they left off.
 const PRINT_DRAFT_KEY = "docufy_print_draft";
-const PENDING_ORDER_KEY = "docufy_pending_online_order";
 
 type PrintDraft = {
   orderId?: string;
@@ -271,27 +269,6 @@ function readPrintDraft(): PrintDraft | null {
 
 export function clearPrintDraft() {
   sessionStorage.removeItem(PRINT_DRAFT_KEY);
-}
-
-function savePendingOrder(payload: Record<string, unknown>) {
-  sessionStorage.setItem(PENDING_ORDER_KEY, JSON.stringify(payload));
-}
-
-function readPendingOrder():
-  | (Record<string, unknown> & { id: string })
-  | null {
-  try {
-    const raw = sessionStorage.getItem(PENDING_ORDER_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Record<string, unknown> & { id?: string };
-    return parsed.id ? (parsed as Record<string, unknown> & { id: string }) : null;
-  } catch {
-    return null;
-  }
-}
-
-export function clearPendingOrder() {
-  sessionStorage.removeItem(PENDING_ORDER_KEY);
 }
 
 function NumberStepper({
@@ -883,10 +860,8 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
   // offenses on record. Down-payment tier orders keep every option selectable.
   // The count is derived from the customer's authoritative order data + status
   // timeline (never stored), and re-renders automatically on data changes.
-  const { count: confirmedOffenseCount } = useUnclaimedOffenses(user?.email);
-  const cashRestrictedByOffense =
-    !isWalkin &&
-    confirmedOffenseCount >= CASH_ON_PICKUP_MIN_CONFIRMED_OFFENSES;
+  const { policy } = useUnclaimedOffenses(user?.email);
+  const cashRestrictedByOffense = !isWalkin && policy.cashOnPickupDisabled;
   const cashDisabled = isFullTier || cashRestrictedByOffense;
 
   // Reason-specific copy for the disabled Cash on Pickup option (offense rule
@@ -1384,19 +1359,6 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
     // hasn't paid yet). Backing out leaves the awaiting-payment order in place,
     // subject to its payment deadline.
     if (isOnline || isDownTier) {
-      const orderData = {
-        orderId,
-        total,
-        paymentMethod: methodLabel,
-        timestamp: new Date().toISOString(),
-        downPaymentRequired: requiresDownPayment,
-        downPaymentAmount: requiresDownPayment ? downPaymentAmount : undefined,
-        fullPaymentRequired: requiresFullPayment,
-        fullPaymentAmount: requiresFullPayment ? total : undefined,
-      };
-      localStorage.setItem(`order_${orderId}`, JSON.stringify(orderData));
-
-      savePendingOrder(newOrder as unknown as Record<string, unknown>);
       savePrintDraft({
         orderId,
         files: files.map((f) => ({
@@ -1480,21 +1442,6 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
       recipientRole: "staff",
     });
 
-    const orderData = {
-      orderId,
-      total,
-      paymentMethod: methodLabel,
-      timestamp: new Date().toISOString(),
-      downPaymentRequired: requiresDownPayment,
-      downPaymentAmount: requiresDownPayment ? downPaymentAmount : undefined,
-      fullPaymentRequired: requiresFullPayment,
-      fullPaymentAmount: requiresFullPayment ? total : undefined,
-    };
-    localStorage.setItem(
-      `order_${orderId}`,
-      JSON.stringify(orderData),
-    );
-
     setSubmittedOrderId(orderId);
     orderSubmittedRef.current = true;
     clearPrintDraft();
@@ -1560,7 +1507,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
           <span className="text-sm font-medium">Back</span>
         </button>
       )}
-      {/* First confirmed-unclaimed order warning (preview only) */}
+      {/* Unclaimed-order warning — mirrors the checkout restriction enforced on submit */}
       {!isWalkin && (
         <UnclaimedOrderWarning customerKey={user?.email} variant="slim" />
       )}

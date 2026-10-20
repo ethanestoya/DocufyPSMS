@@ -22,8 +22,9 @@ import {
 import { hasVerifiedPayment } from '../../lib/db/paymentsRepo';
 import { createWalkInTransaction } from '../../lib/db/walkInRepo';
 import { auditLogStore } from './auditLogStore';
-import { CASH_ON_PICKUP_BLOCKED_MESSAGE } from './unclaimedPolicy';
-import { getCustomerPolicy, toUnclaimedOrderLikes } from './unclaimedOrders';
+import { CASH_ON_PICKUP_BLOCKED_MESSAGE, effectivePolicy } from './unclaimedPolicy';
+import { findCustomerSummary, toUnclaimedOrderLikes } from './unclaimedOrders';
+import { restrictionsStore } from './restrictionsStore';
 import { landingContentStore } from './landingContentStore';
 import { resolveStorageUrl, BUCKETS, uploadObjectAndGetPath, removeObjectsIfPresent } from '../../lib/db/storage';
 import { formatOrderNumber } from '../../lib/db/types';
@@ -465,17 +466,30 @@ class DataStore {
     // Pickup orders, Cash on Pickup is blocked for their future orders. The
     // count comes from the real order + status-history timeline (never a local
     // ledger), and an unconfigured closing time derives nothing, so this guard
-    // only fires on a real, computed restriction. Enforced HERE at the single
-    // order-submission chokepoint (the same path every print request flows
-    // through), NOT only in checkout, so a manipulated selection is still
-    // rejected before any row or file is written. Walk-in sales are exempt.
+    // only fires on a real, computed restriction. An offense the admin has
+    // EXCUSED stops counting, and an INACTIVE stored restriction is early
+    // forgiveness that re-enables Cash on Pickup regardless of the count.
+    // Enforced HERE at the single order-submission chokepoint (the same path
+    // every print request flows through), NOT only in checkout, so a
+    // manipulated selection is still rejected before any row or file is
+    // written. Walk-in sales are exempt.
     if (!isWalkin && input.paymentMethod === 'Cash') {
       const customerKey = input.customerEmail ?? input.actorId ?? null;
       const closingTime = landingContentStore.getContent().shopClosingTime;
-      const policy = getCustomerPolicy(
+      const summary = findCustomerSummary(
         toUnclaimedOrderLikes(this.orders),
         customerKey,
         closingTime,
+      );
+      // Excused offenses stop counting before we enforce anything.
+      const effectiveCount = (summary?.records ?? []).filter(
+        (r) => restrictionsStore.getOverride(r.orderId)?.decision !== 'excused',
+      ).length;
+      // The stored restriction, when present, is the admin's word on whether
+      // this customer is currently restricted — it overrides the bare count.
+      const policy = effectivePolicy(
+        effectiveCount,
+        restrictionsStore.getRestriction(customerKey),
       );
       if (policy.cashOnPickupDisabled) {
         throw new Error(CASH_ON_PICKUP_BLOCKED_MESSAGE);

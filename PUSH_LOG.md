@@ -1119,3 +1119,12 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Made the rule visible where people type their address: the login, sign-up, and password-reset screens now say an organization address is required, and a refused Google sign-in explains the policy rather than failing silently.
 - Backed the app check with a database trigger on the account service, so a signup that bypasses the app is refused there too.
 - The shop owner's own Gmail account stays exempt so the owner can still get in; the demo and test accounts keep working. Typecheck + build pass.
+
+
+---
+
+## October 21, 2026 (10:49 PM PHT) - ethanestoya
+- Gave the web app a real tab icon: the browser now shows the Docufy logo instead of a generic placeholder, because the page had no icon declared at all.
+- Built the icon from the logo already bundled in the app, drawn as a circle on a transparent background so it sits cleanly on any browser theme, and added the iPhone home-screen icon as well.
+- Fixed the page title and description, which still carried the raw package name and described a generic project-management tool instead of the print shop system.
+- Checked the production build: all three icon files are served correctly and the app still loads normally.

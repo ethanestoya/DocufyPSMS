@@ -27,6 +27,27 @@ export interface User {
   id?: string;
 }
 
+// Result of asking Supabase to email a password-reset link. `code` keeps the
+// raw Supabase error code (e.g. "over_email_send_rate_limit",
+// "invalid_redirect_to") so a misconfigured deployment is diagnosable instead
+// of showing one generic "unable to send" message.
+export interface PasswordResetRequestResult {
+  success: boolean;
+  error?: string;
+  code?: string;
+}
+
+// Result of applying the new password from the emailed recovery link.
+// `reason: "no_session"` means the link carried no usable recovery session
+// (expired, already used, or opened without the token) - a different problem
+// from a rejected password, and it needs a different way out for the user.
+export interface PasswordResetUpdateResult {
+  success: boolean;
+  reason?: 'no_session' | 'rejected' | 'error';
+  error?: string;
+  code?: string;
+}
+
 export interface AuthContextType {
   user: User | null;
   authLoading: boolean;
@@ -41,10 +62,8 @@ export interface AuthContextType {
   syncProfileDetails: (patch: Database['public']['Tables']['profiles']['Update']) => Promise<boolean>;
   logout: () => void;
   resetPassword: (email: string, currentPassword: string, newPassword: string) => Promise<boolean>;
-  resetForgottenPassword: (email: string, newPassword: string) => Promise<boolean>;
-  requestPasswordReset: (email: string) => Promise<boolean>;
-  sendPasswordResetCode: (email: string) => boolean;
-  verifyResetCode: (email: string, code: string) => boolean;
+  resetForgottenPassword: (email: string, newPassword: string) => Promise<PasswordResetUpdateResult>;
+  requestPasswordReset: (email: string) => Promise<PasswordResetRequestResult>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -96,9 +115,6 @@ const mockUsers: MockUser[] = [
     profileImage: undefined,
   },
 ];
-
-// Store for password reset codes
-const passwordResetCodes: { [email: string]: string } = {};
 
 // Staff/admin sign-in accounts persist to localStorage so role and status
 // changes made in Staff Management survive a page refresh — otherwise the
@@ -608,22 +624,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void supabase.auth.signOut();
   };
 
-  const sendPasswordResetCode = (email: string) => {
-    const foundUser = mockUsers.find(u => u.email === email);
-    if (foundUser) {
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      passwordResetCodes[email] = code;
-      console.log(`Password reset code for ${email}: ${code}`);
-      toast.success(`Reset code sent to ${email}. Check console for demo code.`);
-      return true;
-    }
-    return false;
-  };
-
-  const verifyResetCode = (email: string, code: string) => {
-    return passwordResetCodes[email] === code;
-  };
-
   const resetPassword = async (email: string, currentPassword: string, newPassword: string) => {
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
@@ -635,22 +635,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return !error;
   };
 
-  const resetForgottenPassword = async (_email: string, newPassword: string) => {
+  const resetForgottenPassword = async (
+    _email: string,
+    newPassword: string,
+  ): Promise<PasswordResetUpdateResult> => {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) return false;
+
+    if (error) {
+      // A missing recovery session means the emailed link never carried a
+      // usable token (expired, already used, or the page was reached without
+      // the token) - a different failure from a password the server refuses,
+      // and it needs a different way out for the user.
+      const message = error.message || '';
+      const noSession =
+        error.name === 'AuthSessionMissingError' ||
+        error.code === 'session_not_found' ||
+        /session missing|not authenticated|invalid.*jwt/i.test(message);
+
+      console.warn('[auth] password reset update failed:', error.code, message);
+
+      return {
+        success: false,
+        reason: noSession ? 'no_session' : 'rejected',
+        code: error.code,
+        error: noSession
+          ? 'This reset link is invalid or has expired.'
+          : message || 'We could not update your password. Please try a different one.',
+      };
+    }
 
     // The password-recovery link logs the user in with a recovery session.
     // Without signing out, that lingering session makes LoginPage's "already
     // signed in" effect redirect straight to /<role>/dashboard instead of
     // showing the login form the user needs after resetting their password.
     await supabase.auth.signOut();
-    return true;
+    return { success: true };
   };
 
-  const requestPasswordReset = async (email: string) => {
+  const requestPasswordReset = async (email: string): Promise<PasswordResetRequestResult> => {
+    // The link has to point back at THIS deployment. Supabase only honours a
+    // redirect target that is listed in the project's Redirect URLs
+    // allow-list; when it is not, the emailed link silently falls back to the
+    // project's Site URL (which is often still localhost from local
+    // development) and the reset link becomes unusable.
     const redirectTo = `${window.location.origin}/reset-password`;
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-    return !error;
+
+    if (error) {
+      console.warn('[auth] password reset request failed:', error.code, error.message);
+      const rateLimited = error.code === 'over_email_send_rate_limit';
+      return {
+        success: false,
+        code: error.code,
+        error: rateLimited
+          ? 'Too many reset emails were requested. Wait a minute and try again.'
+          : 'We could not send the reset link. Please try again in a moment.',
+      };
+    }
+
+    return { success: true };
   };
 
   return (
@@ -671,8 +714,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         resetPassword,
         resetForgottenPassword,
         requestPasswordReset,
-        sendPasswordResetCode,
-        verifyResetCode,
       }}
     >
       {children}

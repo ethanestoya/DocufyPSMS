@@ -16,6 +16,7 @@ import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import { Checkbox } from "./ui/checkbox";
 import { Alert, AlertDescription } from "./ui/alert";
+import { EMAIL_POLICY_MESSAGE } from "../utils/authEmailPolicy";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -52,9 +53,13 @@ export default function LoginPage() {
         setError(
           result.reason === "inactive"
             ? "This account has been deactivated. Please contact your administrator."
-            : "Invalid email or password",
-);
-        }
+            : result.reason === "domain"
+              ? EMAIL_POLICY_MESSAGE
+              : result.reason === "invalid"
+                ? "Please enter a valid email address."
+                : "Invalid email or password",
+        );
+      }
     } finally {
       setSubmitting(false);
     }
@@ -198,10 +203,13 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="juan.delacruz@gmail.com"
+                  placeholder="name@psu.palawan.edu.ph"
                   className="h-10 bg-[#F2F7FF] border-transparent rounded-xl text-sm"
                   required
                 />
+                <p className="text-[11px] text-slate-500">
+                  Sign in with your organization email address.
+                </p>
               </div>
 
               <div className="space-y-1">

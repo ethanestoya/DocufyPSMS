@@ -1102,3 +1102,20 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Synced the penalty-system branch up to invoice, so both branches now carry the same work: the new adaptive Order Receipt for every order, the receipt viewer window, and the PDF/PNG downloads sit on top of the penalty-system changes instead of only on invoice.
 - The sync is a plain fast-forward, not a merge: every penalty-system commit was already inside invoice, so nothing was rewritten, no merge commit was created and no conflict arose - the branch simply caught up to the work it already contained.
 - No code changed in this sync; it only changes which branch carries the receipt work, so the collaborator's branch and invoice can no longer drift apart.
+
+---
+
+## October 21, 2026 (9:30 PM PHT) - ethanestoya
+- Fixed the broken "Forgot Password" flow: the reset link now opens a real Reset Password page on the deployed site, so a customer can actually set a new password instead of landing on a dead end.
+- Made the deployed site serve the app on any deep link: /reset-password, /forgot-password and /auth/callback now load Docufy instead of returning a 404, which is what the Google sign-in return trip needs.
+- Deployed it and checked the live site, not just the local build: every deep link loads the app and the reset email points at the live address.
+- This entry was written after the fact - the deploy itself went out before the log was updated.
+
+---
+
+## October 21, 2026 (10:06 PM PHT) - ethanestoya
+- Restricted Docufy accounts to organization email addresses: only @psu.palawan.edu.ph and @test.com addresses may sign up, sign in, or ask for a password reset, and a personal provider is refused with a clear explanation instead of a generic error.
+- Closed the Google sign-in loophole: a Google account on a personal address is signed out the moment it returns to the app, while an organization address signs in normally.
+- Made the rule visible where people type their address: the login, sign-up, and password-reset screens now say an organization address is required, and a refused Google sign-in explains the policy rather than failing silently.
+- Backed the app check with a database trigger on the account service, so a signup that bypasses the app is refused there too.
+- The shop owner's own Gmail account stays exempt so the owner can still get in; the demo and test accounts keep working. Typecheck + build pass.

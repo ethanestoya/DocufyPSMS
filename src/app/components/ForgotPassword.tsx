@@ -75,14 +75,14 @@ export default function ForgotPassword() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="juan.delacruz@gmail.com"
+                    placeholder="name@psu.palawan.edu.ph"
                     className="pl-10"
                     required
                     autoComplete="email"
                   />
                 </div>
                 <p className="text-xs text-gray-500">
-                  The link opens Docufy on this device, where you can choose a new password.
+                  Use your organization email address. The link opens Docufy on this device, where you can choose a new password.
                 </p>
               </div>
 

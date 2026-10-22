@@ -1143,3 +1143,9 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Picked up the unclaimed-order and restrictions batch that came with it: a single shared rules file for order restrictions, the customer-facing restriction notices, and a simplified pending-order store.
 - Sorted out the two documents both sides had edited: the deployment-branch note stays alongside Ethan's favicon and email-policy notes in `AGENTS.md`, and both push-log entries stay at the bottom of this file.
 - No application code was hand-edited on our side - this is a clean sync of the collaborator's work. Typecheck and the production build pass.
+
+---
+
+## October 22, 2026 (4:52 PM PHT) - Francis William Garcia
+- Pushed the new `frontend-dev` branch: cut from `penalty-system` so frontend work now has its own line on GitHub, carrying the current batch - the organization-email-only accounts, the app favicon with the fixed page title and description, and the deployment release synced earlier today.
+- Tidied the branch list while at it: removed the old `testbranch-pdf` branch from the remote, since all of its commits already live in the active branches and its PDF-preview removal was merged long ago.

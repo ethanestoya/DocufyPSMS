@@ -114,3 +114,77 @@ export const CASH_ON_PICKUP_BLOCKED_MESSAGE =
  * blocked (kept for callers that only need the threshold).
  */
 export const CASH_ON_PICKUP_MIN_CONFIRMED_OFFENSES = 2;
+
+// ── Restriction-aware policy ────────────────────────────────────────────────
+// `paymentPolicyForCount` above is the pure derivation: it says what a COUNT
+// alone implies. The admin can, however, forgive a restriction early or change
+// the accepted arrangement, and those decisions live in the
+// `customer_restrictions` row. `effectivePolicy` is therefore the policy every
+// surface must actually use: it starts from the count and lets an ACTIVE
+// stored restriction override the enforcement fields (so an admin's decision
+// always wins over the arithmetic).
+
+export type PaymentArrangement = 'deposit_50' | 'full_advance';
+
+/** The subset of a stored restriction that changes enforcement. */
+export interface RestrictionLike {
+  active: boolean;
+  arrangement: PaymentArrangement;
+}
+
+/** The arrangement a fresh restriction should default to for a given count. */
+export function defaultArrangementForCount(count: number): PaymentArrangement {
+  return count >= 3 ? 'full_advance' : 'deposit_50';
+}
+
+/**
+ * The policy a customer is actually under: the derived count's wording, with
+ * the enforcement flags overridden by the stored restriction when there is one.
+ *
+ * The derived count still does the work by default, so nothing changes for a
+ * customer no admin has touched. What the row adds is the admin's ability to
+ * DECIDE: an active row pins the arrangement, and an inactive row is explicit
+ * forgiveness — Cash on Pickup stays allowed no matter what the count says.
+ */
+export function effectivePolicy(
+  count: number,
+  restriction: RestrictionLike | null | undefined,
+): PaymentPolicy {
+  const base = paymentPolicyForCount(count);
+
+  if (restriction && restriction.active) {
+    const fullAdvance = restriction.arrangement === 'full_advance';
+    return {
+      ...base,
+      showWarning: true,
+      cashOnPickupDisabled: true,
+      deposit50Allowed: !fullAdvance,
+      fullAdvanceRequired: fullAdvance,
+      advanceRequired: true,
+      label: fullAdvance
+        ? 'Full advance payment required'
+        : '50% deposit accepted',
+      summary: fullAdvance
+        ? 'Full advance payment is required — Cash on Pickup and the 50%-down option are disabled.'
+        : 'Cash on Pickup is disabled — a 50% down payment or full advance payment is required for new orders.',
+    };
+  }
+
+  if (restriction && !restriction.active) {
+    // The admin removed this restriction — forgiveness wins over the count.
+    return {
+      ...base,
+      label: 'Restriction removed',
+      summary:
+        'Restriction removed by the shop — Cash on Pickup is available again.',
+      showWarning: base.count > 0,
+      cashOnPickupDisabled: false,
+      deposit50Allowed: true,
+      fullAdvanceRequired: false,
+      advanceRequired: false,
+    };
+  }
+
+  // No stored decision — the derived count's own rule applies unchanged.
+  return base;
+}

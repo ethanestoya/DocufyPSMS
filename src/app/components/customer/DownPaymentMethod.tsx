@@ -19,12 +19,7 @@ import { dataStore } from "../../utils/dataStore";
 import { formatCurrency } from "../../utils/formatNumber";
 import { pricingStore } from "../../utils/pricingStore";
 import { paymentMethodsStore, type PaymentMethodType } from "../../utils/paymentMethodsStore";
-import {
-  readPendingOrder,
-  readOrderBlob,
-  applyDownPaymentPlan,
-  materializeCashPendingOrder,
-} from "../../utils/pendingOrderStore";
+import { applyDownPaymentPlan } from "../../utils/pendingOrderStore";
 import { ConfirmationDialog } from "../ui/confirmation-dialog";
 
 const menuItems = [
@@ -60,21 +55,11 @@ export default function DownPaymentMethod() {
   // Which venue does the stored order point to (from checkout)? Cash → shop;
   // an online method chosen at checkout → Pay Online with that wallet selected.
   const [venue, setVenue] = useState<"shop" | "online">(() => {
-    const m = String(
-      dataStore.getOrderById(orderId!)?.paymentMethod ||
-        readPendingOrder()?.paymentMethod ||
-        readOrderBlob(orderId!)?.paymentMethod ||
-        "",
-    );
+    const m = String(dataStore.getOrderById(orderId!)?.paymentMethod || "");
     return m && m !== "Cash" ? "online" : "shop";
   });
   const [wallet, setWallet] = useState<string>(() => {
-    const m = String(
-      dataStore.getOrderById(orderId!)?.paymentMethod ||
-        readPendingOrder()?.paymentMethod ||
-        readOrderBlob(orderId!)?.paymentMethod ||
-        "",
-    );
+    const m = String(dataStore.getOrderById(orderId!)?.paymentMethod || "");
     const active = paymentMethodsStore.getPaymentMethods();
     return m && m !== "Cash" && active.some((x) => x.name === m)
       ? m
@@ -83,12 +68,7 @@ export default function DownPaymentMethod() {
 
   const total = useMemo(() => {
     if (!orderId) return 0;
-    const order = dataStore.getOrderById(orderId);
-    const held = readPendingOrder();
-    const blob = readOrderBlob(orderId);
-    const raw =
-      (order || (held && held.id === orderId ? held : null) || blob)?.total ||
-      "₱0";
+    const raw = dataStore.getOrderById(orderId)?.total || "₱0";
     const n = parseFloat(String(raw).replace(/[₱,]/g, ""));
     return Number.isNaN(n) ? 0 : n;
   }, [orderId]);
@@ -144,12 +124,10 @@ export default function DownPaymentMethod() {
         },
       });
     } else {
-      // Pay at the shop: materialize the held order now, then send the customer
-      // to order tracking. There is NO customer Payment Verification step — the
-      // order stays on hold until staff/admin verifies the down payment in the
-      // Payment Verification module (with a 50% / Full choice), then it enters
-      // the queue.
-      materializeCashPendingOrder(orderId!);
+      // Pay at the shop: the order already exists (created at checkout) and
+      // applyDownPaymentPlan has written the cash choice onto it, so the order
+      // stays on hold until staff/admin verifies the down payment, then enters
+      // the queue. Send the customer straight to order tracking.
       toast.success(
         decision.isFull ? "Full payment selected" : "Down payment selected",
       );

@@ -1109,3 +1109,37 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Added a `deployment` branch: a release line the live site is built from, kept separate from the `penalty-system` work branch so nothing goes public until a change is deliberately merged across.
 - Set the deploy hand-off: Ethan's fork tracks `deployment` and his Vercel project builds that branch, so syncing it on his fork is what triggers a rebuild.
 - Left `deployment` at the same commit as `penalty-system` with no extra commits, so the first merge across is a clean fast-forward.
+
+---
+
+## October 21, 2026 (9:30 PM PHT) - ethanestoya
+- Fixed the broken "Forgot Password" flow: the reset link now opens a real Reset Password page on the deployed site, so a customer can actually set a new password instead of landing on a dead end.
+- Made the deployed site serve the app on any deep link: /reset-password, /forgot-password and /auth/callback now load Docufy instead of returning a 404, which is what the Google sign-in return trip needs.
+- Deployed it and checked the live site, not just the local build: every deep link loads the app and the reset email points at the live address.
+- This entry was written after the fact - the deploy itself went out before the log was updated.
+
+---
+
+## October 21, 2026 (10:06 PM PHT) - ethanestoya
+- Restricted Docufy accounts to organization email addresses: only @psu.palawan.edu.ph and @test.com addresses may sign up, sign in, or ask for a password reset, and a personal provider is refused with a clear explanation instead of a generic error.
+- Closed the Google sign-in loophole: a Google account on a personal address is signed out the moment it returns to the app, while an organization address signs in normally.
+- Made the rule visible where people type their address: the login, sign-up, and password-reset screens now say an organization address is required, and a refused Google sign-in explains the policy rather than failing silently.
+- Backed the app check with a database trigger on the account service, so a signup that bypasses the app is refused there too.
+- The shop owner's own Gmail account stays exempt so the owner can still get in; the demo and test accounts keep working. Typecheck + build pass.
+
+
+---
+
+## October 21, 2026 (10:49 PM PHT) - ethanestoya
+- Gave the web app a real tab icon: the browser now shows the Docufy logo instead of a generic placeholder, because the page had no icon declared at all.
+- Built the icon from the logo already bundled in the app, drawn as a circle on a transparent background so it sits cleanly on any browser theme, and added the iPhone home-screen icon as well.
+- Fixed the page title and description, which still carried the raw package name and described a generic project-management tool instead of the print shop system.
+- Checked the production build: all three icon files are served correctly and the app still loads normally.
+
+---
+
+## October 22, 2026 (4:32 PM PHT) - Francis William Garcia
+- Pulled the `deployment` branch into `penalty-system`, so the work branch now carries Ethan's latest releases: the fixed "Forgot Password" reset page, the switch to organization-email-only accounts, the browser tab icon, and the corrected page title.
+- Picked up the unclaimed-order and restrictions batch that came with it: a single shared rules file for order restrictions, the customer-facing restriction notices, and a simplified pending-order store.
+- Sorted out the two documents both sides had edited: the deployment-branch note stays alongside Ethan's favicon and email-policy notes in `AGENTS.md`, and both push-log entries stay at the bottom of this file.
+- No application code was hand-edited on our side - this is a clean sync of the collaborator's work. Typecheck and the production build pass.

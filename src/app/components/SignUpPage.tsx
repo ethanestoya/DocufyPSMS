@@ -271,12 +271,16 @@ export default function SignUpPage() {
                   onChange={(e) =>
                     handleChange("email", e.target.value)
                   }
-                  placeholder="e.g. juan@example.com"
+                  placeholder="e.g. name@psu.palawan.edu.ph"
                   autoComplete="email"
                   enterKeyHint="next"
                   className="h-10 bg-[#F2F7FF] border-transparent rounded-xl text-sm"
                   required
                 />
+                <p className="text-[11px] text-slate-500">
+                  Use your organization email address. Personal providers like
+                  Gmail, Yahoo, or Outlook are not allowed.
+                </p>
               </div>
               <div className="space-y-1">
                 <Label

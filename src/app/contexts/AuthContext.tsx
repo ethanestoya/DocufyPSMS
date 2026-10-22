@@ -11,6 +11,12 @@ import {
   isSupabaseAvatarUrl,
 } from '../utils/supabaseAvatar';
 import { refreshAllStores } from '../utils/storeSync';
+import {
+  checkEmailAllowed,
+  isAllowedEmail,
+  isPolicyTriggerError,
+  EMAIL_POLICY_MESSAGE,
+} from '../utils/authEmailPolicy';
 
 // Auth Types
 export interface User {
@@ -27,10 +33,35 @@ export interface User {
   id?: string;
 }
 
+// Result of asking Supabase to email a password-reset link. `code` keeps the
+// raw Supabase error code (e.g. "over_email_send_rate_limit",
+// "invalid_redirect_to") so a misconfigured deployment is diagnosable instead
+// of showing one generic "unable to send" message.
+export interface PasswordResetRequestResult {
+  success: boolean;
+  error?: string;
+  code?: string;
+}
+
+// Result of applying the new password from the emailed recovery link.
+// `reason: "no_session"` means the link carried no usable recovery session
+// (expired, already used, or opened without the token) - a different problem
+// from a rejected password, and it needs a different way out for the user.
+export interface PasswordResetUpdateResult {
+  success: boolean;
+  reason?: 'no_session' | 'rejected' | 'error';
+  error?: string;
+  code?: string;
+}
+
 export interface AuthContextType {
   user: User | null;
   authLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; reason?: 'inactive' }>;
+  // True when the last session was refused by the organization-email policy.
+  // The Google callback page reads this so it can explain the refusal
+  // instead of showing a generic "sign-in was not completed" message.
+  emailPolicyBlocked: boolean;
+  login: (email: string, password: string) => Promise<{ success: boolean; reason?: 'inactive' | 'domain' | 'invalid' }>;
   signInWithGoogle: () => Promise<{ success: boolean }>;
   signup: (data: any) => Promise<boolean>;
   registerStaff: (data: { name: string; email: string; password: string; role?: 'staff' | 'admin' }) => Promise<{ success: boolean; message?: string }>;
@@ -41,10 +72,8 @@ export interface AuthContextType {
   syncProfileDetails: (patch: Database['public']['Tables']['profiles']['Update']) => Promise<boolean>;
   logout: () => void;
   resetPassword: (email: string, currentPassword: string, newPassword: string) => Promise<boolean>;
-  resetForgottenPassword: (email: string, newPassword: string) => Promise<boolean>;
-  requestPasswordReset: (email: string) => Promise<boolean>;
-  sendPasswordResetCode: (email: string) => boolean;
-  verifyResetCode: (email: string, code: string) => boolean;
+  resetForgottenPassword: (email: string, newPassword: string) => Promise<PasswordResetUpdateResult>;
+  requestPasswordReset: (email: string) => Promise<PasswordResetRequestResult>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -96,9 +125,6 @@ const mockUsers: MockUser[] = [
     profileImage: undefined,
   },
 ];
-
-// Store for password reset codes
-const passwordResetCodes: { [email: string]: string } = {};
 
 // Staff/admin sign-in accounts persist to localStorage so role and status
 // changes made in Staff Management survive a page refresh — otherwise the
@@ -164,6 +190,7 @@ function readStoredUser(): User | null {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [emailPolicyBlocked, setEmailPolicyBlocked] = useState(false);
 
   const loadProfile = async (authUser: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }) => {
     const { data: profile, error } = await supabase
@@ -194,6 +221,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ? profile.role
       : 'customer';
 
+    setEmailPolicyBlocked(false);
     setUser({
       name: profile?.full_name || String(authUser.user_metadata?.full_name || authUser.email || 'User'),
       email: profile?.email || authUser.email || '',
@@ -205,6 +233,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  // Organization-email policy — the net that catches every path we cannot
+  // pre-check. A Google sign-in creates the user implicitly (no signUp call),
+  // so its address is only known once the session exists; an account that
+  // predates the policy is caught here too. Either way the session is dropped
+  // instead of being allowed to browse the system.
+  const signOutDisallowed = (email?: string | null) => {
+    console.warn('[auth:email-policy] refused a session on a disallowed domain:', email);
+    setUser(null);
+    setEmailPolicyBlocked(true);
+    sessionManager.destroy();
+    // Deferred: calling an auth method straight inside onAuthStateChange can
+    // deadlock against supabase-js's internal lock.
+    setTimeout(() => {
+      void supabase.auth.signOut();
+    }, 0);
+    toast.error(EMAIL_POLICY_MESSAGE);
+  };
+
   useEffect(() => {
     let mounted = true;
 
@@ -213,10 +259,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data, error } = await supabase.auth.getSession();
         if (error) console.error('Failed to restore Supabase session:', error);
         if (mounted && data.session?.user) {
-          await loadProfile(data.session.user);
-          // Fetch the stores with the authenticated token (the module-constructor
-          // hydration ran anonymous and may have cached empty snapshots).
-          void refreshAllStores();
+          if (!isAllowedEmail(data.session.user.email)) {
+            signOutDisallowed(data.session.user.email);
+          } else {
+            await loadProfile(data.session.user);
+            // Fetch the stores with the authenticated token (the module-constructor
+            // hydration ran anonymous and may have cached empty snapshots).
+            void refreshAllStores();
+          }
         }
       } finally {
         // Single owner of the initial auth-gate: only release it AFTER the
@@ -233,6 +283,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
       if (session?.user) {
+        // A session on a domain that may not hold an account is dropped here
+        // (this is what catches the Google sign-in round trip).
+        if (!isAllowedEmail(session.user.email)) {
+          signOutDisallowed(session.user.email);
+          return;
+        }
         void loadProfile(session.user);
         void refreshAllStores();
       } else {
@@ -271,6 +327,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   const login = async (email: string, password: string) => {
+    // Organization-email policy: an address outside the allowed domains can
+    // never hold an account, so it is refused before we ask Supabase at all.
+    const policy = checkEmailAllowed(email);
+    if (!policy.allowed) {
+      return {
+        success: false,
+        reason: policy.reason === 'invalid' ? ('invalid' as const) : ('domain' as const),
+      };
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error || !data.user) {
       return { success: false };
@@ -313,6 +379,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signup = async (data: any) => {
+    // Organization-email policy: refuse a personal address before the account
+    // is created, so no auth user and no profile row are left behind.
+    const policy = checkEmailAllowed(data.email);
+    if (!policy.allowed) {
+      toast.error(policy.message || EMAIL_POLICY_MESSAGE);
+      return false;
+    }
+
     // Combine firstName and lastName to create full name
     const fullName = data.firstName && data.lastName
       ? `${data.firstName} ${data.lastName}`.trim()
@@ -330,7 +404,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     if (error || !result.user) {
-      toast.error(error?.message || 'Unable to create account.');
+      toast.error(
+        isPolicyTriggerError(error?.message)
+          ? EMAIL_POLICY_MESSAGE
+          : error?.message || 'Unable to create account.',
+      );
       return false;
     }
 
@@ -375,6 +453,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!emailRegex.test(data.email)) {
       return { success: false, message: 'Please enter a valid email address.' };
     }
+    // Organization-email policy applies to staff accounts too.
+    const policy = checkEmailAllowed(data.email);
+    if (!policy.allowed) {
+      return { success: false, message: policy.message || EMAIL_POLICY_MESSAGE };
+    }
     if (mockUsers.some(u => u.email.toLowerCase() === data.email.toLowerCase())) {
       return { success: false, message: 'An account with this email already exists.' };
     }
@@ -398,9 +481,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // friendly duplicate message instead of a raw "User already registered".
       return {
         success: false,
-        message: signUpError?.message?.toLowerCase().includes('already')
-          ? 'An account with this email already exists.'
-          : signUpError?.message || 'Could not create staff account.',
+        message: isPolicyTriggerError(signUpError?.message)
+          ? EMAIL_POLICY_MESSAGE
+          : signUpError?.message?.toLowerCase().includes('already')
+            ? 'An account with this email already exists.'
+            : signUpError?.message || 'Could not create staff account.',
       };
     }
 
@@ -608,22 +693,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void supabase.auth.signOut();
   };
 
-  const sendPasswordResetCode = (email: string) => {
-    const foundUser = mockUsers.find(u => u.email === email);
-    if (foundUser) {
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      passwordResetCodes[email] = code;
-      console.log(`Password reset code for ${email}: ${code}`);
-      toast.success(`Reset code sent to ${email}. Check console for demo code.`);
-      return true;
-    }
-    return false;
-  };
-
-  const verifyResetCode = (email: string, code: string) => {
-    return passwordResetCodes[email] === code;
-  };
-
   const resetPassword = async (email: string, currentPassword: string, newPassword: string) => {
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
@@ -635,22 +704,76 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return !error;
   };
 
-  const resetForgottenPassword = async (_email: string, newPassword: string) => {
+  const resetForgottenPassword = async (
+    _email: string,
+    newPassword: string,
+  ): Promise<PasswordResetUpdateResult> => {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) return false;
+
+    if (error) {
+      // A missing recovery session means the emailed link never carried a
+      // usable token (expired, already used, or the page was reached without
+      // the token) - a different failure from a password the server refuses,
+      // and it needs a different way out for the user.
+      const message = error.message || '';
+      const noSession =
+        error.name === 'AuthSessionMissingError' ||
+        error.code === 'session_not_found' ||
+        /session missing|not authenticated|invalid.*jwt/i.test(message);
+
+      console.warn('[auth] password reset update failed:', error.code, message);
+
+      return {
+        success: false,
+        reason: noSession ? 'no_session' : 'rejected',
+        code: error.code,
+        error: noSession
+          ? 'This reset link is invalid or has expired.'
+          : message || 'We could not update your password. Please try a different one.',
+      };
+    }
 
     // The password-recovery link logs the user in with a recovery session.
     // Without signing out, that lingering session makes LoginPage's "already
     // signed in" effect redirect straight to /<role>/dashboard instead of
     // showing the login form the user needs after resetting their password.
     await supabase.auth.signOut();
-    return true;
+    return { success: true };
   };
 
-  const requestPasswordReset = async (email: string) => {
+  const requestPasswordReset = async (email: string): Promise<PasswordResetRequestResult> => {
+    // Organization-email policy: a personal address holds no account, so there
+    // is nothing to reset - do not send it a recovery link.
+    const policy = checkEmailAllowed(email);
+    if (!policy.allowed) {
+      return {
+        success: false,
+        code: 'email_not_allowed',
+        error: policy.message || EMAIL_POLICY_MESSAGE,
+      };
+    }
+
+    // The link has to point back at THIS deployment. Supabase only honours a
+    // redirect target that is listed in the project's Redirect URLs
+    // allow-list; when it is not, the emailed link silently falls back to the
+    // project's Site URL (which is often still localhost from local
+    // development) and the reset link becomes unusable.
     const redirectTo = `${window.location.origin}/reset-password`;
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-    return !error;
+
+    if (error) {
+      console.warn('[auth] password reset request failed:', error.code, error.message);
+      const rateLimited = error.code === 'over_email_send_rate_limit';
+      return {
+        success: false,
+        code: error.code,
+        error: rateLimited
+          ? 'Too many reset emails were requested. Wait a minute and try again.'
+          : 'We could not send the reset link. Please try again in a moment.',
+      };
+    }
+
+    return { success: true };
   };
 
   return (
@@ -658,6 +781,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         authLoading,
+        emailPolicyBlocked,
         login,
         signInWithGoogle,
         signup,
@@ -671,8 +795,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         resetPassword,
         resetForgottenPassword,
         requestPasswordReset,
-        sendPasswordResetCode,
-        verifyResetCode,
       }}
     >
       {children}

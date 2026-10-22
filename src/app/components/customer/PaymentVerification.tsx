@@ -57,7 +57,6 @@ import { formatPHDateTime } from "../../utils/pht";
 import { PaymentDeadlineCountdown } from "../shared/PaymentDeadlineCountdown";
 import {
   clearPrintDraft,
-  clearPendingOrder,
 } from "../shared/PrintTransaction";
 import {
   paymentMethodsStore,
@@ -167,7 +166,6 @@ export default function PaymentVerification() {
   const { user } = useAuth();
   const goToNewRequest = () => {
     clearPrintDraft();
-    clearPendingOrder();
     navigate("/customer/new-request");
   };
   const [paymentMethod, setPaymentMethod] = useState<
@@ -262,24 +260,13 @@ export default function PaymentVerification() {
     return unsubscribe;
   }, []);
 
-  // Load payment method from navigation state or localStorage
+  // Load payment method from navigation state or the persisted order
   useEffect(() => {
     if (location.state?.paymentMethod) {
       setPaymentMethod(location.state.paymentMethod);
     } else if (orderId) {
-      const savedOrder = localStorage.getItem(
-        `order_${orderId}`,
-      );
-      if (savedOrder) {
-        try {
-          const orderData = JSON.parse(savedOrder);
-          if (orderData.paymentMethod) {
-            setPaymentMethod(orderData.paymentMethod);
-          }
-        } catch (error) {
-          console.error("Error loading order data:", error);
-        }
-      }
+      const saved = dataStore.getOrderById(orderId)?.paymentMethod;
+      if (saved) setPaymentMethod(saved);
     }
   }, [location.state, orderId]);
 
@@ -520,11 +507,6 @@ export default function PaymentVerification() {
       `Order #${existingOrder?.displayId ?? orderId} was canceled by the customer before payment verification.`,
       { clickable: true, relatedOrderId: orderId, recipientRole: "staff" },
     );
-    try {
-      localStorage.removeItem(`order_${orderId}`);
-    } catch {
-      /* ignore */
-    }
     setShowCancelConfirm(false);
     toast.success("Order has been canceled.");
     goToNewRequest();

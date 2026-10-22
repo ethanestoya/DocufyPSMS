@@ -447,7 +447,7 @@ export default function JobApplyForm() {
                     value={formData.email}
                     onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
                     onBlur={() => handleBlur("email")}
-                    placeholder="your.email@psu.edu.ph"
+                    placeholder="your.email@psu.palawan.edu.ph"
                     className={inputClass("email")}
                   />
                   {fieldError("email")}

@@ -3,6 +3,16 @@ import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { Spinner } from "./ui/spinner";
+import { EMAIL_POLICY_MESSAGE, isAllowedEmail } from "../utils/authEmailPolicy";
+
+// Supabase reports an OAuth failure either as query params (PKCE flow) or in
+// the URL hash (implicit flow). The hash carries the useful codes — notably
+// `error_code=saving_new_user` with the database trigger's message, which is
+// how a blocked organization email announces itself.
+function readHashParams(): URLSearchParams {
+  const hash = window.location.hash?.replace(/^#/, "");
+  return new URLSearchParams(hash || "");
+}
 
 // Landing page for the Supabase Google OAuth redirect (the URL configured as
 // redirectTo in AuthContext.signInWithGoogle). Supabase restores the session
@@ -13,13 +23,24 @@ import { Spinner } from "./ui/spinner";
 export default function AuthCallbackPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, authLoading } = useAuth();
+  const { user, authLoading, emailPolicyBlocked } = useAuth();
 
   useEffect(() => {
-    const error = searchParams.get("error");
+    const hashParams = readHashParams();
+    const error = searchParams.get("error") || hashParams.get("error");
+    const description =
+      searchParams.get("error_description") || hashParams.get("error_description");
+    const errorCode = searchParams.get("error_code") || hashParams.get("error_code");
+
     if (error) {
+      // The database trigger refuses the insert of an account on a domain
+      // that may not hold one, and Supabase reports that as a generic
+      // "saving new user" failure — translate it back into the policy.
+      const blocked =
+        errorCode === "saving_new_user" ||
+        /not allowed to create an account/i.test(description || "");
       toast.error(
-        searchParams.get("error_description") || "Sign-in was not completed.",
+        blocked ? EMAIL_POLICY_MESSAGE : description || "Sign-in was not completed.",
       );
       navigate("/login", { replace: true });
       return;
@@ -27,13 +48,26 @@ export default function AuthCallbackPage() {
 
     if (authLoading) return;
 
+    if (emailPolicyBlocked) {
+      // AuthProvider already refused the session and explained why; just send
+      // the user back to the login form.
+      navigate("/login", { replace: true });
+      return;
+    }
+
     if (user) {
+      if (!isAllowedEmail(user.email)) {
+        // Belt and braces: an allowed-looking session that is not allowed by
+        // the policy never reaches the app.
+        navigate("/login", { replace: true });
+        return;
+      }
       navigate(`/${user.role}/dashboard`, { replace: true });
     } else {
       toast.error("Sign-in was not completed. Please try again.");
       navigate("/login", { replace: true });
     }
-  }, [user, authLoading, navigate, searchParams]);
+  }, [user, authLoading, emailPolicyBlocked, navigate, searchParams]);
 
   return (
     <div className="min-h-[100dvh] flex items-center justify-center bg-[#f6f7f9]">

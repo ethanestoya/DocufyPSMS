@@ -1149,3 +1149,10 @@ New entries are added at the bottom, below the most recent one, so the log reads
 ## October 22, 2026 (4:52 PM PHT) - Francis William Garcia
 - Pushed the new `frontend-dev` branch: cut from `penalty-system` so frontend work now has its own line on GitHub, carrying the current batch - the organization-email-only accounts, the app favicon with the fixed page title and description, and the deployment release synced earlier today.
 - Tidied the branch list while at it: removed the old `testbranch-pdf` branch from the remote, since all of its commits already live in the active branches and its PDF-preview removal was merged long ago.
+
+---
+
+## October 22, 2026 (6:58 PM PHT) - Francis William Garcia
+- Re-flowed the slim unclaimed-order notice on the customer Print Request page, so its message no longer squeezes into a one-word-per-line column beside the title and View Order button.
+- Stacked the notice instead: the warning icon + title and the View Order action share the first row, and the full message sits on its own full-width line below. Warning copy, severity levels, and the View Order destination are unchanged.
+- Typecheck and the production build pass.

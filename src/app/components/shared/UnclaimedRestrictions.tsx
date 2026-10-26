@@ -15,6 +15,8 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { TableSkeleton } from "../ui/table-skeleton";
+import { useHydrating } from "../../utils/useHydrating";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +44,7 @@ export default function UnclaimedRestrictions({
   userRole,
 }: UnclaimedRestrictionsProps) {
   const navigate = useNavigate();
+  const hydrating = useHydrating();
   const { restrictedSummaries, ordersById } = useUnclaimedAdminData();
 
   const base =
@@ -104,6 +107,8 @@ export default function UnclaimedRestrictions({
               Customer Restrictions
             </h2>
             <Card className="overflow-hidden">
+              {hydrating && <TableSkeleton columns={4} rows={6} />}
+              {!hydrating && (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-[#F2F7FF] border-b border-[#1668D9]/10">
@@ -200,6 +205,7 @@ export default function UnclaimedRestrictions({
                   </tbody>
                 </table>
               </div>
+              )}
             </Card>
           </div>
 

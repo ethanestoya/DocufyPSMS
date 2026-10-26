@@ -26,6 +26,8 @@ import {
   DialogFooter,
 } from "../ui/dialog";
 import { ConfirmationDialog } from "../ui/confirmation-dialog";
+import { TableSkeleton } from "../ui/table-skeleton";
+import { useHydrating } from "../../utils/useHydrating";
 import { adminMenuItems } from "../../utils/adminMenuItems";
 import {
   pricingStore,
@@ -125,6 +127,7 @@ function EditTargetLabel(target: EditTarget): string {
 }
 
 export default function PricingManagement() {
+  const hydrating = useHydrating();
   const [pricing, setPricing] = useState<PricingValues>(pricingStore.getPricing());
   const [matrix, setMatrix] = useState<PricingMatrix>(pricingStore.getMatrix());
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -423,6 +426,8 @@ export default function PricingManagement() {
           </Button>
         </div>
 
+        {hydrating && <TableSkeleton columns={4} rows={6} />}
+        <div className={hydrating ? "hidden" : undefined}>
         <Tabs defaultValue="document">
           <TabsList className="w-full sm:w-auto flex-wrap h-auto gap-1">
             {(["document", "vellum", "sticker", "photo"] as ServiceType[]).map(
@@ -600,6 +605,7 @@ export default function PricingManagement() {
             </Card>
           </TabsContent>
         </Tabs>
+        </div>
 
         {/* Legacy per-page rates */}
         <Card className="p-6">

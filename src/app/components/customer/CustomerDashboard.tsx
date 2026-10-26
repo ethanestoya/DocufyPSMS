@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import Layout from "../Layout";
 import { Card } from "../ui/card";
+import { CardSkeleton, DetailSkeleton } from "../ui/card-skeleton";
+import { useHydrating } from "../../utils/useHydrating";
 import { Badge } from "../ui/badge";
 import {
   Dialog,
@@ -131,6 +133,7 @@ function formatOrderDate(dateStr?: string): string {
 }
 
 export default function CustomerDashboard() {
+  const hydrating = useHydrating();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [customerOrders, setCustomerOrders] = useState(
@@ -293,6 +296,13 @@ export default function CustomerDashboard() {
           })}
 
         {/* Summary Cards */}
+        {hydrating ? (
+          <div className="space-y-4">
+            <CardSkeleton cards={3} columns={3} label="Loading your dashboard" />
+            <DetailSkeleton blocks={2} />
+          </div>
+        ) : (
+        <>
         <div className="grid grid-cols-3 gap-2 sm:gap-4">
           {[
             {
@@ -680,6 +690,8 @@ export default function CustomerDashboard() {
             </div>
           </Card>
         </div>
+        </>
+        )}
 
       </div>
 

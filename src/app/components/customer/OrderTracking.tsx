@@ -24,6 +24,8 @@ import {
 import { toast } from "sonner";
 import Layout from "../Layout";
 import { Card } from "../ui/card";
+import { DetailSkeleton } from "../ui/card-skeleton";
+import { useHydrating } from "../../utils/useHydrating";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Label } from "../ui/label";
@@ -94,6 +96,7 @@ const menuItems = [
 ];
 
 export default function OrderTracking() {
+  const hydrating = useHydrating();
   const { orderId } = useParams();
   const navigate = useNavigate();
   const [showOrderDetails, setShowOrderDetails] = useState(false);
@@ -303,6 +306,11 @@ export default function OrderTracking() {
       backButtonPath="/customer/orders"
       hideMobileBackButton
     >
+      {hydrating ? (
+        <div className="mx-auto max-w-4xl">
+          <DetailSkeleton blocks={3} label="Loading your order" />
+        </div>
+      ) : (
       <div className="max-w-4xl mx-auto space-y-4">
         <ShopStatusBanner />
 
@@ -946,6 +954,7 @@ export default function OrderTracking() {
         )}
 
       </div>
+      )}
 
       {/* Order Receipt Dialog */}
       <OrderReceiptDialog

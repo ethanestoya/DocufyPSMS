@@ -38,6 +38,8 @@ import {
   openApplicationPortfolio,
   ApplicationType,
 } from '../../utils/applicationsStore';
+import { CardSkeleton } from '../ui/card-skeleton';
+import { useHydrating } from '../../utils/useHydrating';
 import { jobsStore } from '../../utils/jobsStore';
 import { formatPHDate } from '../../utils/pht';
 
@@ -59,6 +61,7 @@ const STATUS_COLORS: Record<string, string> = {
 export default function JobBoard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const hydrating = useHydrating();
   const [tab, setTab] = useState<'listings' | 'applications'>('listings');
   const [jobs, setJobs] = useState<any[]>([]);
   const [applications, setApplications] = useState<ApplicationType[]>([]);
@@ -176,7 +179,9 @@ export default function JobBoard() {
 
         {/* ── JOB LISTINGS ── */}
         {tab === 'listings' && (
-          <div className="space-y-3">
+          <>
+          {hydrating && <CardSkeleton cards={3} columns={1} label="Loading job listings" />}
+          <div className={hydrating ? "hidden" : "space-y-3"}>
             {jobs.length === 0 ? (
               <Card className="border border-gray-100 bg-white p-16 text-center shadow-sm">
                 <Briefcase className="mx-auto mb-4 h-10 w-10 text-[#1668D9]/35" />
@@ -277,11 +282,14 @@ export default function JobBoard() {
               );
             })}
           </div>
+          </>
         )}
 
         {/* ── MY APPLICATIONS ── */}
         {tab === 'applications' && (
-          <div className="space-y-3">
+          <>
+          {hydrating && <CardSkeleton cards={2} columns={1} label="Loading your applications" />}
+          <div className={hydrating ? "hidden" : "space-y-3"}>
             {applications.length === 0 ? (
               <Card className="p-16 bg-white shadow-sm text-center border border-gray-100">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -388,6 +396,7 @@ export default function JobBoard() {
               })
             )}
           </div>
+          </>
         )}
 
         {/* Info Card */}

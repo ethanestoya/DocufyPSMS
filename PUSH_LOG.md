@@ -1229,3 +1229,8 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Restored the corrupted characters across the admin and staff screens, so dashes, arrows, the peso sign and separators display as written.
 - Cleaned the push log: removed conflict markers that were committed earlier, so entries read in date order again.
 - Typecheck and the production build pass.
+
+## October 27, 2026 (1:45 AM PHT) - prans
+- Pushed the latest payment and login improvements to frontend-dev: customers can open a full-size payment QR on the print request screen, account numbers are optional, and organization-email sign-in refusals remain visible until dismissed.
+- Closed the payment-method confirmation immediately after a successful save and clarified the Cancelled filter label.
+- Typecheck and the production build pass.

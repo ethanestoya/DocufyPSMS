@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { Spinner } from "./ui/spinner";
-import { EMAIL_POLICY_MESSAGE, isAllowedEmail } from "../utils/authEmailPolicy";
+import { isAllowedEmail } from "../utils/authEmailPolicy";
 
 // Supabase reports an OAuth failure either as query params (PKCE flow) or in
 // the URL hash (implicit flow). The hash carries the useful codes — notably
@@ -39,10 +39,18 @@ export default function AuthCallbackPage() {
       const blocked =
         errorCode === "saving_new_user" ||
         /not allowed to create an account/i.test(description || "");
-      toast.error(
-        blocked ? EMAIL_POLICY_MESSAGE : description || "Sign-in was not completed.",
-      );
-      navigate("/login", { replace: true });
+      if (blocked) {
+        // The login screen opens a window for this that stays until dismissed,
+        // so the refusal is handed over through router state instead of a toast
+        // that would be gone before the redirect finishes.
+        navigate("/login", {
+          replace: true,
+          state: { emailPolicyBlocked: true },
+        });
+      } else {
+        toast.error(description || "Sign-in was not completed.");
+        navigate("/login", { replace: true });
+      }
       return;
     }
 

@@ -159,7 +159,7 @@ class PaymentMethodsStore {
       entityType: 'Payment Method',
       entityId: id,
       title: 'Payment Method Added',
-      description: `Added the payment method "${data.name.trim()}" (${data.accountName.trim()} / ${data.accountNumber.trim()}).`,
+      description: `Added the payment method "${data.name.trim()}" (${data.accountName.trim()}${data.accountNumber.trim() ? ` / ${data.accountNumber.trim()}` : ''}).`,
     });
     await this.hydrate();
     return this.findById(id) ?? {

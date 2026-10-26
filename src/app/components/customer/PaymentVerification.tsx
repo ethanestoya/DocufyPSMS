@@ -27,6 +27,7 @@ import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { FieldError, describedBy } from "../ui/field-error";
 import {
   Select,
   SelectContent,
@@ -34,7 +35,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { Alert, AlertDescription } from "../ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -179,12 +179,17 @@ export default function PaymentVerification() {
     setShowPaymentMethodSelector,
   ] = useState(false);
   const [referenceNumber, setReferenceNumber] = useState("");
+  const [detectedReference, setDetectedReference] = useState("");
   const [amountPaid, setAmountPaid] = useState("");
   // Down-payment orders: how much the customer pays now — Partial pays the 50%
   // down payment, Full pays the whole total up front.
   const [paymentChoice, setPaymentChoice] = useState<"partial" | "full">("partial");
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
+  // Inline validation: an invalid submit must leave a visible reason on the
+  // field itself, not only a toast that disappears.
+  const [referenceError, setReferenceError] = useState("");
+  const [proofError, setProofError] = useState("");
   const [showImagePreview, setShowImagePreview] =
     useState(false);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<
@@ -296,8 +301,20 @@ export default function PaymentVerification() {
       ref = ref.slice(0, 20);
 
       if (ref.length >= 6) {
-        setReferenceNumber(ref);
-        toast.success("Reference number detected. Please review it before submitting.");
+        // Suggest, never silently overwrite what the customer already typed —
+        // OCR mis-reads a digit often enough that replacing a correct reference
+        // with a wrong one blocks staff verification (F31).
+        if (referenceNumber.trim()) {
+          setDetectedReference(ref);
+          toast.info(
+            "A reference number was found in the image. Review it and use it if it matches.",
+          );
+        } else {
+          setReferenceNumber(ref);
+          setDetectedReference("");
+          setReferenceError("");
+          toast.success("Reference number detected. Please review it before submitting.");
+        }
       } else {
         toast.error(
           "Could not detect a reference number. Please enter it manually.",
@@ -338,6 +355,7 @@ export default function PaymentVerification() {
       }
 
       setProofFile(file);
+      setProofError("");
       // Create preview URL
       const url = URL.createObjectURL(file);
       setImagePreviewUrl(url);
@@ -357,7 +375,34 @@ export default function PaymentVerification() {
     setProofFile(null);
     setImagePreviewUrl(null);
     setReferenceNumber("");
+    setDetectedReference("");
     setFileError("");
+    setProofError("");
+  };
+
+  // Validate the online payment form: mark the field that needs fixing, show the
+  // reason under it, and move focus there. A toast alone leaves the form looking
+  // untouched once it disappears.
+  const validatePaymentForm = () => {
+    const methodName = selectedMethod?.name || "payment";
+    const nextReferenceError = !referenceNumber.trim()
+      ? `Enter the ${methodName} reference number from your receipt.`
+      : "";
+    const nextProofError = !proofFile
+      ? "Upload a screenshot or receipt showing this payment."
+      : "";
+
+    setReferenceError(nextReferenceError);
+    setProofError(nextProofError);
+
+    const firstInvalid = nextReferenceError
+      ? document.getElementById("reference")
+      : nextProofError
+        ? document.getElementById("proof-field")
+        : null;
+    firstInvalid?.focus();
+
+    return !nextReferenceError && !nextProofError;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -365,17 +410,7 @@ export default function PaymentVerification() {
     setSubmitting(true);
     try {
     if (paymentMethod !== "cash") {
-      if (!referenceNumber.trim()) {
-        toast.error(
-          `Please enter a ${selectedMethod?.name || "payment"} reference number`,
-        );
-        return;
-      }
-
-      if (!proofFile) {
-        toast.error(
-          "Please upload a screenshot or receipt as proof of payment.",
-        );
+      if (!validatePaymentForm()) {
         return;
       }
 
@@ -525,9 +560,9 @@ export default function PaymentVerification() {
       >
         <div className="max-w-3xl mx-auto space-y-4">
           <div>
-            <h1 className="text-3xl font-semibold text-gray-900">
+            <h2 className="text-3xl font-semibold text-gray-900">
               Payment Verification
-            </h1>
+            </h2>
             <p className="text-gray-500 mt-1">
               Order ID: {displayOrder?.displayId ?? orderId}
             </p>
@@ -553,7 +588,7 @@ export default function PaymentVerification() {
           <div className="flex gap-3">
             <Button
 onClick={goToNewRequest}
-            className="flex-1 bg-white text-[#1D73EC] border-2 border-blue-200 hover:bg-[#1D73EC] hover:text-white"
+            className="flex-1 bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
           >
             New Print Request
           </Button>
@@ -588,7 +623,7 @@ onClick={goToNewRequest}
             })
           }
           aria-label="Go back"
-          className="md:hidden inline-flex items-center gap-1 rounded-xl p-2 pl-0 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC]"
+          className="md:hidden inline-flex items-center gap-1 rounded-xl p-2 pl-0 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
         >
           <ArrowLeft className="h-5 w-5" />
           <span className="text-sm font-medium">Back</span>
@@ -611,40 +646,43 @@ onClick={goToNewRequest}
 
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-semibold text-gray-900">
+          <h2 className="text-3xl font-semibold text-gray-900">
             Payment Verification
-          </h1>
+          </h2>
           <p className="text-gray-500 mt-1">
             Order ID: {displayOrder?.displayId ?? orderId}
           </p>
         </div>
 
-        {/* Alert */}
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Your order total requires payment verification
-            before processing can begin.
-          </AlertDescription>
-        </Alert>
-
-        {/* Status Card */}
-        <Card className="p-6 bg-yellow-50 border border-blue-200">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-1">
-                Waiting for Admin Verification
-              </h3>
-              <p className="text-sm text-gray-600">
-                Once you submit your reference number, an
-                administrator will verify your payment. You'll
-                be notified when your order is approved and
-                begins processing.
-              </p>
+        {/* ONE status card instead of three stacked boxes saying the same
+            thing. The heading states what the customer has to do now: before a
+            reference is sent nobody is waiting on an administrator, so
+            "Waiting for Admin Verification" was simply wrong (F21). */}
+        {isOnline && (
+          <Card
+            className={`p-6 border ${
+              displayOrder?.paymentReferenceNumber
+                ? "bg-yellow-50 border-blue-200"
+                : "bg-blue-50/60 border-blue-200"
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-1">
+                  {displayOrder?.paymentReferenceNumber
+                    ? "Waiting for Admin Verification"
+                    : "Submit your payment reference"}
+                </h3>
+                <p className="text-sm text-gray-600">
+                  {displayOrder?.paymentReferenceNumber
+                    ? "We've received your reference. An administrator will verify the payment, and your order joins the queue once it's approved."
+                    : "Send the reference number and a screenshot of the receipt below. An administrator verifies the payment, and your order joins the queue once it's approved."}
+                </p>
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        )}
 
         {/* Payment Method Display/Selector */}
         <Card className="p-6 bg-white shadow-sm">
@@ -921,10 +959,7 @@ onClick={goToNewRequest}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (paymentMethod !== "cash" && !referenceNumber.trim()) {
-                  toast.error(
-                    `Please enter a ${selectedMethod?.name || "payment"} reference number`,
-                  );
+                if (paymentMethod !== "cash" && !validatePaymentForm()) {
                   return;
                 }
                 setShowSubmitConfirm(true);
@@ -994,16 +1029,52 @@ onClick={goToNewRequest}
                   id="reference"
                   type="text"
                   value={referenceNumber}
-                  onChange={(e) =>
-                    setReferenceNumber(e.target.value)
-                  }
+                  onChange={(e) => {
+                    setReferenceNumber(e.target.value);
+                    if (referenceError) setReferenceError("");
+                  }}
                   placeholder="e.g. G123456789"
+                  aria-invalid={!!referenceError || undefined}
+                  aria-describedby={describedBy(
+                    "reference-help",
+                    referenceError && "reference-error",
+                  )}
+                  aria-required="true"
                   required
                 />
-                <p className="text-sm text-gray-500">
+                <p id="reference-help" className="text-sm text-gray-500">
                   Enter the reference number from your{" "}
                   {selectedMethod?.name || "payment"} receipt
                 </p>
+                <FieldError id="reference-error" message={referenceError} />
+                {detectedReference && detectedReference !== referenceNumber && (
+                  <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[#1668D9]/25 bg-[#F2F7FF] px-3 py-2">
+                    <span className="text-xs text-gray-700">
+                      Found in your image:{" "}
+                      <span className="font-mono font-semibold text-gray-900">
+                        {detectedReference}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReferenceNumber(detectedReference);
+                        setDetectedReference("");
+                        setReferenceError("");
+                      }}
+                      className="inline-flex min-h-6 items-center rounded-md border border-[#1668D9]/30 bg-white px-2 py-0.5 text-xs font-semibold text-[#1668D9] hover:bg-[#1668D9] hover:text-white"
+                    >
+                      Use detected reference
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDetectedReference("")}
+                      className="inline-flex min-h-6 items-center px-1 text-xs font-medium text-gray-600 hover:text-gray-900"
+                    >
+                      Keep mine
+                    </button>
+                  </div>
+                )}
                 {isScanning && (
                   <p className="text-sm text-[#2F6FD6] flex items-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -1017,7 +1088,7 @@ onClick={goToNewRequest}
                   Upload Proof of Payment (Screenshot or
                   Receipt) <span className="text-red-500">*</span>
                 </Label>
-                <p className="text-sm text-gray-500 mb-2">
+                <p id="proof-help" className="text-sm text-gray-500 mb-2">
                   Image files only (JPG, PNG, GIF, WebP)
                 </p>
 
@@ -1039,7 +1110,19 @@ onClick={goToNewRequest}
                 )}
 
                 {!proofFile ? (
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#2F6FD6] transition-colors">
+                  <div
+                    id="proof-field"
+                    tabIndex={-1}
+                    aria-describedby={describedBy(
+                      "proof-help",
+                      proofError && "proof-error",
+                    )}
+                    className={`rounded-lg border-2 border-dashed p-8 text-center transition-colors outline-none focus-visible:border-[#2F6FD6] ${
+                      proofError
+                        ? "border-[#B42318] bg-[#FEF3F2]"
+                        : "border-gray-300 hover:border-[#2F6FD6]"
+                    }`}
+                  >
                     <Image className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                     <p className="text-gray-700 mb-4 font-medium">
                       Upload Payment Screenshot
@@ -1106,6 +1189,8 @@ onClick={goToNewRequest}
                 )}
               </div>
 
+              <FieldError id="proof-error" message={proofError} />
+
               <div className="flex flex-col-reverse gap-2 sm:flex-row sm:gap-3">
                 <Button
                   type="button"
@@ -1119,7 +1204,7 @@ onClick={goToNewRequest}
                   type="submit"
                   loading={submitting}
                   loadingText="Submitting..."
-                  className="w-full h-11 sm:flex-1 sm:h-9 bg-[#1D73EC] text-white border-2 border-[#1D73EC] hover:bg-[#10316B]"
+                  className="w-full h-11 sm:flex-1 sm:h-9 bg-[#1668D9] text-white border-2 border-[#1668D9] hover:bg-[#10316B]"
                 >
                   Submit Reference
                 </Button>
@@ -1147,7 +1232,7 @@ onClick={goToNewRequest}
               </Button>
               <Button
                 onClick={() => navigate(`/customer/track/${orderId}`)}
-                className="w-full h-11 sm:flex-1 sm:h-9 bg-[#1D73EC] text-white border-2 border-[#1D73EC] hover:bg-[#10316B]"
+                className="w-full h-11 sm:flex-1 sm:h-9 bg-[#1668D9] text-white border-2 border-[#1668D9] hover:bg-[#10316B]"
               >
                 Track Order
               </Button>
@@ -1217,7 +1302,7 @@ onClick={goToNewRequest}
           <div className="flex flex-col gap-3 mt-6">
             <Button
               onClick={goToNewRequest}
-              className="w-full h-11 bg-[#1D73EC] text-white border-2 border-[#1D73EC] hover:bg-[#10316B]"
+              className="w-full h-11 bg-[#1668D9] text-white border-2 border-[#1668D9] hover:bg-[#10316B]"
             >
               New Print Request
             </Button>

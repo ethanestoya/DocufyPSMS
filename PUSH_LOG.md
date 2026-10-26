@@ -1156,3 +1156,25 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Re-flowed the slim unclaimed-order notice on the customer Print Request page, so its message no longer squeezes into a one-word-per-line column beside the title and View Order button.
 - Stacked the notice instead: the warning icon + title and the View Order action share the first row, and the full message sits on its own full-width line below. Warning copy, severity levels, and the View Order destination are unchanged.
 - Typecheck and the production build pass.
+
+---
+
+## October 26, 2026 (2:02 PM PHT) - aeprnts
+- HCI and accessibility pass across the whole app, from a full audit: the repairs below, plus a final set of five visual fixes on the customer screens. No pricing, payment, permission, order-status or database logic touched.
+- Rebuilt every dropdown as a real listbox: arrow keys, Home/End, Enter and Escape now work, and each one has a name a screen reader can announce.
+- Forms that only showed a disappearing toast now say what is wrong under the field itself, mark the field, and move the cursor there.
+- Sign-up stops greying out Create Account with no explanation: it validates on submit, shows one pointer to someone who has not started typing, and flags everything forgotten once they have.
+- Raised contrast across the system: brand blue darkened so text passes in both directions, placeholders darkened, and grey body text one step darker.
+- Made the 15-minute idle logout actually fire (mouse drift used to keep it alive forever) and warn a minute before signing out.
+- The order wizard now warns before the tab is closed while files are attached, so a draft is not lost by accident.
+- Turned the landing page section nav into real links and gave phones a menu, since the sections were unreachable on mobile.
+- Every route now sets its own browser tab title, moves focus to the main content, and offers a skip link.
+- One h1 per page, and staff table rows are real rows again with labelled action buttons instead of one big clickable row.
+- One step pattern through the order wizard, a stepper that says completed / current / upcoming, and blocked buttons that name what is missing.
+- A scanned payment reference now appears as a suggestion instead of overwriting what the customer typed.
+- Database failures read as sentences a shop user can act on, instead of raw Postgres text.
+- Toasts stay light on a dark-mode computer instead of turning dark and unreadable.
+- Job applicants keep the position they chose through sign-up and login instead of landing on the dashboard.
+- Dropped the repeated organization-email paragraph from login, sign-up and reset, since the field placeholder already carries the rule.
+- Fixed five customer-screen defects: the dashboard Current Order card no longer stretches to a large empty card, My Orders ids and dates stop wrapping, Payment Verification no longer says "Waiting for Admin Verification" before anything is submitted, the stepper shows which step is current, and the blocked reason reads as a hint instead of a disabled field.
+- Typecheck and the production build pass.

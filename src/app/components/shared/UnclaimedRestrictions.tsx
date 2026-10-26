@@ -106,7 +106,7 @@ export default function UnclaimedRestrictions({
             <Card className="overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-[#F2F7FF] border-b border-[#1D73EC]/10">
+                  <thead className="bg-[#F2F7FF] border-b border-[#1668D9]/10">
                     <tr>
                       {[
                         "Customer",
@@ -129,7 +129,7 @@ export default function UnclaimedRestrictions({
                       <tr>
                         <td colSpan={5} className="px-4 py-14">
                           <div className="flex flex-col items-center text-center">
-                            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#1D73EC] ring-1 ring-[#1D73EC]/15">
+                            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#1668D9] ring-1 ring-[#1668D9]/15">
                               <ShieldAlert className="h-6 w-6" />
                             </span>
                             <p className="mt-3 text-sm font-semibold text-gray-800">
@@ -203,7 +203,7 @@ export default function UnclaimedRestrictions({
             </Card>
           </div>
 
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-500">
             Restrictions are derived automatically from each customer&apos;s
             unclaimed-order count and cannot be overridden here.
           </p>

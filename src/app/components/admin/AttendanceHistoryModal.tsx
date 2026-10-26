@@ -75,7 +75,7 @@ export function AttendanceHistoryModal({
         <div className="w-full px-6 pb-8 pt-7 sm:px-8 sm:pt-8">
           {/* Header */}
           <div className="flex items-center gap-3.5">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1677F2] to-[#1D73EC] text-base font-bold text-white shadow-[0_8px_18px_-8px_rgba(22,119,242,0.6)]">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1677F2] to-[#1668D9] text-base font-bold text-white shadow-[0_8px_18px_-8px_rgba(22,119,242,0.6)]">
               {initialsOf(member.name)}
             </div>
             <div className="min-w-0 flex-1">

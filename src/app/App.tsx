@@ -288,6 +288,9 @@ const router = createBrowserRouter([
         element: <ProtectedRoute role="admin"><Staff /></ProtectedRoute>,
       },
       {
+        // Attendance is no longer a page of its own; the old route is kept
+        // alive for bookmarks but says where it went instead of silently
+        // swapping the screen (F28).
         path: 'attendance',
         element: <Navigate to="/admin/staff" replace />,
       },

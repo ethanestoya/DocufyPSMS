@@ -35,7 +35,7 @@ export default function PublicJobApplication() {
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-semibold mb-2">Job Not Found</h2>
           <p className="text-gray-600 mb-4">The job posting you're looking for doesn't exist or has been removed.</p>
-          <Button onClick={() => navigate('/')} className="bg-white text-[#1D73EC] border-2 border-blue-200 hover:bg-[#1D73EC] hover:text-white">
+          <Button onClick={() => navigate('/')} className="bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white">
             Back to Home
           </Button>
         </Card>
@@ -79,7 +79,7 @@ export default function PublicJobApplication() {
               <p className="text-xs text-gray-500">Your Printing Companion</p>
             </div>
           </div>
-          <Button variant="outline" onClick={() => navigate('/')} className="border-[#1D73EC] text-[#1D73EC] hover:bg-[#1D73EC] hover:text-white">
+          <Button variant="outline" onClick={() => navigate('/')} className="border-[#1668D9] text-[#1668D9] hover:bg-[#1668D9] hover:text-white">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Home
           </Button>
@@ -89,7 +89,7 @@ export default function PublicJobApplication() {
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
         {/* Job Details */}
-        <Card className="p-6 mb-6 bg-[#1D73EC] text-white">
+        <Card className="p-6 mb-6 bg-[#1668D9] text-white">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
               <Briefcase className="w-6 h-6" />
@@ -197,7 +197,7 @@ export default function PublicJobApplication() {
             <div className="flex gap-3 pt-4">
               <Button
                 onClick={handleSubmit}
-                className="flex-1 bg-white text-[#1D73EC] border-2 border-blue-200 hover:bg-[#1D73EC] hover:text-white"
+                className="flex-1 bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
               >
                 Submit Application
               </Button>
@@ -231,7 +231,7 @@ export default function PublicJobApplication() {
             <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
               Review Again
             </Button>
-            <Button onClick={confirmSubmit} className="bg-white text-[#1D73EC] border-2 border-blue-200 hover:bg-[#1D73EC] hover:text-white">
+            <Button onClick={confirmSubmit} className="bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white">
               Yes, Submit
             </Button>
           </DialogFooter>
@@ -253,7 +253,7 @@ export default function PublicJobApplication() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="sm:justify-center">
-            <Button onClick={() => navigate('/')} className="bg-white text-[#1D73EC] border-2 border-blue-200 hover:bg-[#1D73EC] hover:text-white">
+            <Button onClick={() => navigate('/')} className="bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white">
               Back to Home
             </Button>
           </DialogFooter>

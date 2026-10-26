@@ -145,9 +145,9 @@ export default function DownPaymentMethod() {
     >
       <div className="max-w-3xl mx-auto space-y-4">
         <div>
-          <h1 className="text-3xl font-semibold text-gray-900">
+          <h2 className="text-3xl font-semibold text-gray-900">
             Down Payment Method
-          </h1>
+          </h2>
           <p className="text-gray-500 mt-1">
             Choose how you'd like to pay for{" "}
             {dataStore.getOrderById(orderId!)?.displayId

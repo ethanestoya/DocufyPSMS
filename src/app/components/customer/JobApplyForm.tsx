@@ -215,7 +215,7 @@ export default function JobApplyForm() {
   };
 
   const inputClass = (field: string) =>
-    `h-11 bg-[#FBFDFF] ${errors[field] && touched.has(field) ? "border-red-400 focus-visible:ring-red-400" : "border-blue-200 focus-visible:ring-[#1D73EC]"}`;
+    `h-11 bg-[#FBFDFF] ${errors[field] && touched.has(field) ? "border-red-400 focus-visible:ring-red-400" : "border-blue-200 focus-visible:ring-[#1668D9]"}`;
 
   const fieldError = (field: string) =>
     errors[field] && touched.has(field) ? (
@@ -292,7 +292,7 @@ export default function JobApplyForm() {
             type="button"
             onClick={() => navigate(-1)}
             aria-label="Go back"
-            className="md:hidden inline-flex items-center gap-1 rounded-xl p-2 pl-0 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC]"
+            className="md:hidden inline-flex items-center gap-1 rounded-xl p-2 pl-0 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
           >
             <ArrowLeft className="h-5 w-5" />
             <span className="text-sm font-medium">Back</span>
@@ -332,7 +332,7 @@ export default function JobApplyForm() {
                 <Button
                   type="button"
                   onClick={() => navigate("/customer/job-board?tab=applications")}
-                  className="w-full h-11 bg-white text-[#1D73EC] border-2 border-blue-200 hover:bg-[#1D73EC] hover:text-white transition-all hover:-translate-y-0.5 hover:shadow-md"
+                  className="w-full h-11 bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white transition-all hover:-translate-y-0.5 hover:shadow-md"
                 >
                   View Application Status
                 </Button>
@@ -365,7 +365,7 @@ export default function JobApplyForm() {
           type="button"
           onClick={() => navigate(-1)}
           aria-label="Go back"
-          className="md:hidden inline-flex items-center gap-1 rounded-xl p-2 pl-0 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC]"
+          className="md:hidden inline-flex items-center gap-1 rounded-xl p-2 pl-0 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
         >
           <ArrowLeft className="h-5 w-5" />
           <span className="text-sm font-medium">Back</span>
@@ -373,9 +373,9 @@ export default function JobApplyForm() {
 
         {/* Page header */}
         <div>
-          <h1 className="text-xl font-semibold text-slate-900 tracking-tight">
+          <h2 className="text-xl font-semibold text-slate-900 tracking-tight">
             Job Application
-          </h1>
+          </h2>
           <p className="text-sm text-slate-500 mt-0.5">
             Submit your application for{" "}
             <strong className="text-[#10316B]">{jobTitle}</strong>
@@ -483,7 +483,7 @@ export default function JobApplyForm() {
                     onBlur={() => handleBlur("skills")}
                     placeholder="Tell us about your relevant skills, experience, and why you'd be a great fit..."
                     rows={4}
-                    className={`bg-[#FBFDFF] resize-none ${errors.skills && touched.has("skills") ? "border-red-400 focus-visible:ring-red-400" : "border-blue-200 focus-visible:ring-[#1D73EC]"}`}
+                    className={`bg-[#FBFDFF] resize-none ${errors.skills && touched.has("skills") ? "border-red-400 focus-visible:ring-red-400" : "border-blue-200 focus-visible:ring-[#1668D9]"}`}
                   />
                   {fieldError("skills")}
                 </div>
@@ -503,6 +503,7 @@ export default function JobApplyForm() {
                     Resume <span className="text-red-500">*</span>
                   </Label>
                   <ZoomSafeDropdown
+                    label="Resume type"
                     value={formData.resumeType}
                     onChange={(v) => {
                       setFormData((p) => ({ ...p, resumeType: v as "link" | "file", resumeLink: "", resumeFile: null }));
@@ -525,7 +526,7 @@ export default function JobApplyForm() {
                       onChange={(e) => setFormData((p) => ({ ...p, resumeLink: e.target.value }))}
                       onBlur={() => handleBlur("portfolio")}
                       placeholder="https://drive.google.com/... or https://linkedin.com/..."
-                      className={`bg-[#FBFDFF] ${errors.portfolio && touched.has("portfolio") ? "border-red-400 focus-visible:ring-red-400" : "border-blue-200 focus-visible:ring-[#1D73EC]"}`}
+                      className={`bg-[#FBFDFF] ${errors.portfolio && touched.has("portfolio") ? "border-red-400 focus-visible:ring-red-400" : "border-blue-200 focus-visible:ring-[#1668D9]"}`}
                     />
                     <p className="text-xs text-slate-400 mt-1.5">
                       Link to your resume, LinkedIn, or Google Drive
@@ -597,7 +598,7 @@ export default function JobApplyForm() {
                 >
                   <div className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                     formData.consentAgreed
-                      ? "bg-[#1D73EC] border-[#1D73EC]"
+                      ? "bg-[#1668D9] border-[#1668D9]"
                       : errors.consentAgreed && touched.has("consentAgreed")
                         ? "border-red-400 bg-white"
                         : "border-slate-300 bg-white"
@@ -623,7 +624,7 @@ export default function JobApplyForm() {
               <Button
                 type="submit"
                 disabled={!formData.consentAgreed || isSubmitting}
-                className="w-full h-11 bg-[#1D73EC] text-white border-2 border-[#1D73EC] hover:bg-[#10316B] hover:border-[#10316B] transition-all hover:-translate-y-0.5 hover:shadow-md disabled:bg-slate-200 disabled:text-slate-400 disabled:border-slate-200 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+                className="w-full h-11 bg-[#1668D9] text-white border-2 border-[#1668D9] hover:bg-[#10316B] hover:border-[#10316B] transition-all hover:-translate-y-0.5 hover:shadow-md disabled:bg-slate-200 disabled:text-slate-400 disabled:border-slate-200 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
               >
                 {isSubmitting ? (
                   <Spinner size="xs" label="Submitting..." />
@@ -665,7 +666,7 @@ export default function JobApplyForm() {
             <Button
               type="button"
               onClick={() => setShowTerms(false)}
-              className="bg-white text-[#1D73EC] border-2 border-blue-200 hover:bg-[#1D73EC] hover:text-white"
+              className="bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
             >
               Close
             </Button>

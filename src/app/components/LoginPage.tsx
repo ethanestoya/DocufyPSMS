@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
 import { ImageWithFallback } from "./shared/ImageWithFallback";
 import { useLogo } from "../hooks/useLogo";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { useAuthBackgroundUrl } from "../hooks/useAuthBackgroundUrl";
 import {
   ArrowLeft,
@@ -20,6 +21,12 @@ import { EMAIL_POLICY_MESSAGE } from "../utils/authEmailPolicy";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  usePageTitle("Log in");
+  const [searchParams] = useSearchParams();
+  // A visitor who picked a job on the landing page arrives here with ?jobId=…
+  // Carry it through authentication so they land on the application for THAT
+  // position instead of the dashboard, having to find it again (F02).
+  const pendingJobId = searchParams.get("jobId");
   const logo = useLogo();
   const authBg = useAuthBackgroundUrl();
   const { login, signInWithGoogle, user } = useAuth();
@@ -34,14 +41,19 @@ export default function LoginPage() {
   React.useEffect(() => {
     if (user) {
       if (user.role === "customer") {
-        navigate("/customer/dashboard");
+        navigate(
+          pendingJobId
+            ? `/customer/job-apply/${pendingJobId}`
+            : "/customer/dashboard",
+          { replace: Boolean(pendingJobId) },
+        );
       } else if (user.role === "staff") {
         navigate("/staff/dashboard");
       } else if (user.role === "admin") {
         navigate("/admin/dashboard");
       }
     }
-  }, [user, navigate]);
+  }, [user, navigate, pendingJobId]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,9 +124,9 @@ export default function LoginPage() {
               className="w-full h-full object-contain rounded-full"
             />
           </div>
-          <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">
-            Docufy PSMS<span className="text-[#1D73EC]"></span>
-          </h1>
+          <p className="text-4xl font-bold text-white mb-2 tracking-tight">
+            Docufy PSMS<span className="text-[#1668D9]"></span>
+          </p>
           <h2 className="text-xl font-medium text-white mb-4">
             Your Complete Printing Solution
           </h2>
@@ -132,17 +144,17 @@ export default function LoginPage() {
           <div className="lg:hidden mb-8 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <img src={logo} alt="Docufy Logo" className="h-12 w-12 object-contain" />
-              <h1 className="truncate text-xl font-bold text-[#1c1f26]">Docufy PSMS</h1>
+              <p className="truncate text-xl font-bold text-[#1c1f26]">Docufy PSMS</p>
             </div>
-            <button onClick={() => navigate("/")} className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-[#1D73EC]">
+            <button onClick={() => navigate("/")} className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-[#1668D9]">
               <ArrowLeft className="h-3.5 w-3.5" /> Home
             </button>
           </div>
 
           <div className="mb-6 text-center lg:text-left">
-            <h2 className="text-2xl font-bold text-[#1c1f26] mb-1">
+            <h1 className="text-2xl font-bold text-[#1c1f26] mb-1">
               Log in
-            </h2>
+            </h1>
             <p className="text-sm text-gray-500">
               Welcome back! Please enter your details.
             </p>
@@ -205,11 +217,9 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@psu.palawan.edu.ph"
                   className="h-10 bg-[#F2F7FF] border-transparent rounded-xl text-sm"
+                  autoComplete="email"
                   required
                 />
-                <p className="text-[11px] text-slate-500">
-                  Sign in with your organization email address.
-                </p>
               </div>
 
               <div className="space-y-1">
@@ -223,7 +233,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => navigate("/forgot-password")}
-                    className="text-[11px] font-medium text-[#1D73EC] hover:underline"
+                    className="inline-flex min-h-6 items-center px-1 -mx-1 text-[11px] font-medium text-[#1668D9] hover:underline"
                   >
                     Forgot Password?
                   </button>
@@ -238,6 +248,7 @@ export default function LoginPage() {
                     }
                     placeholder="Enter your password"
                     className="h-10 bg-[#F2F7FF] border-transparent rounded-xl pr-10 text-sm"
+                    autoComplete="current-password"
                     required
                   />
                   <button
@@ -245,7 +256,9 @@ export default function LoginPage() {
                     onClick={() =>
                       setShowPassword(!showPassword)
                     }
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-pressed={showPassword}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center text-gray-500"
                   >
                     {showPassword ? (
                       <EyeOff size={16} />
@@ -289,7 +302,7 @@ export default function LoginPage() {
                 type="submit"
                 loading={submitting}
                 loadingText="Logging In..."
-                className="w-full h-10 bg-[#1D73EC] text-white border-2 border-[#1D73EC] hover:bg-[#10316B] hover:border-[#10316B] rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.97] active:bg-[#0c2a5c] disabled:opacity-60 disabled:pointer-events-none"
+                className="w-full h-10 bg-[#1668D9] text-white border-2 border-[#1668D9] hover:bg-[#10316B] hover:border-[#10316B] rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.97] active:bg-[#0c2a5c] disabled:opacity-60 disabled:pointer-events-none"
               >
                 Log In
               </Button>
@@ -298,8 +311,10 @@ export default function LoginPage() {
           <div className="mt-4 text-center text-xs text-gray-500">
             Need an account?{" "}
             <button
-              onClick={() => navigate("/signup")}
-              className="text-[#1D73EC] text-xs font-semibold"
+              onClick={() =>
+                navigate(`/signup${pendingJobId ? `?jobId=${pendingJobId}` : ""}`)
+              }
+              className="text-[#1668D9] text-xs font-semibold"
             >
               Create account
             </button>

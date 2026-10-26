@@ -8,12 +8,14 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { useAuth } from '../contexts/AuthContext';
 import { useLogo } from '../hooks/useLogo';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 // Password recovery is link-based: Supabase emails a one-time link that opens
 // /reset-password on THIS deployment, where the new password is set. The old
 // "we emailed you a 6-digit code" copy belonged to the retired mock flow and
 // never matched what the backend actually sends.
 export default function ForgotPassword() {
+  usePageTitle('Reset password');
   const navigate = useNavigate();
   const logo = useLogo();
   const { requestPasswordReset } = useAuth();
@@ -82,7 +84,7 @@ export default function ForgotPassword() {
                   />
                 </div>
                 <p className="text-xs text-gray-500">
-                  Use your organization email address. The link opens Docufy on this device, where you can choose a new password.
+                  The link opens Docufy on this device, where you can choose a new password.
                 </p>
               </div>
 

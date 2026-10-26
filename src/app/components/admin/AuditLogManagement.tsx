@@ -1,7 +1,7 @@
-// Admin Audit Trail — Management -> Audit Trail (/admin/audit-trail).
+// Admin Audit Trail â€” Management -> Audit Trail (/admin/audit-trail).
 //
 // Read-only investigation surface for "who changed what, when". The table is
-// deliberately kept to the six scannable facts plus one action button —
+// deliberately kept to the six scannable facts plus one action button â€”
 // NO description column. A free-text column repeated what Date/User/Action/
 // Module/Reference already said, made every row tall, and pushed the useful
 // signal off-screen on a 1366px laptop. The narrative, the exact before/after
@@ -104,7 +104,7 @@ function csvCell(value: string | number | undefined | null): string {
 }
 
 // Export the currently-filtered activities as a CSV download (Excel-friendly:
-// BOM so ₱/em-dashes render, quoted cells so commas/newlines stay intact).
+// BOM so â‚±/em-dashes render, quoted cells so commas/newlines stay intact).
 function exportAuditCsv(rows: AuditEntry[]) {
   const header = [
     "Date & Time (PHT)",
@@ -284,11 +284,11 @@ export default function AuditLogManagement() {
         {/* Page header */}
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
+            <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
               Audit Trail
-            </h1>
+            </h2>
             <p className="mt-1 text-sm text-slate-500">
-              A permanent record of every change made in Docufy — who acted, what
+              A permanent record of every change made in Docufy â€” who acted, what
               they changed, and when.
             </p>
           </div>
@@ -344,7 +344,7 @@ export default function AuditLogManagement() {
                 <Input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="User, reference, or module…"
+                  placeholder="User, reference, or moduleâ€¦"
                   className="pl-10"
                 />
               </div>
@@ -358,6 +358,7 @@ export default function AuditLogManagement() {
                 Role
               </FilterLabel>
               <ZoomSafeDropdown
+                label="Role filter"
                 value={roleFilter}
                 onChange={setRoleFilter}
                 options={ROLE_OPTIONS}
@@ -374,6 +375,7 @@ export default function AuditLogManagement() {
                 Action
               </FilterLabel>
               <ZoomSafeDropdown
+                label="Action filter"
                 value={actionFilter}
                 onChange={setActionFilter}
                 options={ACTION_OPTIONS}
@@ -390,6 +392,7 @@ export default function AuditLogManagement() {
                 Module
               </FilterLabel>
               <ZoomSafeDropdown
+                label="Module filter"
                 value={moduleFilter}
                 onChange={setModuleFilter}
                 options={MODULE_OPTIONS}
@@ -429,7 +432,7 @@ export default function AuditLogManagement() {
           ) : null}
         </Card>
 
-        {/* Activity table — no Description column by design */}
+        {/* Activity table â€” no Description column by design */}
         <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
@@ -548,7 +551,7 @@ export default function AuditLogManagement() {
             <p className="text-sm text-slate-500">
               {filtered.length === 0
                 ? "Showing 0 activities"
-                : `Showing ${rangeStart}–${rangeEnd} of ${filtered.length} activit${
+                : `Showing ${rangeStart}â€“${rangeEnd} of ${filtered.length} activit${
                     filtered.length === 1 ? "y" : "ies"
                   }`}
             </p>
@@ -579,7 +582,7 @@ export default function AuditLogManagement() {
         </Card>
       </div>
 
-      {/* Details pop-up — everything the table deliberately omits */}
+      {/* Details pop-up â€” everything the table deliberately omits */}
       <Dialog
         open={selected !== null}
         onOpenChange={(open) => {
@@ -678,7 +681,7 @@ export default function AuditLogManagement() {
                   </p>
                 </section>
 
-                {/* Optional investigation metadata — omitted when unknown */}
+                {/* Optional investigation metadata â€” omitted when unknown */}
                 {selected.ipAddress ||
                 selected.device ||
                 selected.transactionId ? (

@@ -17,7 +17,7 @@ export function PriorityBadge({
 }) {
   return (
     <div
-      className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm bg-[#1D73EC] text-white transition-shadow ${
+      className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm bg-[#1668D9] text-white transition-shadow ${
         active
           ? "shadow-[0_0_0_4px_rgba(29,115,236,0.18)]"
           : "shadow-none"
@@ -40,7 +40,7 @@ export function StartHereTag({
 }) {
   const content = (
     <>
-      <span className="w-1.5 h-1.5 rounded-full bg-[#1D73EC] animate-pulse" />
+      <span className="w-1.5 h-1.5 rounded-full bg-[#1668D9] animate-pulse" />
       {label}
     </>
   );
@@ -54,7 +54,7 @@ export function StartHereTag({
           onClick(e);
         }}
         title={`${label} — click to start this item`}
-        className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#1D73EC] cursor-pointer hover:text-[#10316B] hover:underline ${className}`}
+        className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#1668D9] cursor-pointer hover:text-[#10316B] hover:underline ${className}`}
       >
         {content}
       </button>
@@ -63,7 +63,7 @@ export function StartHereTag({
 
   return (
     <span
-      className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#1D73EC] ${className}`}
+      className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#1668D9] ${className}`}
     >
       {content}
     </span>

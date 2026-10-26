@@ -1463,6 +1463,21 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
     toast.info("Walk-in transaction cancelled");
   };
 
+  // A half-filled request lives only in this tab: the uploaded files are real
+  // File objects and every print setting is component state, so a refresh, a
+  // closed tab or Back throws the whole wizard away and the customer starts
+  // from zero (F01). Warn before the browser leaves the page while files are
+  // attached. In-app route changes are unaffected (they don't fire this event).
+  useEffect(() => {
+    if (files.length === 0) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [files.length]);
+
   const steps = isWalkin && customerType === "photocopy"
     ? [
         { number: 1, title: "Photocopy Options", icon: Copy },
@@ -1479,8 +1494,42 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
         { number: 1, title: "Upload Document", icon: Upload },
         { number: 2, title: "Print Options", icon: Settings },
         { number: 3, title: "Add-ons", icon: ShoppingCart },
-        { number: 4, title: "Summary", icon: CheckCircle },
+        { number: 4, title: "Review & Complete", icon: CheckCircle },
       ];
+
+  // A disabled primary button with no explanation reads as "the button is
+  // broken" (F19). Name exactly what is still missing for the current step.
+  const stepBlockedReason = (() => {
+    if (analyzingFileId) return "Wait for the document analysis to finish.";
+    if (currentStep === 1 && !isPhotocopy && files.length === 0)
+      return "Upload at least one file to continue.";
+    if (currentStep === 2 && !isPhotocopy) {
+      if (files.length === 0) return "Upload at least one file to continue.";
+      if (!files.every((f) => f.printType))
+        return "Choose a print type for every file.";
+      if (!hasPaperStock && files.some((f) => f.printType !== "photo"))
+        return "No paper stock is available — ask staff to restock before continuing.";
+      if (!hasPhotoPaperStock && files.some((f) => f.printType === "photo"))
+        return "No photo paper is in stock — choose another print type or ask staff.";
+    }
+    if (currentStep === 2 && isPhotocopy && !hasPaperStock)
+      return "No paper stock is available — ask staff to restock before continuing.";
+    if (currentStep === 4 && !isWalkin) {
+      if (files.length === 0) return "Upload at least one file to place the order.";
+      if (!paymentMethod) return "Choose how you will pay.";
+      if (paymentMethod === "cash" && !cashAcknowledged)
+        return "Tick the cash-on-pickup acknowledgement to place the order.";
+    }
+    return "";
+  })();
+
+  // ONE heading pattern for every step, in every mode ("Step 2 of 4 · Print
+  // Options"). The wizard used to mix "Step 1:", "Step 2 of 4", "Step 3:
+  // Add-ons (Optional)" and a second "Step 4: Order Summary", and photocopy
+  // mode renumbered itself — so the user could not tell where they were (F20).
+  const totalSteps = steps.length;
+  const stepHeading = (number: number) =>
+    `Step ${number} of ${totalSteps} · ${steps[number - 1]?.title ?? ""}`;
 
   const menuItems = isWalkin
     ? role === "admin"
@@ -1501,7 +1550,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
           type="button"
           onClick={() => navigate(-1)}
           aria-label="Go back"
-          className="md:hidden inline-flex items-center gap-1 rounded-xl p-2 pl-0 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC]"
+          className="md:hidden inline-flex items-center gap-1 rounded-xl p-2 pl-0 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
         >
           <ArrowLeft className="h-5 w-5" />
           <span className="text-sm font-medium">Back</span>
@@ -1539,22 +1588,44 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
       )}
       {/* Step Indicator */}
       <Card className={isWalkin ? "p-6 bg-white shadow-sm" : "p-4 sm:p-6 bg-white shadow-sm"}>
-        <div className={isWalkin ? "flex items-center justify-between" : "flex items-center justify-center w-full"}>
-          {steps.map((step, index) => (
+        <div
+          role="list"
+          aria-label="Order progress"
+          className={isWalkin ? "flex items-center justify-between" : "flex items-center justify-center w-full"}
+        >
+          {steps.map((step, index) => {
+            // "Completed" and "current" used to be the same solid blue, so a
+            // mid-flow step showed two current steps at once (F20). Done is a
+            // pale chip, current keeps the solid fill and takes a ring.
+            const stepState =
+              currentStep > step.number
+                ? "done"
+                : currentStep === step.number
+                  ? "current"
+                  : "upcoming";
+            return (
             <React.Fragment key={step.number}>
-              <div className={isWalkin ? "flex flex-col items-center" : "flex flex-1 flex-col items-center justify-center min-w-0"}>
+              <div
+                role="listitem"
+                aria-current={currentStep === step.number ? "step" : undefined}
+                className={isWalkin ? "flex flex-col items-center" : "flex flex-1 flex-col items-center justify-center min-w-0"}
+              >
                 <div
                   className={
                     isWalkin
                       ? `w-12 h-12 rounded-full flex items-center justify-center ${
-                          currentStep >= step.number
-                            ? "bg-[#2F6FD6] text-white"
-                            : "bg-gray-200 text-gray-500"
+                          stepState === "current"
+                            ? "bg-[#2F6FD6] text-white ring-4 ring-[#2F6FD6]/20"
+                            : stepState === "done"
+                              ? "bg-[#DBEAFE] text-[#1668D9]"
+                              : "bg-gray-200 text-gray-500"
                         }`
-                      : `w-10 h-10 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-colors duration-200 ${
-                          currentStep >= step.number
-                            ? "bg-[#2F6FD6] text-white shadow-sm"
-                            : "bg-gray-200 text-gray-500"
+                      : `w-10 h-10 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all duration-200 ${
+                          stepState === "current"
+                            ? "bg-[#2F6FD6] text-white shadow-sm ring-4 ring-[#2F6FD6]/20"
+                            : stepState === "done"
+                              ? "bg-[#DBEAFE] text-[#1668D9]"
+                              : "bg-gray-200 text-gray-500"
                         }`
                   }
                 >
@@ -1581,6 +1652,13 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                       <span className="hidden sm:inline">{step.title}</span>
                     </>
                   )}
+                  <span className="sr-only">
+                    {currentStep > step.number
+                      ? " (completed)"
+                      : currentStep === step.number
+                        ? " (current step)"
+                        : " (upcoming)"}
+                  </span>
                 </p>
               </div>
               {index < steps.length - 1 && (
@@ -1599,7 +1677,8 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                 </div>
               )}
             </React.Fragment>
-          ))}
+            );
+          })}
         </div>
       </Card>
 
@@ -1609,9 +1688,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
         {currentStep === 1 && (
           <div className="space-y-4 sm:space-y-6">
             <h2 className="text-xl font-semibold text-gray-900">
-              {isWalkin
-                ? "Step 1: Customer Information & Upload Files"
-                : "Step 1: Upload Documents"}
+              {stepHeading(1)}
             </h2>
 
             {isWalkin && (
@@ -1620,6 +1697,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                 <div className="space-y-3">
                   <Label className="text-sm font-medium">Customer Type</Label>
                   <ZoomSafeDropdown
+                    label="Customer type"
                     value={customerType}
                     onChange={(v) => setCustomerType(v as "printing" | "photocopy")}
                     triggerClassName="h-10"
@@ -1649,6 +1727,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Paper Size</Label>
                   <ZoomSafeDropdown
+                    label="Photocopy paper size"
                     value={photocopyPaperSize}
                     onChange={setPhotocopyPaperSize}
                     placeholder="Select paper size"
@@ -1678,6 +1757,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
 <div className="space-y-2">
                   <Label className="text-sm font-medium">Color Mode</Label>
                   <ZoomSafeDropdown
+                    label="Photocopy color mode"
                     value={photocopyColorMode}
                     onChange={(v) => setPhotocopyColorMode(v as "bw" | "colored")}
                     placeholder="Select color mode"
@@ -1705,9 +1785,10 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                 </div>
                 <button
                   onClick={() => setFileError("")}
-                  className="text-red-400 hover:text-red-500"
+                  aria-label="Dismiss file error"
+                  className="flex h-6 w-6 flex-none items-center justify-center text-red-400 hover:text-red-500"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-4 h-4" aria-hidden="true" />
                 </button>
               </div>
             )}
@@ -1745,7 +1826,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                                 <p className="text-xs text-blue-700 font-medium">
                                   ✓ Analysis complete
                                   {fileData.colorAnalysis.estimated && (
-                                    <span className="ml-1 text-[10px] font-normal text-gray-400">
+                                    <span className="ml-1 text-[10px] font-normal text-gray-500">
                                       (estimated)
                                     </span>
                                   )}
@@ -1839,11 +1920,8 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
           <div className="space-y-5 sm:space-y-6">
             {/* Step title */}
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#2F6FD6]">
-                Step 2 of 4
-              </p>
-              <h2 className="text-xl font-bold text-gray-900 mt-1">
-                Choose Print Options
+              <h2 className="text-xl font-bold text-gray-900">
+                {stepHeading(2)}
               </h2>
               <p className="text-sm text-gray-500 mt-1">
                 Set the printing details for each file.
@@ -1871,6 +1949,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                           Editing file
                         </Label>
                         <ZoomSafeDropdown
+                          label="File to configure"
                           value={String(activeIndex)}
                           onChange={(value) =>
                             setStep2FileIndex(
@@ -1996,6 +2075,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                             <div className="space-y-2">
                               <Label className="text-sm font-medium">Photo Size</Label>
                           <ZoomSafeDropdown
+                            label="Photo size"
                             value={fileData.photoSize}
                             onChange={(value) => {
                               updateFileOption(fileData.id, "photoSize", value);
@@ -2051,6 +2131,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                               <Label className="text-sm font-medium shrink-0">Paper Size</Label>
                               <div className="w-[55%] shrink-0 @min-[640px]:w-full">
 <ZoomSafeDropdown
+                            label="Paper size"
                             value={fileData.paperSize}
                             onChange={(value) => updateFileOption(fileData.id, "paperSize", value)}
                             placeholder="Select paper size"
@@ -2082,6 +2163,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                                 <Label className="text-sm font-medium shrink-0">Page Range</Label>
                                 <div className="w-[55%] shrink-0 @min-[640px]:w-full">
                                   <ZoomSafeDropdown
+                                    label="Page range"
                                     value={fileData.pageRange}
                                     onChange={(value) =>
                                       updateFileOption(fileData.id, "pageRange", value)
@@ -2113,6 +2195,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                           <div className="space-y-2">
                             <Label className="text-sm font-medium">Color Mode</Label>
                             <ZoomSafeDropdown
+                              label="Color mode"
                               value={fileData.colorMode}
                               onChange={(value) =>
                                 updateFileOption(fileData.id, "colorMode", value)
@@ -2166,6 +2249,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                             <div className="mt-2">
                               <p className="text-xs text-gray-500 mb-1">Quick templates:</p>
                               <ZoomSafeActionDropdown
+                                label="Note template"
                                 onSelect={(template) => {
                                   const currentNotes = fileData.notes;
                                   const newNotes = currentNotes
@@ -2275,7 +2359,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
           <div className="space-y-4 sm:space-y-6">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
               <ShoppingCart className="w-6 h-6 text-[#2F6FD6]" />
-              Step 3: Add-ons (Optional)
+              {stepHeading(3)}
             </h2>
 
             <div className="p-4 bg-white border-2 border-blue-200 rounded-lg">
@@ -2416,7 +2500,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
           isWalkin ? (
             <div className="space-y-6">
               <h2 className="text-xl font-semibold text-gray-900">
-                {isPhotocopy ? "Step 2: Review & Complete Transaction" : "Step 4: Review & Complete Transaction"}
+                {stepHeading(isPhotocopy ? 2 : 4)}
               </h2>
 
               <Card className="p-5 bg-blue-50">
@@ -2639,7 +2723,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
           ) : (
             <div className="space-y-4 sm:space-y-6">
               <h2 className="text-xl font-semibold text-gray-900">
-                Step 4: Order Summary
+                {stepHeading(4)}
               </h2>
 
               <div className="rounded-lg border-2 border-gray-200 bg-white overflow-hidden sm:border-0 sm:bg-transparent">
@@ -2743,7 +2827,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                             <p className="text-gray-600">
                               Color Breakdown
                               {fileData.colorAnalysis.estimated && (
-                                <span className="ml-1 text-[10px] text-gray-400">
+                                <span className="ml-1 text-[10px] text-gray-500">
                                   (estimated)
                                 </span>
                               )}
@@ -2908,7 +2992,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
             e.stopPropagation();
             viewMethodQR(method.name);
           }}
-          className="flex items-center gap-1 text-xs font-semibold text-[#1D73EC] hover:text-[#10316B] shrink-0"
+          className="flex items-center gap-1 text-xs font-semibold text-[#1668D9] hover:text-[#10316B] shrink-0"
         >
           <QrCode className="w-3.5 h-3.5" />
           View QR
@@ -3081,7 +3165,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                 By placing your order, you agree to our{" "}
                 <button
                   type="button"
-                  className="underline text-[#1D73EC] hover:text-[#10316B]"
+                  className="underline text-[#1668D9] hover:text-[#10316B]"
                   onClick={() => {
                     setLegalPolicyTab("terms");
                     setShowLegalPolicy(true);
@@ -3092,7 +3176,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                 and{" "}
                 <button
                   type="button"
-                  className="underline text-[#1D73EC] hover:text-[#10316B]"
+                  className="underline text-[#1668D9] hover:text-[#10316B]"
                   onClick={() => {
                     setLegalPolicyTab("privacy");
                     setShowLegalPolicy(true);
@@ -3138,6 +3222,22 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
           </div>
         )}
 
+        {/* A disabled primary button with no explanation reads as "the button is
+            broken" (F19). Name exactly what is still missing — as a line of
+            hint text, not a bordered box that reads like a disabled field. */}
+        {stepBlockedReason && (
+          <p
+            role="status"
+            className="mt-6 flex items-start gap-2 text-xs font-medium text-gray-600"
+          >
+            <Info
+              className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#2F6FD6]"
+              aria-hidden="true"
+            />
+            <span>{stepBlockedReason}</span>
+          </p>
+        )}
+
         {/* Navigation Buttons */}
         {isWalkin && (currentStep === 4 || (isPhotocopy && currentStep === 2)) ? (
           <div className="mt-6">
@@ -3177,7 +3277,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                 type="button"
                 onClick={() => setShowProceedConfirm(true)}
                 disabled={shopPaused || isSubmittingOrder || (isPhotocopy ? false : files.length === 0)}
-                className="w-full py-3 bg-blue-600 text-white font-semibold text-sm rounded-lg shadow-sm hover:bg-[#2557b8] disabled:bg-gray-400 disabled:cursor-not-allowed active:scale-[0.98] transition-all @min-[640px]:w-auto @min-[640px]:min-w-[180px] @min-[640px]:px-6"
+                className="w-full py-3 bg-[#2F6FD6] text-white font-semibold text-sm rounded-lg shadow-sm hover:bg-[#2557b8] disabled:bg-gray-400 disabled:cursor-not-allowed active:scale-[0.98] transition-all @min-[640px]:w-auto @min-[640px]:min-w-[180px] @min-[640px]:px-6"
               >
                 {isSubmittingOrder ? (
                   <span className="inline-flex items-center gap-2 justify-center">
@@ -3321,11 +3421,11 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                 <CalendarClock className="w-8 h-8 text-gray-600" />
               )}
             </div>
-            <h1 className="text-2xl font-semibold text-gray-900">
+            <h2 className="text-2xl font-semibold text-gray-900">
               {shopStatus.status === "paused"
                 ? "Docufy is currently paused"
                 : "Docufy is on scheduled close"}
-            </h1>
+            </h2>
             <p
               className={`text-sm mt-2 leading-relaxed ${
                 shopStatus.status === "paused"
@@ -3798,7 +3898,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                   setShowSuccessModal(false);
                   navigate("/customer/dashboard");
                 }}
-                className="flex-1 bg-white text-[#1D73EC] border-2 border-blue-200 hover:bg-[#1D73EC] hover:text-white"
+                className="flex-1 bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
               >
                 Go to Dashboard
               </Button>

@@ -1,7 +1,7 @@
-// "Unclaimed Orders" — Admin/Staff page for the automatically DERIVED
+// "Unclaimed Orders" â€” Admin/Staff page for the automatically DERIVED
 // unclaimed-order records. It shows a small card row (counts + links to the
 // Unclaimed Order History and Customer Restrictions pages, which are reached
-// ONLY from here, never the sidebar) and a table of the CURRENT offenses —
+// ONLY from here, never the sidebar) and a table of the CURRENT offenses â€”
 // Cash-on-Pickup orders that passed their pickup deadline and have NOT yet
 // been collected. Orders that were eventually collected (late) move to the
 // Unclaimed Order History page.
@@ -9,7 +9,7 @@
 // There is no manual review, excuse, or confirm workflow: a record exists only
 // when the real order + status-history timeline proves a Cash-on-Pickup order
 // passed its pickup deadline (the shop's configured closing time) without being
-// collected on time. Counts are always derived, never stored — nothing is
+// collected on time. Counts are always derived, never stored â€” nothing is
 // enforced or written.
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -122,7 +122,7 @@ export default function UnclaimedOrders({
       <StaffTimeInGate>
         <div className="flex flex-col space-y-5">
           <p className="max-w-2xl text-sm text-slate-500">
-            Every order listed here was automatically recorded as unclaimed —
+            Every order listed here was automatically recorded as unclaimed â€”
             a Cash-on-Pickup order that passed its pickup deadline without being
             collected. Orders collected late are kept on the Late Pick-up History
             page. Counts are derived from real order status history, so
@@ -133,8 +133,8 @@ export default function UnclaimedOrders({
             <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
               <span>
-                Unclaimed orders cannot be computed yet — set the shop closing
-                time in Admin → Landing Page → Shop Information. Until then no
+                Unclaimed orders cannot be computed yet â€” set the shop closing
+                time in Admin â†’ Landing Page â†’ Shop Information. Until then no
                 order can pass a pickup deadline.
               </span>
             </div>
@@ -144,7 +144,7 @@ export default function UnclaimedOrders({
             <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
               <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-500" />
               <span>
-                Unclaimed-order information is unavailable right now — some order
+                Unclaimed-order information is unavailable right now â€” some order
                 status history could not be read, so these counts may be
                 incomplete.
               </span>
@@ -205,7 +205,7 @@ export default function UnclaimedOrders({
                 className="w-full lg:w-[21rem]"
               />
             </div>
-            <p className="mt-2 text-xs text-gray-400">
+            <p className="mt-2 text-xs text-gray-500">
               Date range filters by the day an order became unclaimed (its missed
               pickup deadline).
             </p>
@@ -218,7 +218,7 @@ export default function UnclaimedOrders({
             <Card className="overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-[#F2F7FF] border-b border-[#1D73EC]/10">
+                  <thead className="bg-[#F2F7FF] border-b border-[#1668D9]/10">
                     <tr>
                       {[
                         "Customer",
@@ -243,7 +243,7 @@ export default function UnclaimedOrders({
                       <tr>
                         <td colSpan={7} className="px-4 py-14">
                           <div className="flex flex-col items-center text-center">
-                            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#1D73EC] ring-1 ring-[#1D73EC]/15">
+                            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#1668D9] ring-1 ring-[#1668D9]/15">
                               <ClipboardList className="h-6 w-6" />
                             </span>
                             <p className="mt-3 text-sm font-semibold text-gray-800">
@@ -273,7 +273,7 @@ export default function UnclaimedOrders({
                                 {record.customerName}
                               </div>
                               <div className="text-xs text-gray-500">
-                                {record.customerEmail || "—"}
+                                {record.customerEmail || "â€”"}
                               </div>
                             </td>
                             <td className="px-4 py-3">
@@ -292,7 +292,7 @@ export default function UnclaimedOrders({
                                   {statusLabel(order.status)}
                                 </Badge>
                               ) : (
-                                <span className="text-xs text-gray-400">—</span>
+                                <span className="text-xs text-gray-500">â€”</span>
                               )}
                             </td>
                             <td className="px-4 py-3">
@@ -314,14 +314,14 @@ export default function UnclaimedOrders({
                                   </div>
                                 </>
                               ) : (
-                                <span className="text-xs text-gray-400">—</span>
+                                <span className="text-xs text-gray-500">â€”</span>
                               )}
                             </td>
                             <td className="px-4 py-3">
                               <div className="text-xs text-gray-700">
                                 {formatPHDate(record.readyAt)}
                               </div>
-                              <div className="text-xs text-gray-400">
+                              <div className="text-xs text-gray-500">
                                 {formatPHTime(record.readyAt)}
                               </div>
                             </td>
@@ -404,7 +404,7 @@ export default function UnclaimedOrders({
                     Ready for Pickup
                   </p>
                   <p className="mt-1 text-sm font-semibold text-gray-900">
-                    {formatPHDate(selectedRecord.readyAt)} ·{" "}
+                    {formatPHDate(selectedRecord.readyAt)} Â·{" "}
                     {formatPHTime(selectedRecord.readyAt)}
                   </p>
                 </div>
@@ -431,7 +431,7 @@ export default function UnclaimedOrders({
                   <p className="mt-1 text-sm font-semibold text-gray-900">
                     {selectedRecord.orderTotal != null
                       ? formatCurrency(selectedRecord.orderTotal)
-                      : "—"}
+                      : "â€”"}
                   </p>
                 </div>
               </div>

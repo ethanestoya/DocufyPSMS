@@ -92,7 +92,7 @@ function PolicyCard({
         </div>
 
         <div className="rounded-lg border border-blue-100 bg-[#F2F7FF] p-3 text-xs text-slate-600">
-          <p className="font-semibold text-[#1D73EC]">Writing format</p>
+          <p className="font-semibold text-[#1668D9]">Writing format</p>
           <p className="mt-1">
             Separate paragraphs with a blank line. To make a bulleted list,
             put each item on its own line starting with <span className="font-medium text-slate-700">"- "</span> (dash + space).
@@ -269,7 +269,7 @@ export default function LegalManagement() {
       <div className="space-y-5">
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between py-2 rounded-lg">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-[#F2F7FF] text-[#1D73EC] flex items-center justify-center shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-[#F2F7FF] text-[#1668D9] flex items-center justify-center shrink-0">
               <ScrollText className="w-6 h-6" />
             </div>
             <div>

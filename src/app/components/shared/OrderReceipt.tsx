@@ -81,7 +81,7 @@ function FileCard({ file, index }: { file: ReceiptFileItem; index?: number }) {
     <div className="order-receipt-keep mt-2 rounded-lg border border-gray-200 px-3.5 py-3">
       <p className="break-words text-sm font-semibold text-gray-900">
         {typeof index === "number" && (
-          <span className="mr-1.5 text-gray-400">{index}.</span>
+          <span className="mr-1.5 text-gray-500">{index}.</span>
         )}
         {file.name}
         {photoSuffix(file) && (
@@ -262,7 +262,7 @@ export function OrderReceipt({ data }: { data: ReceiptData }) {
                       <span className="text-gray-500">{photoSuffix(f)}</span>
                     )}
                     {f.fileType && (
-                      <span className="mt-0.5 block text-[10px] text-gray-400">
+                      <span className="mt-0.5 block text-[10px] text-gray-500">
                         {f.fileType}
                       </span>
                     )}

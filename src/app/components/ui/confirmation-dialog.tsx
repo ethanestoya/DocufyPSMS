@@ -137,11 +137,11 @@ export function ConfirmationDialog({
                 className={`w-10 h-10 rounded-full ring-1 flex items-center justify-center flex-shrink-0 ${
                   destructive
                     ? "bg-red-50 ring-red-200"
-                    : "bg-[#F2F7FF] ring-[#1D73EC]/10"
+                    : "bg-[#F2F7FF] ring-[#1668D9]/10"
                 }`}
               >
                 <AlertTriangle
-                  className={`w-5 h-5 ${destructive ? "text-red-500" : "text-[#1D73EC]"}`}
+                  className={`w-5 h-5 ${destructive ? "text-red-500" : "text-[#1668D9]"}`}
                 />
               </div>
               <DialogTitle className="text-xl">{title}</DialogTitle>

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { adminMenuItems } from '../../utils/adminMenuItems';
 import { User, Mail, Phone, Calendar, Shield, Save, ArrowLeft, CheckCircle, Key, BriefcaseBusiness, AlertCircle, Camera } from 'lucide-react';
@@ -206,7 +206,7 @@ export default function AdminProfile() {
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Administrator Profile</h1>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Administrator Profile</h2>
               <p className="text-gray-600">Manage your admin account and system settings</p>
             </div>
             <Button variant="outline" className="hidden md:inline-flex bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-900" onClick={() => navigate('/admin/dashboard')}>
@@ -229,10 +229,10 @@ export default function AdminProfile() {
           <div className="flex flex-col md:flex-row gap-6 mb-6">
             {/* Avatar */}
             <div className="flex flex-col items-center gap-4">
-              <div className="relative flex h-32 w-32 items-center justify-center rounded-full bg-[#1D73EC] text-3xl font-semibold text-white">
+              <div className="relative flex h-32 w-32 items-center justify-center rounded-full bg-[#1668D9] text-3xl font-semibold text-white">
                 {profileImage ? <img src={profileImage} alt="Profile" className="h-full w-full rounded-full object-cover" /> : (user?.name || 'User').split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase()}
                 {isEditing && (
-                  <label className="absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-[#1D73EC] text-white shadow-lg ring-2 ring-white">
+                  <label className="absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-[#1668D9] text-white shadow-lg ring-2 ring-white">
                     <Camera className="h-4 w-4" />
                     <input type="file" accept="image/*" className="hidden" onChange={handleProfileImageChange} />
                   </label>
@@ -402,7 +402,7 @@ export default function AdminProfile() {
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <Key className="w-6 h-6 text-[#1D73EC]" />
+                <Key className="w-6 h-6 text-[#1668D9]" />
               </div>
               <DialogTitle className="text-xl">Change Password</DialogTitle>
             </div>
@@ -474,7 +474,7 @@ export default function AdminProfile() {
               disabled={!validatePassword(passwordData.newPassword).isValid || (passwordData.currentPassword === passwordData.newPassword && passwordData.currentPassword !== '')}
               className={`${
                 validatePassword(passwordData.newPassword).isValid && !(passwordData.currentPassword === passwordData.newPassword && passwordData.currentPassword !== '')
-                  ? "bg-white text-[#1D73EC] border-2 border-blue-200 hover:bg-[#1D73EC] hover:text-white"
+                  ? "bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
                   : "bg-gray-300 text-gray-500 cursor-not-allowed"
               }`}
             >

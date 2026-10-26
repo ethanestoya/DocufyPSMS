@@ -62,8 +62,8 @@ export default function LegalPolicyDialog({
             onClick={() => setTab("terms")}
             className={
               isTerms
-                ? "bg-[#1D73EC] text-white"
-                : "border-blue-200 text-[#1D73EC] hover:bg-[#F2F7FF]"
+                ? "bg-[#1668D9] text-white"
+                : "border-blue-200 text-[#1668D9] hover:bg-[#F2F7FF]"
             }
           >
             <FileText className="w-4 h-4 mr-1" /> Terms & Conditions
@@ -74,8 +74,8 @@ export default function LegalPolicyDialog({
             onClick={() => setTab("privacy")}
             className={
               isTerms
-                ? "border-blue-200 text-[#1D73EC] hover:bg-[#F2F7FF]"
-                : "bg-[#1D73EC] text-white"
+                ? "border-blue-200 text-[#1668D9] hover:bg-[#F2F7FF]"
+                : "bg-[#1668D9] text-white"
             }
           >
             <ShieldCheck className="w-4 h-4 mr-1" /> Privacy Policy

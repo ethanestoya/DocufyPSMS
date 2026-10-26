@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
 import {
   LayoutDashboard,
@@ -142,7 +142,7 @@ export default function CustomerOrders() {
             type="button"
             onClick={() => navigate(-1)}
             aria-label="Go back"
-            className="md:hidden inline-flex items-center gap-1 rounded-xl p-2 pl-0 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC]"
+            className="md:hidden inline-flex items-center gap-1 rounded-xl p-2 pl-0 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
           >
             <ArrowLeft className="h-5 w-5" />
             <span className="text-sm font-medium">Back</span>
@@ -283,7 +283,7 @@ export default function CustomerOrders() {
         <Card className="overflow-hidden bg-white shadow-sm gap-0">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-[#F2F7FF] border-b border-[#1D73EC]/10">
+              <thead className="bg-[#F2F7FF] border-b border-[#1668D9]/10">
                 <tr>
                   <th className="whitespace-nowrap px-4 py-2.5 align-middle text-left text-xs font-semibold text-[#10316B] uppercase tracking-wider">
                     Order ID
@@ -313,7 +313,7 @@ export default function CustomerOrders() {
                   <tr>
                     <td
                       colSpan={7}
-                      className="py-16 text-center text-sm text-gray-400"
+                      className="py-16 text-center text-sm text-gray-500"
                     >
                       No orders found.
                     </td>
@@ -337,9 +337,11 @@ export default function CustomerOrders() {
                       tabIndex={0}
                     >
                       <td className="py-4 px-4 text-sm font-medium text-gray-900">
-                        <div className="flex items-center gap-2">
-                          <span>{order.displayId ?? order.id}</span>
-                          {affectedOrderIds.has(order.id) && (
+                        <span className="whitespace-nowrap">
+                          {order.displayId ?? order.id}
+                        </span>
+                        {affectedOrderIds.has(order.id) && (
+                          <div className="mt-1">
                             <span
                               className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"
                               title="This order was recorded as unclaimed."
@@ -347,12 +349,12 @@ export default function CustomerOrders() {
                               <AlertTriangle className="h-3 w-3" aria-hidden="true" />
                               Unclaimed
                             </span>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </td>
                       <td className="py-4 px-4 text-sm text-gray-900">
                         <div className="flex min-w-0 items-center gap-2">
-                          <Eye className="h-5 w-5 shrink-0 text-[#1D73EC]" aria-hidden="true" />
+                          <Eye className="h-5 w-5 shrink-0 text-[#1668D9]" aria-hidden="true" />
                           <span className="max-w-[8rem] truncate sm:max-w-none">{order.fileName || "N/A"}</span>
                         </div>
                       </td>
@@ -369,10 +371,10 @@ export default function CustomerOrders() {
                       <td className="hidden sm:table-cell py-4 px-4 text-sm font-medium text-gray-900">
                         {order.total}
                       </td>
-                      <td className="hidden sm:table-cell py-4 px-4 text-sm text-gray-600">
+                      <td className="hidden sm:table-cell py-4 px-4 text-sm text-gray-600 whitespace-nowrap">
                         {formatPHDate(order.date, "short")}
                       </td>
-                      <td className="hidden sm:table-cell py-4 px-4 text-sm text-gray-600">
+                      <td className="hidden sm:table-cell py-4 px-4 text-sm text-gray-600 whitespace-nowrap">
                         {formatPHTime(order.createdAt || order.date)}
                       </td>
                     </tr>

@@ -308,6 +308,7 @@ function InventoryReports() {
         <div className="flex flex-wrap items-center gap-2">
           {categoryFilter !== "all" && (
             <ZoomSafeDropdown
+              label="Category filter"
               value={categoryFilter}
               onChange={setCategoryFilter}
               placeholder="All Categories"
@@ -357,6 +358,7 @@ function InventoryReports() {
             )}
           </div>
           <ZoomSafeDropdown
+            label="Category filter"
             value={categoryFilter}
             onChange={(v) => { setCategoryFilter(v); if (v === "all") setItemFilter("all"); }}
             placeholder="All Categories"
@@ -364,6 +366,7 @@ function InventoryReports() {
             options={categories.map((c) => ({ value: c, label: c === "all" ? "All Categories" : c }))}
           />
           <ZoomSafeDropdown
+            label="Item filter"
             value={itemFilter}
             onChange={setItemFilter}
             placeholder="All Items"
@@ -653,6 +656,7 @@ export default function InventoryManagement({
       (item.brand || "").toLowerCase().includes(q)
     );
   });
+
 
   // Pagination derived values
   const pageCount = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));

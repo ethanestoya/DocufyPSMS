@@ -200,7 +200,7 @@ export default function PaymentMethodsManagement() {
 
         {/* Summary */}
         <div className="grid grid-cols-1 @min-[720px]:grid-cols-3 gap-3 sm:gap-4">
-          <SummaryCard icon={QrCode} label="Total Methods" value={methods.length} iconBg="bg-[#F2F7FF]" iconColor="text-[#1D73EC]" />
+          <SummaryCard icon={QrCode} label="Total Methods" value={methods.length} iconBg="bg-[#F2F7FF]" iconColor="text-[#1668D9]" />
           <SummaryCard icon={UserCheck} label="Active for Customers" value={activeCount} iconBg="bg-green-50" iconColor="text-green-600" />
           <SummaryCard icon={Ban} label="Inactive" value={methods.length - activeCount} iconBg="bg-gray-100" iconColor="text-gray-500" />
         </div>
@@ -390,7 +390,7 @@ export default function PaymentMethodsManagement() {
             <div className="space-y-2">
               <Label>QR Code</Label>
               {form.qrCode ? (
-                <div className="flex items-center gap-3 p-3 bg-white border-2 border-[#1D73EC]/15 rounded-lg">
+                <div className="flex items-center gap-3 p-3 bg-white border-2 border-[#1668D9]/15 rounded-lg">
                   <img
                     src={form.qrCode}
                     alt="QR preview"

@@ -18,6 +18,7 @@ import {
   Facebook,
   MessageCircle,
   ChevronDown,
+  Menu,
   X,
 } from "lucide-react";
 import { Button } from "./ui/button";
@@ -27,6 +28,7 @@ import { pricingStore, type PricingMatrix } from "../utils/pricingStore";
 import { shopPhotosStore, type ShopPhoto } from "../utils/shopPhotosStore";
 import { landingContentStore, DEFAULT_MAP_EMBED, type LandingPageContent } from "../utils/landingContentStore";
 import { useAuth } from "../contexts/AuthContext";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { usePresence } from "./ui/use-presence";
 import { ConfirmationDialog } from "./ui/confirmation-dialog";
 import ShopStatusBanner from "./shared/ShopStatusBanner";
@@ -50,6 +52,10 @@ export default function LandingPage({
   const logo = useLogo();
   const { user, logout } = useAuth();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  // The section links were hidden below md with no replacement, so a phone
+  // visitor could only scroll and hope (F29).
+  const [isNavOpen, setIsNavOpen] = useState(false);
+  usePageTitle("Docufy PSMS - Printing Shop Management System", false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const profilePresence = usePresence(isProfileOpen, 200);
@@ -259,9 +265,9 @@ export default function LandingPage({
   return (
     <div ref={landingRootRef} className="min-h-screen bg-[#F2F7FF] relative overflow-clip">
       {/* Decorative Background Elements */}
-      <div className="absolute top-0 left-0 w-96 h-96 bg-[#1D73EC] rounded-full opacity-5 blur-3xl -translate-x-48 -translate-y-48 pointer-events-none" />
+      <div className="absolute top-0 left-0 w-96 h-96 bg-[#1668D9] rounded-full opacity-5 blur-3xl -translate-x-48 -translate-y-48 pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#10316B] rounded-full opacity-5 blur-3xl translate-x-48 translate-y-48 pointer-events-none" />
-      <div className="absolute top-1/3 left-1/3 w-64 h-64 bg-[#1D73EC] rounded-full opacity-5 blur-3xl pointer-events-none" />
+      <div className="absolute top-1/3 left-1/3 w-64 h-64 bg-[#1668D9] rounded-full opacity-5 blur-3xl pointer-events-none" />
 
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 border-b border-gray-200 bg-white backdrop-blur-md z-50 shadow-sm">
@@ -280,34 +286,52 @@ export default function LandingPage({
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-8">
-            <nav className="hidden md:flex items-center gap-6">
+            <nav aria-label="Landing sections" className="hidden md:flex items-center gap-6">
               {navItems.map((item) => {
                 const isActive = activeSection === item.id;
                 return (
-                  <button
+                  <a
                     key={item.id}
-                    onClick={() => {
+                    href={`#${item.id}`}
+                    aria-current={isActive ? "location" : undefined}
+                    onClick={(e) => {
+                      e.preventDefault();
                       setActiveSection(item.id);
                       scrollToSection(item.id);
                     }}
                     className={`group relative pb-1 font-medium transition-colors duration-200 ${
                       isActive
-                        ? "text-[#1D73EC]"
-                        : "text-[#1c1f26] hover:text-[#1D73EC]"
+                        ? "text-[#1668D9]"
+                        : "text-[#1c1f26] hover:text-[#1668D9]"
                     }`}
                   >
                     {item.label}
                     <span
-                      className={`absolute bottom-0 left-0 right-0 h-[2.5px] rounded-full bg-[#1D73EC] transition-transform duration-300 ease-out ${
+                      className={`absolute bottom-0 left-0 right-0 h-[2.5px] rounded-full bg-[#1668D9] transition-transform duration-300 ease-out ${
                         isActive
                           ? "scale-x-100"
                           : "scale-x-0 group-hover:scale-x-100"
                       }`}
                     />
-                  </button>
+                  </a>
                 );
               })}
             </nav>
+
+            <button
+              type="button"
+              onClick={() => setIsNavOpen((open) => !open)}
+              aria-label={isNavOpen ? "Close section menu" : "Open section menu"}
+              aria-expanded={isNavOpen}
+              aria-controls="landing-mobile-nav"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-[#1c1f26] transition-colors hover:bg-gray-50 md:hidden"
+            >
+              {isNavOpen ? (
+                <X className="h-5 w-5" aria-hidden="true" />
+              ) : (
+                <Menu className="h-5 w-5" aria-hidden="true" />
+              )}
+            </button>
 
             {user ? (
               <div className="relative shrink-0" ref={profileMenuRef}>
@@ -317,9 +341,9 @@ export default function LandingPage({
                   aria-label="Open profile"
                   aria-expanded={isProfileOpen}
                   aria-haspopup="menu"
-                  className="rounded-full transition-all duration-200 hover:scale-105 hover:ring-2 hover:ring-[#1D73EC]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC] focus-visible:ring-offset-2"
+                  className="rounded-full transition-all duration-200 hover:scale-105 hover:ring-2 hover:ring-[#1668D9]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9] focus-visible:ring-offset-2"
                 >
-                  <div className="h-10 w-10 overflow-hidden rounded-full bg-[#1D73EC] text-white shadow-sm flex items-center justify-center font-bold text-xs">
+                  <div className="h-10 w-10 overflow-hidden rounded-full bg-[#1668D9] text-white shadow-sm flex items-center justify-center font-bold text-xs">
                     {user.profileImage ? (
                       <img src={user.profileImage} alt={user.name} className="h-full w-full object-cover" />
                     ) : (
@@ -367,13 +391,48 @@ export default function LandingPage({
               <Button
                 variant="outline"
                 onClick={() => navigate("/login")}
-                className="h-9 rounded-lg border-[1.5px] border-[#1D73EC] bg-white px-3 text-xs font-medium text-[#1D73EC] transition-colors duration-200 hover:translate-y-0 hover:border-[#1D73EC] hover:bg-[#1D73EC]/5 hover:text-[#1D73EC] hover:shadow-none active:translate-y-0 active:border-[#1D73EC]/70 active:bg-[#1D73EC]/10 sm:h-10 sm:px-4 sm:text-sm"
+                className="h-9 rounded-lg border-[1.5px] border-[#1668D9] bg-white px-3 text-xs font-medium text-[#1668D9] transition-colors duration-200 hover:translate-y-0 hover:border-[#1668D9] hover:bg-[#1668D9]/5 hover:text-[#1668D9] hover:shadow-none active:translate-y-0 active:border-[#1668D9]/70 active:bg-[#1668D9]/10 sm:h-10 sm:px-4 sm:text-sm"
               >
                 Log In
               </Button>
             )}
           </div>
         </div>
+
+        {isNavOpen && (
+          <nav
+            id="landing-mobile-nav"
+            aria-label="Landing sections"
+            className="border-t border-gray-200 bg-white px-4 py-2 sm:px-6 md:hidden"
+          >
+            <ul className="flex flex-col">
+              {navItems.map((item) => {
+                const isActive = activeSection === item.id;
+                return (
+                  <li key={item.id}>
+                    <a
+                      href={`#${item.id}`}
+                      aria-current={isActive ? "location" : undefined}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setActiveSection(item.id);
+                        scrollToSection(item.id);
+                        setIsNavOpen(false);
+                      }}
+                      className={`flex min-h-11 items-center rounded-lg px-3 text-sm font-medium transition-colors ${
+                        isActive
+                          ? "bg-[#F2F7FF] text-[#1668D9]"
+                          : "text-[#1c1f26] hover:bg-gray-50"
+                      }`}
+                    >
+                      {item.label}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+        )}
       </header>
 
       <div className="relative z-10 mx-auto w-full max-w-7xl min-[1366px]:max-w-[93.7vw] px-4 sm:px-6 pt-4">
@@ -388,8 +447,8 @@ export default function LandingPage({
         <div className="relative mx-auto w-full max-w-7xl min-[1366px]:max-w-[93.7vw] px-4 sm:px-6">
           <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-[3.5vw]">
             <div className="min-w-0 text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-[#1D73EC]/20 text-[#1D73EC] rounded-full text-sm font-medium mb-6">
-                <span className="w-2 h-2 bg-[#1D73EC] rounded-full animate-pulse"></span>
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-[#1668D9]/20 text-[#1668D9] rounded-full text-sm font-medium mb-6">
+                <span className="w-2 h-2 bg-[#1668D9] rounded-full animate-pulse"></span>
                 {content.heroSubtitle}
               </div>
               <h2 className="mb-5 font-bold leading-tight text-[#1c1f26] text-[clamp(2.25rem,7vw,3rem)] lg:text-[clamp(3rem,4.4vw,5rem)]">
@@ -401,7 +460,7 @@ export default function LandingPage({
                     <span
                       key={i}
                       className={`block ${
-                        line.includes("#b") ? "text-[#1D73EC]" : ""
+                        line.includes("#b") ? "text-[#1668D9]" : ""
                       }`}
                     >
                       {line.replace(/#b/gi, "").trim()}
@@ -414,7 +473,7 @@ export default function LandingPage({
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <Button
                   size="lg"
-                  className="bg-[#1D73EC] text-white hover:bg-[#0f66d9] rounded-lg transition-all duration-200 active:scale-[0.98] active:shadow-sm shadow-md shadow-[#1D73EC]/30 hover:shadow-lg hover:shadow-[#1D73EC]/35 group"
+                  className="bg-[#1668D9] text-white hover:bg-[#0f66d9] rounded-lg transition-all duration-200 active:scale-[0.98] active:shadow-sm shadow-md shadow-[#1668D9]/30 hover:shadow-lg hover:shadow-[#1668D9]/35 group"
                   onClick={() => navigate("/signup")}
                 >
                   Get Started
@@ -446,7 +505,7 @@ export default function LandingPage({
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-[1.5px] border-blue-300 bg-[#F2F7FF] sm:h-9 sm:w-9">
                         {React.cloneElement(feature.icon, {
                           className:
-                            "w-[16px] h-[16px] text-[#1D73EC] stroke-2 sm:w-[18px] sm:h-[18px]",
+                            "w-[16px] h-[16px] text-[#1668D9] stroke-2 sm:w-[18px] sm:h-[18px]",
                         })}
                       </div>
                       <span className="flex flex-col leading-tight">
@@ -470,7 +529,7 @@ export default function LandingPage({
             </div>
 
             <div className="order-first flex w-full items-center justify-center lg:order-none">
-              <div className="flex aspect-square w-[min(12rem,60vw)] items-center justify-center rounded-full bg-[#1D73EC] shadow-2xl sm:w-[min(18rem,50vw)] lg:w-[clamp(24rem,28.1vw,48rem)]">
+              <div className="flex aspect-square w-[min(12rem,60vw)] items-center justify-center rounded-full bg-[#1668D9] shadow-2xl sm:w-[min(18rem,50vw)] lg:w-[clamp(24rem,28.1vw,48rem)]">
                 <img
                   src={logo}
                   alt="Docufy"
@@ -489,7 +548,7 @@ export default function LandingPage({
       >
         <div className="mx-auto w-full max-w-7xl min-[1366px]:max-w-[93.7vw] px-4 sm:px-6">
           <div className="mb-12 text-center">
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#1D73EC]">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#1668D9]">
               Services &amp; Pricing
             </p>
             <h2 className="mt-4 text-[clamp(1.875rem,2.64vw,5rem)] font-bold text-[#1c1f26]">
@@ -503,13 +562,13 @@ export default function LandingPage({
             ref={servicesScrollerRef}
             className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-2 md:grid md:grid-cols-3 md:gap-6 md:overflow-visible md:pb-0 lg:gap-8"
           >
-            <Card data-services-card="0" className="flex w-[85%] shrink-0 snap-center flex-col rounded-2xl border-2 border-[#F2F7FF] bg-white p-8 shadow-lg transition-all duration-200 hover:scale-105 hover:border-[#1D73EC] hover:shadow-2xl md:w-auto">
+            <Card data-services-card="0" className="flex w-[85%] shrink-0 snap-center flex-col rounded-2xl border-2 border-[#F2F7FF] bg-white p-8 shadow-lg transition-all duration-200 hover:scale-105 hover:border-[#1668D9] hover:shadow-2xl md:w-auto">
               <div className="flex items-start justify-between">
                 <div className="flex w-16 h-16 bg-[#F2F7FF] rounded-2xl items-center justify-center">
-                  <Printer className="w-8 h-8 text-[#1D73EC]" />
+                  <Printer className="w-8 h-8 text-[#1668D9]" />
                 </div>
                 {content.serviceCards[0].badge && (
-                  <div className="inline-block px-3 py-1 bg-[#1D73EC] text-white text-xs font-bold rounded-full">
+                  <div className="inline-block px-3 py-1 bg-[#1668D9] text-white text-xs font-bold rounded-full">
                     {content.serviceCards[0].badge}
                   </div>
                 )}
@@ -531,7 +590,7 @@ export default function LandingPage({
                 </dl>
               </div>
               <div className="pt-6 mt-7 border-t border-gray-100">
-                <div className="text-[clamp(2.25rem,2.64vw,5rem)] font-bold text-[#1D73EC]">
+                <div className="text-[clamp(2.25rem,2.64vw,5rem)] font-bold text-[#1668D9]">
                   ₱{matrix.document.text.bw.a4.toFixed(2)}{" "}
                   <span className="text-base font-normal text-gray-500">
                     per page
@@ -540,7 +599,7 @@ export default function LandingPage({
               </div>
             </Card>
 
-            <Card data-services-card="1" className="relative flex w-[85%] shrink-0 snap-center flex-col overflow-hidden rounded-2xl bg-[#1D73EC] p-8 text-white shadow-xl transition-all duration-200 hover:scale-105 hover:shadow-2xl md:w-auto">
+            <Card data-services-card="1" className="relative flex w-[85%] shrink-0 snap-center flex-col overflow-hidden rounded-2xl bg-[#1668D9] p-8 text-white shadow-xl transition-all duration-200 hover:scale-105 hover:shadow-2xl md:w-auto">
               <div className="absolute top-0 right-0 w-24 h-24 bg-white opacity-10 rounded-full -translate-y-12 translate-x-12" />
               <div className="absolute bottom-0 left-0 w-16 h-16 bg-white opacity-10 rounded-full translate-y-8 -translate-x-8" />
               <div className="relative z-10 flex flex-col">
@@ -549,7 +608,7 @@ export default function LandingPage({
                     <Palette className="w-8 h-8 text-white" />
                   </div>
                   {content.serviceCards[1].badge && (
-                    <div className="inline-block px-3 py-1 bg-white text-[#1D73EC] text-xs font-bold rounded-full">
+                    <div className="inline-block px-3 py-1 bg-white text-[#1668D9] text-xs font-bold rounded-full">
                       {content.serviceCards[1].badge}
                     </div>
                   )}
@@ -581,13 +640,13 @@ export default function LandingPage({
               </div>
             </Card>
 
-            <Card data-services-card="2" className="flex w-[85%] shrink-0 snap-center flex-col rounded-2xl border-2 border-[#F2F7FF] bg-white p-8 shadow-lg transition-all duration-200 hover:scale-105 hover:border-[#1D73EC] hover:shadow-2xl md:w-auto">
+            <Card data-services-card="2" className="flex w-[85%] shrink-0 snap-center flex-col rounded-2xl border-2 border-[#F2F7FF] bg-white p-8 shadow-lg transition-all duration-200 hover:scale-105 hover:border-[#1668D9] hover:shadow-2xl md:w-auto">
               <div className="flex items-start justify-between">
                 <div className="flex w-16 h-16 bg-[#F2F7FF] rounded-2xl items-center justify-center">
-                  <Package className="w-8 h-8 text-[#1D73EC]" />
+                  <Package className="w-8 h-8 text-[#1668D9]" />
                 </div>
                 {content.serviceCards[2].badge && (
-                  <div className="inline-block px-3 py-1 bg-[#1D73EC] text-white text-xs font-bold rounded-full">
+                  <div className="inline-block px-3 py-1 bg-[#1668D9] text-white text-xs font-bold rounded-full">
                     {content.serviceCards[2].badge}
                   </div>
                 )}
@@ -609,7 +668,7 @@ export default function LandingPage({
                 </dl>
               </div>
               <div className="pt-6 mt-7 border-t border-gray-100">
-                <div className="text-[clamp(2.25rem,2.64vw,5rem)] font-bold text-[#1D73EC]">
+                <div className="text-[clamp(2.25rem,2.64vw,5rem)] font-bold text-[#1668D9]">
                   ₱{Math.min(matrix.vellum.bw.a4, matrix.sticker.bw, matrix.photo["2R"].price).toFixed(2)}{" "}
                   <span className="text-base font-normal text-gray-500">
                     from
@@ -628,7 +687,7 @@ export default function LandingPage({
       >
         <div className="relative mx-auto w-full max-w-7xl min-[1366px]:max-w-[93.7vw] px-4 sm:px-6">
           <div className="mx-auto mb-12 max-w-2xl text-center lg:mb-16">
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#1D73EC]">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#1668D9]">
               Shop Information
             </p>
             <h2 className="mt-4 text-[clamp(1.875rem,2.64vw,5rem)] font-bold text-[#1c1f26]">
@@ -647,7 +706,7 @@ export default function LandingPage({
               {/* Shop Hours */}
               <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
                 <h3 className="flex items-center gap-3 text-xl font-bold text-[#1c1f26]">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-white text-[#1D73EC]">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-white text-[#1668D9]">
                     <Clock className="h-4 w-4" />
                   </span>
                   Shop Hours
@@ -666,7 +725,7 @@ export default function LandingPage({
                   ))}
                 </dl>
                 {content.hoursNote && (
-                  <p className="mt-3 flex items-center gap-1.5 text-lg font-medium text-[#1D73EC]">
+                  <p className="mt-3 flex items-center gap-1.5 text-lg font-medium text-[#1668D9]">
                     <CheckCircle2 className="h-5 w-5 shrink-0" />
                     {content.hoursNote}
                   </p>
@@ -677,7 +736,7 @@ export default function LandingPage({
               <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="flex items-center gap-3 text-xl font-bold text-[#1c1f26]">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-white text-[#1D73EC]">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-white text-[#1668D9]">
                       <MapPin className="h-4 w-4" />
                     </span>
                     Location
@@ -742,7 +801,7 @@ export default function LandingPage({
       >
         <div className="relative mx-auto w-full max-w-7xl min-[1366px]:max-w-[93.7vw] px-4 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#1D73EC]">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#1668D9]">
               Join Our Team
             </p>
             <h2 className="mt-4 text-[clamp(1.875rem,2.64vw,5rem)] font-bold text-[#1c1f26]">
@@ -756,7 +815,7 @@ export default function LandingPage({
                 type="button"
                 onClick={() => setJobsDropdownOpen((prev) => !prev)}
                 aria-expanded={jobsDropdownOpen}
-                className="h-12 rounded-lg bg-[#1D73EC] px-7 text-white shadow-md shadow-[#1D73EC]/30 transition-all duration-200 hover:bg-[#0f66d9] hover:shadow-lg hover:shadow-[#1D73EC]/35 active:scale-[0.98] active:shadow-sm"
+                className="h-12 rounded-lg bg-[#1668D9] px-7 text-white shadow-md shadow-[#1668D9]/30 transition-all duration-200 hover:bg-[#0f66d9] hover:shadow-lg hover:shadow-[#1668D9]/35 active:scale-[0.98] active:shadow-sm"
               >
                 {jobs.length > 0 ? "View Job Openings" : "Join Our Team"}
                 <ChevronDown
@@ -776,7 +835,7 @@ export default function LandingPage({
                   {jobs.length === 0 ? (
                     <div className="px-6 py-8 text-center">
                       <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#F2F7FF]">
-                        <Briefcase className="h-6 w-6 text-[#1D73EC]" />
+                        <Briefcase className="h-6 w-6 text-[#1668D9]" />
                       </div>
                       <p className="text-base font-semibold text-[#1c1f26]">
                         We're not hiring right now
@@ -797,8 +856,8 @@ export default function LandingPage({
                             }}
                             className="group flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[#F2F7FF]"
                           >
-                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#F2F7FF] transition-colors group-hover:bg-[#1D73EC]/10">
-                              <Briefcase className="h-5 w-5 text-[#1D73EC]" />
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#F2F7FF] transition-colors group-hover:bg-[#1668D9]/10">
+                              <Briefcase className="h-5 w-5 text-[#1668D9]" />
                             </span>
                             <span className="min-w-0 flex-1">
                               <span className="block truncate text-sm font-semibold text-[#1c1f26]">
@@ -814,7 +873,7 @@ export default function LandingPage({
                                   .join(" \u00b7 ")}
                               </span>
                             </span>
-                            <ArrowRight className="h-4 w-4 shrink-0 text-[#1D73EC] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+                            <ArrowRight className="h-4 w-4 shrink-0 text-[#1668D9] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
                           </button>
                         </li>
                       ))}

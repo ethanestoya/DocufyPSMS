@@ -1,6 +1,7 @@
 import { useLogo } from "../hooks/useLogo";
+import { usePageTitle } from "../hooks/usePageTitle";
 import React, { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import {
   ArrowLeft,
   Eye,
@@ -17,9 +18,28 @@ import { useAuth } from "../contexts/AuthContext";
 import { ImageWithFallback } from "./shared/ImageWithFallback";
 import { useAuthBackgroundUrl } from "../hooks/useAuthBackgroundUrl";
 import { PasswordStrengthIndicator, validatePassword } from "./ui/password-strength-indicator";
+import { FieldError, describedBy } from "./ui/field-error";
+import { checkEmailAllowed } from "../utils/authEmailPolicy";
+
+/** Order in which invalid signup fields take focus (visual order on the form). */
+const FIELD_ORDER = [
+  "firstName",
+  "lastName",
+  "email",
+  "contactNumber",
+  "password",
+  "confirmPassword",
+  "terms",
+];
 
 export default function SignUpPage() {
   const navigate = useNavigate();
+  usePageTitle("Create an account");
+  const [searchParams] = useSearchParams();
+  // Landing-page "Apply" links arrive as /signup?jobId=…; after the account is
+  // created the visitor goes straight to that position's application instead of
+  // the dashboard (F02).
+  const pendingJobId = searchParams.get("jobId");
   const logo = useLogo();
   const authBg = useAuthBackgroundUrl();
   const { signup, signInWithGoogle } = useAuth();
@@ -39,6 +59,14 @@ export default function SignUpPage() {
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  // Inline validation. Every reason a signup can be refused is shown next to the
+  // field that caused it, and the submit button is never silently disabled.
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  // Whether the person has actually started filling the form in. Until they
+  // have, pressing the button gets one calm pointer at the first field instead
+  // of a wall of red — plenty of people press it out of curiosity before they
+  // have decided to sign up.
+  const [hasEngaged, setHasEngaged] = useState(false);
 
   const handleProfileImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -65,42 +93,91 @@ export default function SignUpPage() {
     }
   };
 
+  // Check every rule up front, then show each failure on its own field. The
+  // submit button stays clickable: a disabled button with no explanation tells
+  // the person nothing about what is wrong.
+  const validateForm = () => {
+    const next: Record<string, string> = {};
+
+    if (!formData.firstName.trim()) next.firstName = "Enter your first name.";
+    if (!formData.lastName.trim()) next.lastName = "Enter your last name.";
+
+    const emailCheck = checkEmailAllowed(formData.email);
+    if (!formData.email.trim()) {
+      next.email = "Enter your email address.";
+    } else if (!emailCheck.allowed) {
+      next.email = emailCheck.message || "Enter a valid email address.";
+    }
+
+    if (!formData.contactNumber.trim()) {
+      next.contactNumber = "Enter your contact number.";
+    } else if (formData.contactNumber.length !== 11) {
+      next.contactNumber =
+        "Enter an 11-digit mobile number, e.g. 09171234567.";
+    }
+
+    const passwordValidation = validatePassword(formData.password);
+    if (!formData.password) {
+      next.password = "Choose a password.";
+    } else if (!passwordValidation.isValid) {
+      next.password = `${passwordValidation.errors[0]}.`;
+    }
+
+    if (!formData.confirmPassword) {
+      next.confirmPassword = "Re-enter your password.";
+    } else if (formData.password !== formData.confirmPassword) {
+      next.confirmPassword = "Passwords do not match.";
+    }
+
+    if (!formData.agreeTerms) {
+      next.terms =
+        "Agree to the Terms and Conditions to create an account.";
+    }
+
+    const firstInvalid = FIELD_ORDER.find((field) => next[field]);
+
+    // Flag a field only once the person has given the form a real go. An
+    // untouched form reveals just the first thing to fill in; a form they have
+    // started reveals everything they forgot, in one pass.
+    const shown = hasEngaged
+      ? next
+      : firstInvalid
+        ? { [firstInvalid]: next[firstInvalid] }
+        : {};
+    setErrors(shown);
+
+    if (firstInvalid) document.getElementById(firstInvalid)?.focus();
+
+    return !firstInvalid;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
-
-    // Validate password strength
-    const passwordValidation = validatePassword(formData.password);
-    if (!passwordValidation.isValid) {
-      toast.error("Password does not meet security requirements");
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      toast.error("Passwords do not match");
-      return;
-    }
-    if (!formData.agreeTerms) {
-      toast.error(
-        "Please agree to the terms and file retention policy",
-      );
-      return;
-    }
+    if (!validateForm()) return;
 
     setIsSubmitting(true);
     const success = await signup({ ...formData, profileImage: profileImage ?? undefined });
     setIsSubmitting(false);
-    if (success) navigate("/customer/dashboard");
+    if (success)
+      navigate(
+        pendingJobId
+          ? `/customer/job-apply/${pendingJobId}`
+          : "/customer/dashboard",
+        { replace: Boolean(pendingJobId) },
+      );
   };
 
   const handleChange = (field: string, value: any) => {
+    if (value) setHasEngaged(true);
     setFormData((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
   };
-
-  const canSubmit =
-    formData.agreeTerms &&
-    validatePassword(formData.password).isValid &&
-    !isSubmitting;
 
   return (
     <div className="min-h-[100dvh] flex flex-col lg:flex-row font-poppins bg-white lg:h-screen lg:overflow-hidden max-lg:overflow-x-hidden">
@@ -139,7 +216,7 @@ export default function SignUpPage() {
             />
           </div>
           <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">
-            Docufy<span className="text-[#1D73EC]">.</span>
+            Docufy<span className="text-[#1668D9]">.</span>
           </h1>
           <h2 className="text-xl font-medium text-white mb-4">
             Partner with Docufy
@@ -158,7 +235,7 @@ export default function SignUpPage() {
           <button
             type="button"
             onClick={() => navigate("/")}
-            className="lg:hidden inline-flex items-center gap-1.5 text-sm font-medium text-[#1D73EC] py-2 -ml-2"
+            className="lg:hidden inline-flex items-center gap-1.5 text-sm font-medium text-[#1668D9] py-2 -ml-2"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Home
@@ -185,7 +262,7 @@ export default function SignUpPage() {
 
           {/* Profile photo — compact */}
           <div className="mb-5 flex items-center justify-center lg:justify-start gap-3 lg:gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 lg:p-3">
-            <div className="relative h-12 w-12 shrink-0 lg:h-16 lg:w-16 overflow-hidden rounded-full border-2 border-[#1D73EC] bg-[#EAF2FF] text-sm lg:text-xl font-bold text-[#1D73EC] flex items-center justify-center">
+            <div className="relative h-12 w-12 shrink-0 lg:h-16 lg:w-16 overflow-hidden rounded-full border-2 border-[#1668D9] bg-[#EAF2FF] text-sm lg:text-xl font-bold text-[#1668D9] flex items-center justify-center">
               {profileImage ? (
                 <img src={profileImage} alt="Profile preview" className="h-full w-full object-cover" />
               ) : (
@@ -194,7 +271,7 @@ export default function SignUpPage() {
             </div>
             <div className="flex flex-col gap-1.5">
               <div className="flex flex-wrap gap-2">
-                <label className="inline-flex cursor-pointer items-center rounded-lg bg-[#1D73EC] px-3 py-2 text-xs font-medium text-white">
+                <label className="inline-flex cursor-pointer items-center rounded-lg bg-[#1668D9] px-3 py-2 text-xs font-medium text-white">
                   Upload photo
                   <input type="file" accept="image/*" className="hidden" onChange={handleProfileImageChange} />
                 </label>
@@ -210,7 +287,7 @@ export default function SignUpPage() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-3">
+          <form onSubmit={handleSubmit} noValidate className="space-y-3">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label
@@ -230,8 +307,13 @@ export default function SignUpPage() {
                   autoComplete="given-name"
                   enterKeyHint="next"
                   className="h-10 bg-[#F2F7FF] border-transparent rounded-xl text-sm"
+                  aria-invalid={!!errors.firstName || undefined}
+                  aria-describedby={describedBy(
+                    errors.firstName && "firstName-error",
+                  )}
                   required
                 />
+                <FieldError id="firstName-error" message={errors.firstName} />
               </div>
               <div className="space-y-1">
                 <Label
@@ -251,8 +333,13 @@ export default function SignUpPage() {
                   autoComplete="family-name"
                   enterKeyHint="next"
                   className="h-10 bg-[#F2F7FF] border-transparent rounded-xl text-sm"
+                  aria-invalid={!!errors.lastName || undefined}
+                  aria-describedby={describedBy(
+                    errors.lastName && "lastName-error",
+                  )}
                   required
                 />
+                <FieldError id="lastName-error" message={errors.lastName} />
               </div>
             </div>
 
@@ -275,12 +362,13 @@ export default function SignUpPage() {
                   autoComplete="email"
                   enterKeyHint="next"
                   className="h-10 bg-[#F2F7FF] border-transparent rounded-xl text-sm"
+                  aria-invalid={!!errors.email || undefined}
+                  aria-describedby={describedBy(
+                    errors.email && "email-error",
+                  )}
                   required
                 />
-                <p className="text-[11px] text-slate-500">
-                  Use your organization email address. Personal providers like
-                  Gmail, Yahoo, or Outlook are not allowed.
-                </p>
+                <FieldError id="email-error" message={errors.email} />
               </div>
               <div className="space-y-1">
                 <Label
@@ -303,8 +391,16 @@ export default function SignUpPage() {
                   autoComplete="tel"
                   enterKeyHint="next"
                   className="h-10 bg-[#F2F7FF] border-transparent rounded-xl text-sm"
+                  aria-invalid={!!errors.contactNumber || undefined}
+                  aria-describedby={describedBy(
+                    errors.contactNumber && "contactNumber-error",
+                  )}
                   required
                   maxLength={11}
+                />
+                <FieldError
+                  id="contactNumber-error"
+                  message={errors.contactNumber}
                 />
               </div>
             </div>
@@ -330,6 +426,10 @@ export default function SignUpPage() {
                         handleChange("password", e.target.value)
                       }
                       className="h-10 bg-[#F2F7FF] border-transparent rounded-xl pr-10 text-sm"
+                      aria-invalid={!!errors.password || undefined}
+                      aria-describedby={describedBy(
+                        errors.password && "password-error",
+                      )}
                       required
                     />
                     <button
@@ -339,7 +439,7 @@ export default function SignUpPage() {
                       onClick={() =>
                         setShowPassword(!showPassword)
                       }
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 p-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC]"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 p-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
                     >
                       {showPassword ? (
                         <EyeOff size={18} />
@@ -348,6 +448,7 @@ export default function SignUpPage() {
                       )}
                     </button>
                   </div>
+                  <FieldError id="password-error" message={errors.password} />
                 </div>
                 <div className="space-y-1">
                   <Label
@@ -373,6 +474,10 @@ export default function SignUpPage() {
                         )
                       }
                       className="h-10 bg-[#F2F7FF] border-transparent rounded-xl pr-10 text-sm"
+                      aria-invalid={!!errors.confirmPassword || undefined}
+                      aria-describedby={describedBy(
+                        errors.confirmPassword && "confirmPassword-error",
+                      )}
                       required
                     />
                     <button
@@ -384,7 +489,7 @@ export default function SignUpPage() {
                           !showConfirmPassword,
                         )
                       }
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 p-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC]"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 p-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
                     >
                       {showConfirmPassword ? (
                         <EyeOff size={18} />
@@ -393,6 +498,10 @@ export default function SignUpPage() {
                       )}
                     </button>
                   </div>
+                  <FieldError
+                    id="confirmPassword-error"
+                    message={errors.confirmPassword}
+                  />
                 </div>
               </div>
 
@@ -410,11 +519,15 @@ export default function SignUpPage() {
                 onCheckedChange={(checked) =>
                   handleChange("agreeTerms", checked)
                 }
-                className="mt-0.5 size-5 lg:size-4 rounded-[6px]"
+                className="mt-0.5 size-5 rounded-[6px]"
+                aria-invalid={!!errors.terms || undefined}
+                aria-describedby={describedBy(
+                  errors.terms && "terms-error",
+                )}
               />
               <label
                 htmlFor="terms"
-                className="text-xs lg:text-[11px] text-gray-500 leading-snug cursor-pointer py-0.5"
+                className="text-xs lg:text-[11px] text-gray-500 leading-snug cursor-pointer py-1 min-h-6"
               >
                 I agree to the{" "}
                 <button
@@ -423,21 +536,18 @@ export default function SignUpPage() {
                     e.preventDefault();
                     setShowTerms(true);
                   }}
-                  className="text-[#1D73EC] hover:underline font-medium"
+                  className="inline-block py-1 -my-1 text-[#1668D9] hover:underline font-medium"
                 >
                   Terms and Conditions
                 </button>
               </label>
             </div>
+            <FieldError id="terms-error" message={errors.terms} />
 
             <Button
               type="submit"
-              disabled={!canSubmit}
-              className={`w-full h-11 lg:h-10 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                canSubmit
-                  ? "bg-[#1D73EC] text-white border-2 border-[#1D73EC] hover:bg-[#10316B] hover:border-[#10316B] shadow-md cursor-pointer lg:bg-white lg:text-[#1D73EC] lg:border-blue-200 lg:hover:bg-[#1D73EC] lg:hover:text-white lg:hover:border-blue-200"
-                  : "bg-gray-300 text-gray-500 border-2 border-gray-300 cursor-not-allowed"
-              }`}
+              disabled={isSubmitting}
+              className="w-full h-11 lg:h-10 rounded-xl text-sm font-semibold transition-all duration-200 bg-[#1668D9] text-white border-2 border-[#1668D9] hover:bg-[#10316B] hover:border-[#10316B] shadow-md cursor-pointer lg:bg-white lg:text-[#1668D9] lg:border-blue-200 lg:hover:bg-[#1668D9] lg:hover:text-white lg:hover:border-blue-200"
             >
               {isSubmitting ? (
                 <Spinner size="xs" label="Creating Account..." stack={false} />
@@ -494,8 +604,10 @@ export default function SignUpPage() {
             Already have an account?{" "}
             <button
               type="button"
-              onClick={() => navigate("/login")}
-              className="text-[#1D73EC] font-semibold"
+              onClick={() =>
+                navigate(`/login${pendingJobId ? `?jobId=${pendingJobId}` : ""}`)
+              }
+              className="text-[#1668D9] font-semibold"
             >
               Log in
             </button>

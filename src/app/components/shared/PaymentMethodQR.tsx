@@ -18,7 +18,7 @@ export default function PaymentMethodQRPanel({
   const filename = methodQRFilename(method);
 
   return (
-    <div className="p-4 sm:p-5 bg-white border-2 border-[#1D73EC]/15 rounded-xl">
+    <div className="p-4 sm:p-5 bg-white border-2 border-[#1668D9]/15 rounded-xl">
       <div className="flex flex-col md:flex-row gap-5">
         {/* QR Code */}
         <div className="flex flex-col items-center gap-3 shrink-0">
@@ -41,7 +41,7 @@ export default function PaymentMethodQRPanel({
             type="button"
             size="sm"
             variant="outline"
-            className="h-8 text-xs border-2 border-[#1D73EC]/40 text-[#1D73EC] hover:bg-[#1D73EC] hover:text-white transition-all"
+            className="h-8 text-xs border-2 border-[#1668D9]/40 text-[#1668D9] hover:bg-[#1668D9] hover:text-white transition-all"
             onClick={() => downloadQRCode(qr, filename)}
             disabled={!qr}
           >
@@ -56,7 +56,7 @@ export default function PaymentMethodQRPanel({
             {method.name} Payment Details
           </p>
           <div className="flex items-start gap-2.5">
-            <User className="w-4 h-4 text-[#1D73EC] mt-0.5 shrink-0" />
+            <User className="w-4 h-4 text-[#1668D9] mt-0.5 shrink-0" />
             <div className="min-w-0">
               <p className="text-gray-500 text-xs">Account Name</p>
               <p className="font-semibold text-[#1c1f26]">
@@ -65,7 +65,7 @@ export default function PaymentMethodQRPanel({
             </div>
           </div>
           <div className="flex items-start gap-2.5">
-            <Hash className="w-4 h-4 text-[#1D73EC] mt-0.5 shrink-0" />
+            <Hash className="w-4 h-4 text-[#1668D9] mt-0.5 shrink-0" />
             <div className="min-w-0">
               <p className="text-gray-500 text-xs">Account / Payment Number</p>
               <p className="font-medium text-[#1c1f26] font-mono">
@@ -74,7 +74,7 @@ export default function PaymentMethodQRPanel({
             </div>
           </div>
           <div className="flex items-start gap-2.5">
-            <Wallet className="w-4 h-4 text-[#1D73EC] mt-0.5 shrink-0" />
+            <Wallet className="w-4 h-4 text-[#1668D9] mt-0.5 shrink-0" />
             <div className="min-w-0">
               <p className="text-gray-500 text-xs">Payment Method</p>
               <p className="font-medium text-[#1c1f26]">{method.name}</p>

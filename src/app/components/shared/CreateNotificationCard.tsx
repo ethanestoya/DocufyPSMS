@@ -63,7 +63,7 @@ export default function CreateNotificationCard() {
       <Button
         type="button"
         onClick={() => setCreateOpen(true)}
-        className="h-10 bg-[#1D73EC] text-white border-2 border-[#1D73EC] hover:bg-[#10316B] hover:border-[#10316B] shadow-md px-4 text-sm font-semibold"
+        className="h-10 bg-[#1668D9] text-white border-2 border-[#1668D9] hover:bg-[#10316B] hover:border-[#10316B] shadow-md px-4 text-sm font-semibold"
       >
         <Plus className="w-4 h-4 mr-1.5" />
         Create Announcement
@@ -80,7 +80,7 @@ export default function CreateNotificationCard() {
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-lg bg-[#F2F7FF] text-[#1D73EC] flex items-center justify-center">
+              <div className="w-10 h-10 rounded-lg bg-[#F2F7FF] text-[#1668D9] flex items-center justify-center">
                 <BellRing className="w-5 h-5" />
               </div>
               <DialogTitle className="text-[#10316B]">
@@ -116,6 +116,7 @@ export default function CreateNotificationCard() {
             <div className="space-y-2">
               <Label>Announcement Type</Label>
               <ZoomSafeDropdown
+                label="Announcement type"
                 value={priority}
                 onChange={(v) => setPriority(v as AnnouncementPriority)}
                 placeholder="Select type"

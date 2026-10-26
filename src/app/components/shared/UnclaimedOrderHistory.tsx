@@ -190,7 +190,7 @@ export default function UnclaimedOrderHistory({
                 className="w-full lg:w-[21rem]"
               />
             </div>
-            <p className="mt-2 text-xs text-gray-400">
+            <p className="mt-2 text-xs text-gray-500">
               Date range filters by the day an order became unclaimed (its missed
               pickup deadline).
             </p>
@@ -203,7 +203,7 @@ export default function UnclaimedOrderHistory({
             <Card className="overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-[#F2F7FF] border-b border-[#1D73EC]/10">
+                  <thead className="bg-[#F2F7FF] border-b border-[#1668D9]/10">
                     <tr>
                       {[
                         "Customer",
@@ -230,7 +230,7 @@ export default function UnclaimedOrderHistory({
                       <tr>
                         <td colSpan={9} className="px-4 py-14">
                           <div className="flex flex-col items-center text-center">
-                            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#1D73EC] ring-1 ring-[#1D73EC]/15">
+                            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#1668D9] ring-1 ring-[#1668D9]/15">
                               <ClipboardList className="h-6 w-6" />
                             </span>
                             <p className="mt-3 text-sm font-semibold text-gray-800">
@@ -279,7 +279,7 @@ export default function UnclaimedOrderHistory({
                                   {statusLabel(order.status)}
                                 </Badge>
                               ) : (
-                                <span className="text-xs text-gray-400">—</span>
+                                <span className="text-xs text-gray-500">—</span>
                               )}
                             </td>
                             <td className="px-4 py-3">
@@ -301,14 +301,14 @@ export default function UnclaimedOrderHistory({
                                   </div>
                                 </>
                               ) : (
-                                <span className="text-xs text-gray-400">—</span>
+                                <span className="text-xs text-gray-500">—</span>
                               )}
                             </td>
                             <td className="px-4 py-3">
                               <div className="text-xs text-gray-700">
                                 {formatPHDate(record.readyAt)}
                               </div>
-                              <div className="text-xs text-gray-400">
+                              <div className="text-xs text-gray-500">
                                 {formatPHTime(record.readyAt)}
                               </div>
                             </td>
@@ -324,7 +324,7 @@ export default function UnclaimedOrderHistory({
                                   {formatPHDate(record.releasedAt)}
                                 </span>
                               ) : (
-                                <span className="text-xs text-gray-400">—</span>
+                                <span className="text-xs text-gray-500">—</span>
                               )}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">

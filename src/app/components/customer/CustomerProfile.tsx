@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { LayoutDashboard, FileText, Briefcase, Package, User, Mail, Phone, ArrowLeft, AlertCircle, Key, Camera, ChevronRight, Lock, LogOut, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
@@ -105,7 +105,7 @@ function buildFormData(
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-center gap-3 py-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#F2F7FF] text-[#1D73EC]">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#F2F7FF] text-[#1668D9]">
         {icon}
       </span>
       <div className="min-w-0 flex-1">
@@ -118,7 +118,7 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">{children}</h2>
+    <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500">{children}</h2>
   );
 }
 
@@ -287,15 +287,15 @@ export default function CustomerProfile() {
             type="button"
             onClick={() => navigate(-1)}
             aria-label="Go back"
-            className="md:hidden inline-flex items-center gap-1 rounded-xl p-2 pl-0 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC]"
+            className="md:hidden inline-flex items-center gap-1 rounded-xl p-2 pl-0 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
           >
             <ArrowLeft className="h-5 w-5" />
             <span className="text-sm font-medium">Back</span>
           </button>
           <div className="mt-1 md:mt-6">
-            <h1 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">
+            <h2 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">
               {isEditing ? 'Edit Profile' : 'Profile'}
-            </h1>
+            </h2>
             <p className="mt-0.5 text-sm text-gray-500">
               {isEditing ? 'Update your personal information' : 'Manage your account information'}
             </p>
@@ -308,14 +308,14 @@ export default function CustomerProfile() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
               <div className="flex min-w-0 flex-1 items-center gap-4">
                 <div className="flex shrink-0 flex-col items-start gap-1">
-                  <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-[#1D73EC] text-lg font-semibold text-white ring-4 ring-white shadow-sm">
+                  <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-[#1668D9] text-lg font-semibold text-white ring-4 ring-white shadow-sm">
                     {profileImage ? (
                       <img src={profileImage} alt="Profile preview" className="h-full w-full rounded-full object-cover" />
                     ) : (
                       <span>{initials}</span>
                     )}
                     {isEditing && (
-                      <label className="absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-[#1D73EC] text-white shadow-lg ring-2 ring-white">
+                      <label className="absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-[#1668D9] text-white shadow-lg ring-2 ring-white">
                         <Camera className="h-4 w-4" />
                         <input type="file" accept="image/*" className="hidden" onChange={handleProfileImageChange} />
                       </label>
@@ -345,7 +345,7 @@ export default function CustomerProfile() {
                 <Button
                   variant="outline"
                   onClick={() => setIsEditing(true)}
-                  className="w-full shrink-0 sm:w-auto bg-white text-[#1D73EC] border-2 border-blue-200 hover:bg-[#1D73EC] hover:text-white"
+                  className="w-full shrink-0 sm:w-auto bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
                 >
                   <Pencil className="w-4 h-4 mr-2" />
                   Edit Profile
@@ -423,7 +423,7 @@ export default function CustomerProfile() {
                       className="bg-gray-50 text-gray-500"
                     />
                   </div>
-                  <p className="flex items-center gap-1 text-xs text-gray-400">
+                  <p className="flex items-center gap-1 text-xs text-gray-500">
                     <Lock className="h-3 w-3" />
                     Student ID cannot be changed.
                   </p>
@@ -441,7 +441,7 @@ export default function CustomerProfile() {
                 </Button>
                 <Button
                   onClick={handleSave}
-                  className="flex-1 bg-[#1D73EC] text-white hover:bg-[#10316B] h-12"
+                  className="flex-1 bg-[#1668D9] text-white hover:bg-[#10316B] h-12"
                 >
                   Save Changes
                 </Button>
@@ -470,10 +470,10 @@ export default function CustomerProfile() {
             <button
               type="button"
               onClick={() => setShowChangePasswordDialog(true)}
-              className="-mx-2 mt-2 flex w-full items-center justify-between gap-3 rounded-xl px-2 py-3 text-left transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC]"
+              className="-mx-2 mt-2 flex w-full items-center justify-between gap-3 rounded-xl px-2 py-3 text-left transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
             >
               <span className="flex min-w-0 items-center gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#F2F7FF] text-[#1D73EC]">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#F2F7FF] text-[#1668D9]">
                   <Key className="h-4 w-4" />
                 </span>
                 <span className="min-w-0">
@@ -505,7 +505,7 @@ export default function CustomerProfile() {
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <AlertCircle className="w-6 h-6 text-[#1D73EC]" />
+                <AlertCircle className="w-6 h-6 text-[#1668D9]" />
               </div>
               <DialogTitle className="text-xl">Save Changes?</DialogTitle>
             </div>
@@ -527,7 +527,7 @@ export default function CustomerProfile() {
               disabled={isSaving}
               loading={isSaving}
               loadingText="Saving..."
-              className="bg-white text-[#1D73EC] border-2 border-blue-200 hover:bg-[#1D73EC] hover:text-white"
+              className="bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
             >
               Save Changes
             </Button>
@@ -541,7 +541,7 @@ export default function CustomerProfile() {
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <Key className="w-6 h-6 text-[#1D73EC]" />
+                <Key className="w-6 h-6 text-[#1668D9]" />
               </div>
               <DialogTitle className="text-xl">Change Password</DialogTitle>
             </div>
@@ -613,7 +613,7 @@ export default function CustomerProfile() {
               disabled={!validatePassword(passwordData.newPassword).isValid || (passwordData.currentPassword === passwordData.newPassword && passwordData.currentPassword !== '')}
               className={`${
                 validatePassword(passwordData.newPassword).isValid && !(passwordData.currentPassword === passwordData.newPassword && passwordData.currentPassword !== '')
-                  ? "bg-white text-[#1D73EC] border-2 border-blue-200 hover:bg-[#1D73EC] hover:text-white"
+                  ? "bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
                   : "bg-gray-300 text-gray-500 cursor-not-allowed"
               }`}
             >

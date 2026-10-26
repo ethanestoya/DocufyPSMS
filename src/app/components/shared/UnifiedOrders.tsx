@@ -184,7 +184,7 @@ const Avatar = ({ name }: { name: string }) => {
     "bg-blue-100 text-blue-700",
     "bg-blue-100 text-blue-700",
     "bg-blue-50 text-blue-700",
-    "bg-[#F2F7FF] text-[#1D73EC]",
+    "bg-[#F2F7FF] text-[#1668D9]",
     "bg-blue-200 text-blue-800",
   ];
 
@@ -971,7 +971,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
           <>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-[#F2F7FF] border-b border-[#1D73EC]/10 sticky top-0 z-10">
+              <thead className="bg-[#F2F7FF] border-b border-[#1668D9]/10 sticky top-0 z-10">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-[#10316B] uppercase tracking-wider w-14">
                     #
@@ -1108,7 +1108,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                               </td>
                               <td className="px-4 py-4 whitespace-nowrap">
                                 <span className="inline-flex items-center gap-1.5 text-sm font-bold text-[#10316B] bg-blue-50 border border-blue-100 rounded-lg px-2 py-1">
-                                  <Clock className="w-3.5 h-3.5 text-[#1D73EC]" />
+                                  <Clock className="w-3.5 h-3.5 text-[#1668D9]" />
                                   {formatPHTime(displayDate)}
                                 </span>
                               </td>
@@ -1169,7 +1169,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="rounded-lg border-[1.5px] border-[#D5DCE6] bg-white px-[13px] text-[11.5px] font-semibold text-[#344054] transition-colors hover:border-[#1D73EC] hover:bg-[#1D73EC] hover:text-white"
+                                  className="rounded-lg border-[1.5px] border-[#D5DCE6] bg-white px-[13px] text-[11.5px] font-semibold text-[#344054] transition-colors hover:border-[#1668D9] hover:bg-[#1668D9] hover:text-white"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleOpenDetails(order);
@@ -1547,7 +1547,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                       <Button
                         variant="outline"
                         onClick={() => navigate(`${userRole === "admin" ? "/admin" : "/staff"}/payment-verification?orderId=${encodeURIComponent(selectedOrder.id)}`)}
-                        className="border-2 border-[#1D73EC]/30 text-[#1D73EC] hover:bg-[#1D73EC] hover:text-white font-medium"
+                        className="border-2 border-[#1668D9]/30 text-[#1668D9] hover:bg-[#1668D9] hover:text-white font-medium"
                       >
                         <CreditCard className="mr-2 h-4 w-4" />
                         Verify Payment
@@ -1947,6 +1947,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
             <div>
               <Label>Error usage reason</Label>
               <ZoomSafeDropdown
+                label="Reason"
                 value={paperFormData.reason}
                 onChange={(v) => setPaperFormData((prev) => ({ ...prev, reason: v }))}
                 placeholder="Select a reason..."

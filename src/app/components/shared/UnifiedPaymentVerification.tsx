@@ -732,9 +732,9 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 shrink-0">
           <div>
-            <h1 className="text-xl font-bold text-[#1c1f26]">
+            <h2 className="text-xl font-bold text-[#1c1f26]">
               Payment Verification
-            </h1>
+            </h2>
             <p className="text-[13px] text-gray-500 mt-0.5">
               Review and verify customer payments
             </p>
@@ -808,6 +808,7 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
             <div className="w-full lg:w-48">
               <FilterLabel applied={statusFilter !== "pending"}>Status</FilterLabel>
               <ZoomSafeDropdown
+                label="Payment status"
                 className="mt-1.5"
                 value={statusFilter}
                 onChange={(v) => setStatusFilter(v as typeof statusFilter)}
@@ -825,6 +826,7 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
             <div className="w-full lg:w-48">
               <FilterLabel applied={typeFilter !== "all"}>Type</FilterLabel>
               <ZoomSafeDropdown
+                label="Payment type"
                 className="mt-1.5"
                 value={typeFilter}
                 onChange={(v) => setTypeFilter(v as typeof typeFilter)}
@@ -841,6 +843,7 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
               <div className="w-full lg:w-48">
                 <FilterLabel applied={methodFilter !== "all"}>Method</FilterLabel>
                 <ZoomSafeDropdown
+                  label="Payment method"
                   className="mt-1.5"
                   value={methodFilter}
                   onChange={setMethodFilter}
@@ -880,7 +883,7 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
           <>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-[#F2F7FF] border-b border-[#1D73EC]/10">
+              <thead className="bg-[#F2F7FF] border-b border-[#1668D9]/10">
                 <tr>
                   <th className="px-4 py-3 text-xs font-semibold text-[#10316B] uppercase tracking-wider w-24">
                     #
@@ -909,7 +912,7 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                 {filteredPayments.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-16 text-center">
-                      <CreditCard className="mx-auto mb-3 h-10 w-10 text-[#1D73EC]/35" />
+                      <CreditCard className="mx-auto mb-3 h-10 w-10 text-[#1668D9]/35" />
                       <p className="text-sm font-semibold text-gray-500">No payments to verify</p>
                       <p className="mt-1 text-xs text-gray-500">Payment records will appear here when customers place orders.</p>
                     </td>
@@ -991,7 +994,7 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-700">
                         {payment.method !== "Cash" ? (
-                          <Smartphone className="w-3.5 h-3.5 text-[#1D73EC]" />
+                          <Smartphone className="w-3.5 h-3.5 text-[#1668D9]" />
                         ) : (
                           <Banknote className="w-3.5 h-3.5 text-gray-500" />
                         )}
@@ -1486,7 +1489,7 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                 )}
                 {selectedPayment.status !== "pending" &&
                   selectedPayment.status !== "rejected" && (
-                    <p className="ml-auto text-xs font-medium text-gray-400">
+                    <p className="ml-auto text-xs font-medium text-gray-500">
                       Read-only — this order is already processed
                     </p>
                   )}
@@ -1582,19 +1585,19 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
               onChange={(e) =>
                 setRejectionReason(e.target.value)
               }
-              className="min-h-[120px] bg-[#F2F7FF]/50 border-[#1D73EC]/10 focus:bg-white focus:border-[#1D73EC] rounded-lg resize-none font-medium"
+              className="min-h-[120px] bg-[#F2F7FF]/50 border-[#1668D9]/10 focus:bg-white focus:border-[#1668D9] rounded-lg resize-none font-medium"
             />
           </div>
           <DialogFooter className="gap-2">
             <Button
               variant="outline"
               onClick={() => setShowRejectDialog(false)}
-              className="font-semibold text-[#10316B] border-[#1D73EC]/20"
+              className="font-semibold text-[#10316B] border-[#1668D9]/20"
             >
               Cancel
             </Button>
             <Button
-              className="border-2 border-[#1D73EC]/30 text-[#1D73EC] hover:bg-[#1D73EC] hover:text-white font-bold"
+              className="border-2 border-[#1668D9]/30 text-[#1668D9] hover:bg-[#1668D9] hover:text-white font-bold"
               onClick={() => {
                 if (!rejectionReason.trim())
                   return toast.error("Please provide a reason");
@@ -1625,13 +1628,13 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
           <img
             src={proofSignedUrl || selectedPayment?.proofImageUrl}
             alt="Proof"
-            className="w-full h-auto rounded-lg border border-[#1D73EC]/10"
+            className="w-full h-auto rounded-lg border border-[#1668D9]/10"
           />
           <div className="flex justify-end mt-4">
             <Button
               variant="outline"
               onClick={() => setShowProofImage(false)}
-className="font-semibold border-2 border-[#1D73EC]/30 text-[#1D73EC] hover:bg-[#1D73EC] hover:text-white transition-all"
+className="font-semibold border-2 border-[#1668D9]/30 text-[#1668D9] hover:bg-[#1668D9] hover:text-white transition-all"
             >
               Close Preview
             </Button>
@@ -1734,7 +1737,7 @@ function StatusBadge({
       {isPending && lowValueCash && (
         <Badge
           variant="outline"
-          className="text-[10px] font-semibold py-0.5 px-1.5 rounded-full border bg-blue-50 text-[#1D73EC] border-blue-200"
+          className="text-[10px] font-semibold py-0.5 px-1.5 rounded-full border bg-blue-50 text-[#1668D9] border-blue-200"
         >
           In Queue
         </Badge>
@@ -1752,7 +1755,7 @@ function PaymentTypePill({
     kind === "cash"
       ? {
           label: "Cash on Pickup",
-          cls: "bg-blue-50 text-[#1D73EC] border-blue-200",
+          cls: "bg-blue-50 text-[#1668D9] border-blue-200",
           icon: Banknote,
         }
       : kind === "online-down"
@@ -1787,7 +1790,7 @@ const Avatar = ({ name }: { name: string }) => {
     .slice(0, 2);
 
   return (
-    <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm bg-[#F2F7FF] text-[#1D73EC] border border-[#1D73EC]/10">
+    <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm bg-[#F2F7FF] text-[#1668D9] border border-[#1668D9]/10">
       {initials}
     </div>
   );

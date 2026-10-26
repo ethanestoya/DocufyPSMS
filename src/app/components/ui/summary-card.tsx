@@ -45,7 +45,7 @@ export function SummaryCard({
   const shell = [
     "p-4 rounded-xl border flex items-center gap-4 flex-row transition-all",
     highlight
-      ? "border-[#1D73EC] bg-[#1D73EC] shadow-none"
+      ? "border-[#1668D9] bg-[#1668D9] shadow-none"
       : isActive
         ? `${activeBorder} ${activeBg} shadow-[0_1px_2px_rgba(15,23,42,0.04)]`
         : "border-slate-200/70 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]",

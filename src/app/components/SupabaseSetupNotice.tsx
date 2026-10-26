@@ -92,7 +92,7 @@ export default function SupabaseSetupNotice({
         {/* What to do. */}
         <ol className="mt-5 space-y-3 text-sm text-slate-600">
           <li className="flex gap-3">
-            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[#F2F7FF] text-[11px] font-semibold text-[#1D73EC]">
+            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[#F2F7FF] text-[11px] font-semibold text-[#1668D9]">
               1
             </span>
             <span className="leading-relaxed">
@@ -100,7 +100,7 @@ export default function SupabaseSetupNotice({
             </span>
           </li>
           <li className="flex gap-3">
-            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[#F2F7FF] text-[11px] font-semibold text-[#1D73EC]">
+            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[#F2F7FF] text-[11px] font-semibold text-[#1668D9]">
               2
             </span>
             <span className="leading-relaxed">
@@ -109,7 +109,7 @@ export default function SupabaseSetupNotice({
             </span>
           </li>
           <li className="flex gap-3">
-            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[#F2F7FF] text-[11px] font-semibold text-[#1D73EC]">
+            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[#F2F7FF] text-[11px] font-semibold text-[#1668D9]">
               3
             </span>
             <span className="leading-relaxed">
@@ -127,7 +127,7 @@ export default function SupabaseSetupNotice({
             <button
               type="button"
               onClick={handleCopy}
-              className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-[12.5px] font-medium text-slate-600 transition-colors hover:border-[#1D73EC] hover:text-[#1D73EC]"
+              className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-[12.5px] font-medium text-slate-600 transition-colors hover:border-[#1668D9] hover:text-[#1668D9]"
             >
               {copied ? (
                 <>
@@ -148,7 +148,7 @@ export default function SupabaseSetupNotice({
         </div>
 
         <footer className="mt-5 flex items-start gap-2 rounded-xl bg-[#F2F7FF] px-4 py-3">
-          <RefreshCw className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1D73EC]" />
+          <RefreshCw className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1668D9]" />
           <p className="text-[13px] leading-relaxed text-slate-600">
             After saving, run{" "}
             <code className="rounded bg-white px-1.5 py-0.5 font-mono text-[13px] text-slate-700">npm run dev</code>{" "}

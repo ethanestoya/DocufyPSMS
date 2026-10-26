@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { AlertTriangle, ArrowLeft, Link2Off } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLogo } from '../hooks/useLogo';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { supabase } from '../../lib/supabaseClient';
 import { PasswordStrengthIndicator, validatePassword } from './ui/password-strength-indicator';
 import { Card } from './ui/card';
@@ -20,6 +21,7 @@ type LinkState = 'checking' | 'ready' | 'invalid';
 // user needs to be told that plainly and given a way to request a fresh link,
 // instead of a bare "invalid or expired" toast on a form that can never work.
 export default function ResetPasswordPage() {
+  usePageTitle('Choose a new password');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const logo = useLogo();

@@ -221,9 +221,9 @@ export default function CustomerDashboard() {
 
         {/* Welcome */}
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
             Welcome back{user?.name ? `, ${user.name.split(" ")[0]}` : ""}!
-          </h1>
+          </h2>
           <p className="text-sm text-gray-500 mt-1">
             Here's what's happening with your orders.
           </p>
@@ -300,7 +300,7 @@ export default function CustomerDashboard() {
               value: stats.total,
               description: "All orders",
               icon: FileText,
-              color: "text-[#1D73EC]",
+              color: "text-[#1668D9]",
               bg: "bg-blue-50",
             },
             {
@@ -367,14 +367,14 @@ export default function CustomerDashboard() {
 
           {/* Current Order */}
           <div className="lg:col-span-2">
-            <Card className="border border-gray-300 sm:border-gray-200 bg-white h-full flex flex-col gap-0">
+            <Card className="border border-gray-300 sm:border-gray-200 bg-white flex flex-col gap-0">
               <div className="px-4 sm:px-6 py-4 border-b border-gray-300">
                 <h2 className="text-base sm:text-lg font-bold text-gray-900">
                   Current Order
                 </h2>
               </div>
 
-              <div className="p-4 sm:p-6 flex-1 flex flex-col">
+              <div className="p-4 sm:p-6 flex flex-col">
                 {currentOrder ? (
                   <>
                     <div className="mb-4">
@@ -412,9 +412,9 @@ export default function CustomerDashboard() {
                                   className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
                                     isCompleted
                                       ? isCurrent
-                                        ? "bg-[#1D73EC] text-white ring-2 ring-[#1D73EC]/30"
+                                        ? "bg-[#1668D9] text-white ring-2 ring-[#1668D9]/30"
                                         : "bg-emerald-500 text-white"
-                                      : "bg-gray-100 text-gray-400"
+                                      : "bg-gray-100 text-gray-500"
                                   }`}
                                 >
                                   {isCompleted && !isCurrent ? (
@@ -430,10 +430,10 @@ export default function CustomerDashboard() {
                                 <span
                                   className={`text-[10px] sm:text-xs font-medium text-center leading-tight ${
                                     isCurrent
-                                      ? "text-[#1D73EC] font-bold"
+                                      ? "text-[#1668D9] font-bold"
                                       : isCompleted
                                         ? "text-gray-700"
-                                        : "text-gray-400"
+                                        : "text-gray-500"
                                   }`}
                                 >
                                   {step.label}
@@ -463,7 +463,7 @@ export default function CustomerDashboard() {
                       onClick={() =>
                         navigate(`/customer/track/${currentOrder.id}`)
                       }
-                      className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-xl text-sm font-semibold bg-[#1D73EC] text-white hover:bg-[#10316B] transition-all active:scale-[0.97]"
+                      className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-xl text-sm font-semibold bg-[#1668D9] text-white hover:bg-[#10316B] transition-all active:scale-[0.97]"
                     >
                       View Order Details
                       <ChevronRight className="w-4 h-4" />
@@ -483,7 +483,7 @@ export default function CustomerDashboard() {
                     <button
                       type="button"
                       onClick={() => navigate("/customer/new-request")}
-                      className="mt-3 inline-flex items-center justify-center gap-2 h-9 px-4 rounded-xl text-sm font-semibold bg-[#1D73EC] text-white hover:bg-[#10316B] transition-all active:scale-[0.97]"
+                      className="mt-3 inline-flex items-center justify-center gap-2 h-9 px-4 rounded-xl text-sm font-semibold bg-[#1668D9] text-white hover:bg-[#10316B] transition-all active:scale-[0.97]"
                     >
                       <FileText className="w-4 h-4" />
                       Start a Print Request
@@ -504,7 +504,7 @@ export default function CustomerDashboard() {
                 <button
                   type="button"
                   onClick={() => navigate("/customer/orders")}
-                  className="text-xs font-semibold text-[#1D73EC] hover:underline transition-colors"
+                  className="text-xs font-semibold text-[#1668D9] hover:underline transition-colors"
                 >
                   View All
                 </button>
@@ -623,7 +623,7 @@ export default function CustomerDashboard() {
 
         {/* Shop Information + Quick Tips — previous blue card style */}
         <div className="grid grid-cols-1 @min-[640px]:grid-cols-2 gap-3">
-          <Card className="p-4 sm:p-6 bg-[#1D73EC] text-white shadow-lg border-none">
+          <Card className="p-4 sm:p-6 bg-[#1668D9] text-white shadow-lg border-none">
             <div className="flex items-start gap-3 sm:gap-4">
               <div className="w-10 h-10 sm:w-14 sm:h-14 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
                 <Clock className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
@@ -647,7 +647,7 @@ export default function CustomerDashboard() {
                 <button
                   type="button"
                   onClick={() => setShopLocationOpen(true)}
-                  className="mt-4 inline-flex items-center gap-2 h-9 px-4 rounded-xl text-sm font-semibold bg-white text-[#1D73EC] hover:bg-white/90 transition-all active:scale-[0.97]"
+                  className="mt-4 inline-flex items-center gap-2 h-9 px-4 rounded-xl text-sm font-semibold bg-white text-[#1668D9] hover:bg-white/90 transition-all active:scale-[0.97]"
                 >
                   <MapPin className="w-4 h-4" />
                   View Shop Location
@@ -656,7 +656,7 @@ export default function CustomerDashboard() {
             </div>
           </Card>
 
-          <Card className="p-4 sm:p-6 bg-[#1D73EC] text-white shadow-lg border-none">
+          <Card className="p-4 sm:p-6 bg-[#1668D9] text-white shadow-lg border-none">
             <div className="flex items-start gap-3 sm:gap-4">
               <div className="w-10 h-10 sm:w-14 sm:h-14 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
                 <Lightbulb className="w-5 h-5 sm:w-7 sm:h-7 text-white" />

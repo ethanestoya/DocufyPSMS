@@ -190,11 +190,11 @@ export default function MobileNavSheet({ router }: MobileNavSheetProps) {
           onClick={() => toggleModule(module)}
           aria-current={isActive ? "page" : undefined}
           aria-expanded={hasChildren ? isExpanded : undefined}
-          className={`flex items-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC]/40 w-full px-4 py-3 gap-3.5 ${
+          className={`flex items-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]/40 w-full px-4 py-3 gap-3.5 ${
             isActive && hasChildren
-              ? "rounded-lg bg-[#F2F7FF] text-[#1D73EC] shadow-[0_2px_8px_rgba(16,49,107,0.16)] ring-1 ring-inset ring-[#DCE8FB]"
+              ? "rounded-lg bg-[#F2F7FF] text-[#1668D9] shadow-[0_2px_8px_rgba(16,49,107,0.16)] ring-1 ring-inset ring-[#DCE8FB]"
               : isActive
-                ? "rounded-xl bg-white text-[#1D73EC] shadow-lg"
+                ? "rounded-xl bg-white text-[#1668D9] shadow-lg"
                 : "rounded-xl text-white/90 hover:bg-white/10 hover:text-white"
           }`}
         >
@@ -214,7 +214,7 @@ export default function MobileNavSheet({ router }: MobileNavSheetProps) {
             </span>
           )}
           {isActive && !hasChildren && (
-            <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[#1D73EC]" />
+            <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[#1668D9]" />
           )}
         </button>
         {hasChildren && isExpanded && (
@@ -237,7 +237,7 @@ export default function MobileNavSheet({ router }: MobileNavSheetProps) {
                     type="button"
                     onClick={() => navigateAndClose(childItem.path)}
                     aria-current={isChildActive ? "page" : undefined}
-                    className={`relative ml-[32px] flex items-center pl-5 pr-3 py-1.5 rounded-lg text-[13px] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC]/40 active:scale-[0.97] ${
+                    className={`relative ml-[32px] flex items-center pl-5 pr-3 py-1.5 rounded-lg text-[13px] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]/40 active:scale-[0.97] ${
                       isChildActive
                         ? "bg-white/15 text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_1px_2px_rgba(13,49,115,0.15)] ring-1 ring-inset ring-white/10 animate-in fade-in duration-200"
                         : "text-white/80 font-medium hover:bg-white/10 hover:text-white"
@@ -301,7 +301,7 @@ export default function MobileNavSheet({ router }: MobileNavSheetProps) {
         showClose={false}
         onPointerDownOutside={() => setOpen(false)}
         onInteractOutside={() => setOpen(false)}
-        className="w-[min(16rem,57vw)] bg-[#1D73EC] p-0 text-white"
+        className="w-[min(16rem,57vw)] bg-[#1668D9] p-0 text-white"
       >
         <SheetHeader className="sr-only">
           <SheetTitle>Primary navigation</SheetTitle>
@@ -374,11 +374,11 @@ export default function MobileNavSheet({ router }: MobileNavSheetProps) {
               aria-label="Open account menu"
               aria-expanded={isProfileOpen}
               aria-haspopup="menu"
-              className={`flex items-center gap-3 rounded-xl transition-all w-full px-3 py-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC]/40 ${
+              className={`flex items-center gap-3 rounded-xl transition-all w-full px-3 py-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]/40 ${
                 isProfileOpen ? "bg-white/10" : "hover:bg-white/10"
               }`}
             >
-              <div className="w-8 h-8 bg-white text-[#1D73EC] rounded-lg flex items-center justify-center font-bold text-xs uppercase flex-shrink-0 overflow-hidden">
+              <div className="w-8 h-8 bg-white text-[#1668D9] rounded-lg flex items-center justify-center font-bold text-xs uppercase flex-shrink-0 overflow-hidden">
                 {profileImage ? (
                   <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
                 ) : (

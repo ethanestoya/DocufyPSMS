@@ -81,7 +81,7 @@ export function UnclaimedOrderWarning({
             <button
               type="button"
               onClick={viewOrder}
-              className="inline-flex flex-shrink-0 items-center gap-1 whitespace-nowrap rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-[#1D73EC] ring-1 ring-[#1D73EC]/20 transition-all hover:bg-[#1D73EC]/5 active:scale-[0.97]"
+              className="inline-flex flex-shrink-0 items-center gap-1 whitespace-nowrap rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-[#1668D9] ring-1 ring-[#1668D9]/20 transition-all hover:bg-[#1668D9]/5 active:scale-[0.97]"
             >
               View Order
               <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -119,7 +119,7 @@ export function UnclaimedOrderWarning({
           <button
             type="button"
             onClick={viewOrder}
-            className="inline-flex h-10 w-full flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-[#1D73EC] px-4 text-sm font-semibold text-white transition-all hover:bg-[#10316B] active:scale-[0.97] sm:w-auto"
+            className="inline-flex h-10 w-full flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-[#1668D9] px-4 text-sm font-semibold text-white transition-all hover:bg-[#10316B] active:scale-[0.97] sm:w-auto"
           >
             View Order
             <ArrowRight className="h-4 w-4" aria-hidden="true" />

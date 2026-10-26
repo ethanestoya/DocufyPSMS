@@ -159,7 +159,11 @@ export default function Layout({
   // longer, deliberate hold.
   const tooltipTimerRef = useRef<number | null>(null);
 
-  const scheduleSidebarTooltip = (label: string, e: React.MouseEvent<HTMLElement>, delayMs: number) => {
+  const scheduleSidebarTooltip = (
+    label: string,
+    e: React.MouseEvent<HTMLElement> | React.FocusEvent<HTMLElement>,
+    delayMs: number,
+  ) => {
     if (isMobile) return;
     const itemRect = e.currentTarget.getBoundingClientRect();
     // Anchor the tooltip to the sidebar's RIGHT edge (not the hovered icon), so
@@ -176,7 +180,10 @@ export default function Layout({
   };
 
   // Nav-icon tooltips in the collapsed sidebar — delayed, longer hold.
-  const showSidebarTooltip = (label: string, e: React.MouseEvent<HTMLElement>) => {
+  const showSidebarTooltip = (
+    label: string,
+    e: React.MouseEvent<HTMLElement> | React.FocusEvent<HTMLElement>,
+  ) => {
     if (isSidebarExpanded) return;
     scheduleSidebarTooltip(label, e, 600);
   };
@@ -357,6 +364,21 @@ export default function Layout({
       ?.label ||
     "Dashboard";
 
+  // SPA route changes are silent to assistive tech by default: the tab title
+  // never changed and focus stayed on the link that was clicked (F09). On every
+  // page change we name the tab and move focus to the main region so
+  // keyboard/screen-reader users start at the new content instead of the
+  // previous page's nav.
+  const mainRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    document.title = `${displayTitle} · Docufy PSMS`;
+    const id = window.setTimeout(() => {
+      mainRef.current?.focus({ preventScroll: true });
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [location.pathname, displayTitle]);
+
   useEffect(() => {
     setIsNavigationOpen(!isMobile);
   }, [isMobile]);
@@ -478,15 +500,17 @@ export default function Layout({
           onClick={() => toggleModule(module)}
           onMouseEnter={(e) => showSidebarTooltip(module.label, e)}
           onMouseLeave={hideSidebarTooltip}
+          onFocus={(e) => showSidebarTooltip(module.label, e)}
+          onBlur={hideSidebarTooltip}
           aria-current={isActive ? "page" : undefined}
           aria-expanded={hasChildren ? isExpanded : undefined}
-          className={`flex items-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC]/40 active:scale-[0.97] ${
+          className={`flex items-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]/40 active:scale-[0.97] ${
             showLabels ? "w-full px-4 py-3 gap-3.5" : "w-11 h-11 justify-center rounded-xl"
           } ${
             isActive && hasChildren && showLabels
-              ? `rounded-lg bg-[#F2F7FF] text-[#1D73EC] shadow-[0_2px_8px_rgba(16,49,107,0.16)] ring-1 ring-inset ring-[#DCE8FB]${pulseParentPath === module.path ? " animate-in fade-in duration-200" : ""}`
+              ? `rounded-lg bg-[#F2F7FF] text-[#1668D9] shadow-[0_2px_8px_rgba(16,49,107,0.16)] ring-1 ring-inset ring-[#DCE8FB]${pulseParentPath === module.path ? " animate-in fade-in duration-200" : ""}`
               : isActive
-                ? "rounded-xl bg-white text-[#1D73EC] shadow-lg animate-in fade-in duration-200"
+                ? "rounded-xl bg-white text-[#1668D9] shadow-lg animate-in fade-in duration-200"
                 : "rounded-xl text-white/90 hover:bg-white/10 hover:text-white"
           }`}
         >
@@ -505,7 +529,7 @@ export default function Layout({
               )}
             </span>
           )}
-          {isActive && !hasChildren && showLabels && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[#1D73EC]" />}
+          {isActive && !hasChildren && showLabels && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[#1668D9]" />}
         </button>
 
         {hasChildren && isExpanded && showLabels && (
@@ -529,8 +553,10 @@ export default function Layout({
                     onClick={() => handleChildNavigation(module, child.path)}
                     onMouseEnter={(e) => showSidebarTooltip(child.label, e)}
                     onMouseLeave={hideSidebarTooltip}
+                    onFocus={(e) => showSidebarTooltip(child.label, e)}
+                    onBlur={hideSidebarTooltip}
                     aria-current={isChildActive ? "page" : undefined}
-                    className={`relative ml-[32px] flex items-center pl-5 pr-3 py-1.5 rounded-lg text-[13px] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC]/40 active:scale-[0.97] ${
+                    className={`relative ml-[32px] flex items-center pl-5 pr-3 py-1.5 rounded-lg text-[13px] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]/40 active:scale-[0.97] ${
                       isChildActive
                         ? "bg-white/15 text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_1px_2px_rgba(13,49,115,0.15)] ring-1 ring-inset ring-white/10 animate-in fade-in duration-200"
                         : "text-white/80 font-medium hover:bg-white/10 hover:text-white"
@@ -859,11 +885,11 @@ export default function Layout({
           aria-label="Open account menu"
           aria-expanded={isProfileOpen}
           aria-haspopup="menu"
-          className={`flex items-center gap-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC]/40 ${
+          className={`flex items-center gap-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]/40 ${
             isMobile || isSidebarExpanded ? "w-full px-3 py-2.5" : "mx-auto h-11 w-11 justify-center"
           } ${isProfileOpen ? "bg-white/10" : "hover:bg-white/10"}`}
         >
-          <div className="w-8 h-8 bg-white text-[#1D73EC] rounded-lg flex items-center justify-center font-bold text-xs uppercase flex-shrink-0 overflow-hidden">
+          <div className="w-8 h-8 bg-white text-[#1668D9] rounded-lg flex items-center justify-center font-bold text-xs uppercase flex-shrink-0 overflow-hidden">
             {profileImage ? (
               <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
             ) : (
@@ -949,10 +975,18 @@ export default function Layout({
           connection reads as "still loading" instead of "no data". */}
       <TopProgressBar />
 
+      {/* Keyboard users can jump past the ~9-item sidebar on every page. */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-[#1668D9] focus:shadow-lg focus:ring-2 focus:ring-[#1668D9]"
+      >
+        Skip to main content
+      </a>
+
       {!isMobile && (
         <aside
           aria-label="Primary navigation"
-          className={`h-screen overflow-y-auto custom-scrollbar bg-[#1D73EC] flex flex-col z-30 shadow-2xl transition-all duration-300 ease-in-out flex-shrink-0 relative ${
+          className={`h-screen overflow-y-auto custom-scrollbar bg-[#1668D9] flex flex-col z-30 shadow-2xl transition-all duration-300 ease-in-out flex-shrink-0 relative ${
             isNavigationOpen ? (isSidebarExpanded ? "w-64" : "w-[72px]") : "w-0"
           }`}
         >
@@ -978,7 +1012,7 @@ export default function Layout({
                 onClick={() => setMobileNavOpen(!isMobileNavOpen)}
                 aria-label={isMobileNavOpen ? "Close navigation" : "Open navigation"}
                 aria-expanded={isMobileNavOpen}
-                className="rounded-xl p-2 text-[#1D73EC] transition-all duration-200 hover:bg-[#F2F7FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC] focus-visible:ring-offset-2 shrink-0"
+                className="rounded-xl p-2 text-[#1668D9] transition-all duration-200 hover:bg-[#F2F7FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9] focus-visible:ring-offset-2 shrink-0"
               >
                 <Menu className={`h-6 w-6 transition-transform duration-200 ${isMobileNavOpen ? "rotate-90" : "rotate-0"}`} />
               </button>
@@ -988,7 +1022,7 @@ export default function Layout({
                 type="button"
                 onClick={() => backButtonPath ? navigate(backButtonPath) : navigate(-1)}
                 aria-label="Go back"
-                className="rounded-xl p-2 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC] shrink-0"
+                className="rounded-xl p-2 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9] shrink-0"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
@@ -1062,7 +1096,7 @@ export default function Layout({
                         <button
                           type="button"
                           onClick={handleMarkAllRead}
-                          className="text-xs font-semibold text-[#1D73EC] hover:text-[#10316B] transition-colors"
+                          className="text-xs font-semibold text-[#1668D9] hover:text-[#10316B] transition-colors"
                         >
                           Mark all as read
                         </button>
@@ -1116,7 +1150,7 @@ export default function Layout({
                       <button
                         type="button"
                         onClick={handleShowAllNotifications}
-                        className="w-full inline-flex items-center justify-center gap-2 h-11 rounded-xl text-sm font-semibold bg-[#1D73EC] text-white hover:bg-[#10316B] transition-all"
+                        className="w-full inline-flex items-center justify-center gap-2 h-11 rounded-xl text-sm font-semibold bg-[#1668D9] text-white hover:bg-[#10316B] transition-all"
                       >
                         <Bell className="w-4 h-4" /> Show All Notifications
                       </button>
@@ -1152,9 +1186,9 @@ export default function Layout({
                   aria-label="Open profile"
                   aria-expanded={isTopProfileOpen}
                   aria-haspopup="menu"
-                  className="rounded-full transition-all duration-200 hover:scale-105 hover:ring-2 hover:ring-[#1D73EC]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC] focus-visible:ring-offset-2"
+                  className="rounded-full transition-all duration-200 hover:scale-105 hover:ring-2 hover:ring-[#1668D9]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9] focus-visible:ring-offset-2"
                 >
-                  <div className="h-10 w-10 overflow-hidden rounded-full bg-[#1D73EC] text-white shadow-sm flex items-center justify-center font-bold text-xs">
+                  <div className="h-10 w-10 overflow-hidden rounded-full bg-[#1668D9] text-white shadow-sm flex items-center justify-center font-bold text-xs">
                     {profileImage ? <img src={profileImage} alt="Profile" className="h-full w-full object-cover" /> : profileInitial}
                   </div>
                 </button>
@@ -1183,7 +1217,10 @@ export default function Layout({
         </header>
 
         <main
-          className={`bg-[#f6f7f9] ${
+          id="main-content"
+          ref={mainRef}
+          tabIndex={-1}
+          className={`bg-[#f6f7f9] outline-none ${
             isMobile ? "" : "flex-1 overflow-y-auto custom-scrollbar"
           }`}
         >

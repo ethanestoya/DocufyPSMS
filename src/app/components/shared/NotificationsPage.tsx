@@ -100,7 +100,7 @@ const staffMenuItems = [
   },
 ];
 
-// What an announcement is about — shown as a small type label where useful.
+// What an announcement is about â€” shown as a small type label where useful.
 const TYPE_ICON: Record<
   AnnouncementType,
   React.ComponentType<{ className?: string }>
@@ -137,7 +137,7 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: "orders", label: "Orders" },
 ];
 
-// Inventory is an INTERNAL operational module — only admin and staff may see
+// Inventory is an INTERNAL operational module â€” only admin and staff may see
 // inventory-related functionality. Customers never get an Inventory filter.
 const STAFF_FILTERS: { key: FilterKey; label: string }[] = [
   ...FILTERS,
@@ -229,7 +229,7 @@ export default function NotificationsPage() {
         ? staffMenuItems
         : customerMenuItems;
 
-  // ── Opening a notification → mark read + open the shared detail modal ──────
+  // â”€â”€ Opening a notification â†’ mark read + open the shared detail modal â”€â”€â”€â”€â”€â”€
   const runNotificationAction = (n: Notification) => {
     if (n.type === "inventory" && user) {
       navigate(
@@ -312,14 +312,14 @@ export default function NotificationsPage() {
       case "payment":
         return { icon: AlertTriangle, bg: "bg-yellow-50 text-yellow-600" };
       case "status_update":
-        return { icon: CheckCircle, bg: "bg-blue-50 text-[#1D73EC]" };
+        return { icon: CheckCircle, bg: "bg-blue-50 text-[#1668D9]" };
       case "order":
       default:
-        return { icon: Package, bg: "bg-blue-50 text-[#1D73EC]" };
+        return { icon: Package, bg: "bg-blue-50 text-[#1668D9]" };
     }
   };
 
-  // ── One unified feed: announcements + system notifications, newest first ───
+  // â”€â”€ One unified feed: announcements + system notifications, newest first â”€â”€â”€
   const feed: FeedItem[] = [];
   for (const a of announcements) {
     const isEmergency = a.priority === "emergency";
@@ -328,7 +328,7 @@ export default function NotificationsPage() {
       ? { icon: AlertTriangle, bg: "bg-red-50 text-red-600" }
       : isImportant
         ? { icon: AlertTriangle, bg: "bg-amber-50 text-amber-600" }
-        : { icon: TYPE_ICON[a.type], bg: "bg-blue-50 text-[#1D73EC]" };
+        : { icon: TYPE_ICON[a.type], bg: "bg-blue-50 text-[#1668D9]" };
     feed.push({
       key: a.id,
       kind: "announcement",
@@ -352,7 +352,7 @@ export default function NotificationsPage() {
     });
   }
   for (const n of notifications) {
-    // Inventory alerts are internal (staff/admin only) — never render them to
+    // Inventory alerts are internal (staff/admin only) â€” never render them to
     // customers, even defensively.
     if (n.type === "inventory" && user?.role === "customer") continue;
     const meta = notificationMeta(n);
@@ -399,7 +399,7 @@ export default function NotificationsPage() {
     }
   });
 
-  // Group the filtered feed by Philippines date (TODAY / YESTERDAY / SEPT 3 …).
+  // Group the filtered feed by Philippines date (TODAY / YESTERDAY / SEPT 3 â€¦).
   const today = toPHT(new Date());
   const yesterday = new Date(
     today.getFullYear(),
@@ -502,7 +502,7 @@ export default function NotificationsPage() {
             {item.action && (
               <button
                 type="button"
-                className="text-[11px] font-semibold text-[#1D73EC] hover:underline"
+                className="text-[11px] font-semibold text-[#1668D9] hover:underline"
                 onClick={(e) => {
                   e.stopPropagation();
                   item.markRead();
@@ -517,7 +517,7 @@ export default function NotificationsPage() {
         <div className="flex flex-col items-end gap-1.5 flex-shrink-0 mt-1">
           {!item.read && (
             <span
-              className={`w-2 h-2 rounded-full ${isEmergency ? "bg-red-500" : isImportant ? "bg-amber-500" : "bg-[#1D73EC]"}`}
+              className={`w-2 h-2 rounded-full ${isEmergency ? "bg-red-500" : isImportant ? "bg-amber-500" : "bg-[#1668D9]"}`}
             />
           )}
           {isAdmin && item.kind === "announcement" && (
@@ -546,12 +546,12 @@ export default function NotificationsPage() {
       hideMobileBackButton
     >
       <div className="mx-auto max-w-3xl space-y-5 pb-10">
-        {/* Mobile Back — sits directly under the header, same spot a sidebar item would */}
+        {/* Mobile Back â€” sits directly under the header, same spot a sidebar item would */}
         <button
           type="button"
           onClick={() => navigate(-1)}
           aria-label="Go back"
-          className="md:hidden inline-flex items-center gap-1 rounded-xl p-2 pl-0 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC]"
+          className="md:hidden inline-flex items-center gap-1 rounded-xl p-2 pl-0 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
         >
           <ArrowLeft className="h-5 w-5" />
           <span className="text-sm font-medium">Back</span>
@@ -571,7 +571,7 @@ export default function NotificationsPage() {
         {/* Unread count + mark all read */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <p className="text-sm text-gray-600 flex items-center gap-2">
-            <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-[#1D73EC] text-white text-xs font-bold">
+            <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-[#1668D9] text-white text-xs font-bold">
               {unread}
             </span>
             unread notification{unread === 1 ? "" : "s"}
@@ -580,7 +580,7 @@ export default function NotificationsPage() {
             <button
               type="button"
               onClick={handleMarkAllRead}
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#2F6FD6] hover:text-[#1D73EC] transition-colors"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#2F6FD6] hover:text-[#1668D9] transition-colors"
             >
               <CheckCheck className="w-4 h-4" />
               Mark all as read
@@ -597,8 +597,8 @@ export default function NotificationsPage() {
               onClick={() => setFilter(f.key)}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
                 filter === f.key
-                  ? "bg-[#1D73EC] text-white"
-                  : "bg-white text-gray-600 border border-gray-200 hover:border-[#1D73EC]/40 hover:text-[#1D73EC]"
+                  ? "bg-[#1668D9] text-white"
+                  : "bg-white text-gray-600 border border-gray-200 hover:border-[#1668D9]/40 hover:text-[#1668D9]"
               }`}
             >
               {f.label}
@@ -610,7 +610,7 @@ export default function NotificationsPage() {
         {feed.length === 0 ? (
           <div className="rounded-2xl border border-gray-100 bg-white py-14 px-6 text-center">
             <div className="w-12 h-12 bg-[#F2F7FF] rounded-2xl flex items-center justify-center mx-auto mb-3">
-              <Bell className="w-6 h-6 text-[#1D73EC]/40" />
+              <Bell className="w-6 h-6 text-[#1668D9]/40" />
             </div>
             <p className="text-sm font-semibold text-gray-700">
               No notifications yet
@@ -651,7 +651,7 @@ export default function NotificationsPage() {
         )}
       </div>
 
-      {/* Shared Announcement Details Modal — same one used across Docufy */}
+      {/* Shared Announcement Details Modal â€” same one used across Docufy */}
       <AnnouncementDetailsModal
         open={!!detail}
         onOpenChange={(open) => {

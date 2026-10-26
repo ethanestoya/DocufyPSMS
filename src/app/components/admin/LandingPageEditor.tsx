@@ -271,7 +271,7 @@ export default function LandingPageEditor() {
         {/* Actions header */}
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between py-2 rounded-lg">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-[#F2F7FF] text-[#1D73EC] flex items-center justify-center shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-[#F2F7FF] text-[#1668D9] flex items-center justify-center shrink-0">
               <MonitorPlay className="w-6 h-6" />
             </div>
             <div>
@@ -748,7 +748,7 @@ export default function LandingPageEditor() {
                 </div>
 
                 <div className="rounded-lg border border-blue-100 bg-[#F2F7FF] p-3 text-xs text-slate-600 space-y-1">
-                  <p className="font-semibold text-[#1D73EC]">
+                  <p className="font-semibold text-[#1668D9]">
                     How to change the map location:
                   </p>
                   <ol className="list-decimal pl-4 space-y-1">
@@ -758,7 +758,7 @@ export default function LandingPageEditor() {
                         href="https://www.google.com/maps"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="font-medium text-[#1D73EC] underline decoration-[#1D73EC]/30 hover:text-[#10316B]"
+                        className="font-medium text-[#1668D9] underline decoration-[#1668D9]/30 hover:text-[#10316B]"
                       >
                         Google Maps
                       </a>{" "}

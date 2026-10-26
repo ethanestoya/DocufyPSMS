@@ -66,7 +66,7 @@ export function AnnouncementDetailsModal({
               </span>
             )}
             {announcement.typeLabel && (
-              <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border bg-[#F2F7FF] text-[#1D73EC] border-[#1D73EC]/20">
+              <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border bg-[#F2F7FF] text-[#1668D9] border-[#1668D9]/20">
                 {announcement.typeLabel}
               </span>
             )}
@@ -98,7 +98,7 @@ export function AnnouncementDetailsModal({
                 onOpenChange(false);
                 announcement.action?.run();
               }}
-              className="h-10 w-full sm:w-auto bg-[#1D73EC] text-white hover:bg-[#10316B]"
+              className="h-10 w-full sm:w-auto bg-[#1668D9] text-white hover:bg-[#10316B]"
             >
               <ArrowRight className="w-4 h-4" /> {announcement.action.label}
             </Button>

@@ -311,7 +311,7 @@ export default function OrderTracking() {
           type="button"
           onClick={() => navigate("/customer/orders")}
           aria-label="Go back"
-          className="md:hidden inline-flex items-center gap-1 rounded-xl p-2 pl-0 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC]"
+          className="md:hidden inline-flex items-center gap-1 rounded-xl p-2 pl-0 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
         >
           <ArrowLeft className="h-5 w-5" />
           <span className="text-sm font-medium">Back</span>
@@ -319,9 +319,9 @@ export default function OrderTracking() {
 
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-semibold text-gray-900">
+          <h2 className="text-3xl font-semibold text-gray-900">
             Order Tracking
-          </h1>
+          </h2>
           <p className="text-gray-500 mt-1">
             Track your print job status - Order {orderId}
           </p>
@@ -433,7 +433,7 @@ export default function OrderTracking() {
           <Card className="gap-0 p-4 sm:p-6 bg-blue-50 border border-blue-200 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2.5">
-                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white text-[#1D73EC]">
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white text-[#1668D9]">
                   <MapPin className="h-5 w-5" />
                 </span>
                 <h2 className="truncate text-xl font-semibold text-gray-900">
@@ -451,7 +451,7 @@ export default function OrderTracking() {
               <div className="grid grid-cols-1 sm:grid-cols-2">
                 <div className="min-w-0 p-3">
                   <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-gray-500">
-                    <Calendar className="h-4 w-4 flex-shrink-0 text-[#1D73EC]" />
+                    <Calendar className="h-4 w-4 flex-shrink-0 text-[#1668D9]" />
                     Pickup Date
                   </div>
                   <p className="mt-1 break-words text-base font-semibold text-gray-900">
@@ -460,7 +460,7 @@ export default function OrderTracking() {
                 </div>
                 <div className="min-w-0 border-t border-blue-100 p-3 sm:border-l sm:border-t-0">
                   <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-gray-500">
-                    <Clock className="h-4 w-4 flex-shrink-0 text-[#1D73EC]" />
+                    <Clock className="h-4 w-4 flex-shrink-0 text-[#1668D9]" />
                     Pickup Time
                   </div>
                   <p className="mt-1 break-words text-base font-semibold text-gray-900">
@@ -471,7 +471,7 @@ export default function OrderTracking() {
 
               <div className="min-w-0 border-t border-blue-100 p-3">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-gray-500">
-                  <PackageIcon className="h-4 w-4 flex-shrink-0 text-[#1D73EC]" />
+                  <PackageIcon className="h-4 w-4 flex-shrink-0 text-[#1668D9]" />
                   Pickup Location
                 </div>
                 <p className="mt-1 hidden break-words text-sm font-medium text-gray-800 sm:block">
@@ -480,7 +480,7 @@ export default function OrderTracking() {
                 <button
                   type="button"
                   onClick={() => setShopLocationOpen(true)}
-                  className="mt-2 inline-flex h-9 items-center gap-2 rounded-xl bg-[#1D73EC] px-4 text-sm font-semibold text-white transition-all hover:bg-[#1D73EC]/90 active:scale-[0.97] sm:hidden"
+                  className="mt-2 inline-flex h-9 items-center gap-2 rounded-xl bg-[#1668D9] px-4 text-sm font-semibold text-white transition-all hover:bg-[#1668D9]/90 active:scale-[0.97] sm:hidden"
                 >
                   <MapPin className="h-4 w-4" />
                   View Shop Location
@@ -529,9 +529,9 @@ export default function OrderTracking() {
                 </div>
               </>
             ) : (
-              <div className="mt-3 rounded-lg border border-blue-100 border-l-4 border-l-[#1D73EC] bg-white p-3">
+              <div className="mt-3 rounded-lg border border-blue-100 border-l-4 border-l-[#1668D9] bg-white p-3">
                 <p className="flex items-start gap-2 text-sm text-gray-600">
-                  <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1D73EC]" />
+                  <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1668D9]" />
                   <span>{pickupNote}</span>
                 </p>
               </div>
@@ -683,7 +683,7 @@ export default function OrderTracking() {
                 {orderData.addons.map((addon, index) => (
                   <div key={index} className="flex justify-between items-center text-sm py-2 border-b border-gray-100 last:border-0">
                     <span className="text-gray-700">
-                      {addon.name} <span className="text-gray-400">× {addon.quantity}</span>
+                      {addon.name} <span className="text-gray-500">× {addon.quantity}</span>
                     </span>
                     <span className="font-semibold text-gray-900">
                       ₱{(addon.price * addon.quantity).toFixed(2)}
@@ -1093,7 +1093,7 @@ export default function OrderTracking() {
         <DialogContent className="sm:max-w-lg" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5 text-[#1D73EC]" /> Shop Location
+              <MapPin className="h-5 w-5 text-[#1668D9]" /> Shop Location
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-gray-600">
@@ -1115,7 +1115,7 @@ export default function OrderTracking() {
               <button
                 type="button"
                 onClick={() => setShowShopPhotos((open) => !open)}
-                className="flex items-center gap-2 text-sm font-medium text-[#1D73EC] transition-colors hover:text-[#155bb8]"
+                className="flex items-center gap-2 text-sm font-medium text-[#1668D9] transition-colors hover:text-[#155bb8]"
               >
                 <ChevronDown
                   className={`h-4 w-4 transition-transform duration-200 ${
@@ -1136,7 +1136,7 @@ export default function OrderTracking() {
                       <img
                         src={photo.dataUrl}
                         alt="Shop location"
-                        className="h-24 w-full rounded-lg border border-gray-200 object-cover transition-all hover:ring-2 hover:ring-[#1D73EC]"
+                        className="h-24 w-full rounded-lg border border-gray-200 object-cover transition-all hover:ring-2 hover:ring-[#1668D9]"
                       />
                     </button>
                   ))}
@@ -1176,7 +1176,7 @@ export default function OrderTracking() {
           <DialogFooter>
             <Button
               onClick={() => setUnclaimedDialogOpen(false)}
-              className="w-full border-transparent bg-[#1D73EC] text-white hover:bg-[#10316B] sm:w-auto"
+              className="w-full border-transparent bg-[#1668D9] text-white hover:bg-[#10316B] sm:w-auto"
             >
               Close
             </Button>

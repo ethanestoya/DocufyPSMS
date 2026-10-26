@@ -421,7 +421,7 @@ export default function JobBoardManagement() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="border-[#1D73EC] text-[#1D73EC] hover:bg-white hover:text-[#1D73EC] border-2 border-blue-200"
+                      className="border-[#1668D9] text-[#1668D9] hover:bg-white hover:text-[#1668D9] border-2 border-blue-200"
                       onClick={() => handleViewApplicants(job)}
                     >
                       View Applicants
@@ -476,9 +476,9 @@ export default function JobBoardManagement() {
               Back to Job Postings
             </Button>
             <div>
-              <h1 className="text-2xl font-semibold text-[#10316B]">
+              <h2 className="text-2xl font-semibold text-[#10316B]">
                 Applicants for {selectedJob?.title}
-              </h1>
+              </h2>
               <p className="text-gray-600 mt-1">
                 Review and manage student applications for this position.
               </p>
@@ -578,9 +578,9 @@ export default function JobBoardManagement() {
               Back to Applicants
             </Button>
             <div>
-              <h1 className="text-2xl font-semibold text-[#10316B]">
+              <h2 className="text-2xl font-semibold text-[#10316B]">
                 Application Details
-              </h1>
+              </h2>
               <p className="text-gray-600 mt-1">
                 Review application and update status
               </p>
@@ -809,7 +809,7 @@ export default function JobBoardManagement() {
                   Cancel
                 </Button>
                 <Button
-                  className="bg-white text-[#1D73EC] border-2 border-blue-200 hover:bg-[#1D73EC] hover:text-white"
+                  className="bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
                   onClick={handleStatusUpdate}
                 >
                   Update Status
@@ -932,7 +932,7 @@ export default function JobBoardManagement() {
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <AlertCircle className="w-6 h-6 text-[#1D73EC]" />
+                <AlertCircle className="w-6 h-6 text-[#1668D9]" />
               </div>
               <div>
                 <DialogTitle className="text-xl">Docufy</DialogTitle>
@@ -952,7 +952,7 @@ export default function JobBoardManagement() {
             </Button>
             <Button
               onClick={confirmCreate}
-              className="bg-white text-[#1D73EC] border-2 border-blue-200 hover:bg-[#1D73EC] hover:text-white"
+              className="bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
             >
               Create Posting
             </Button>
@@ -966,7 +966,7 @@ export default function JobBoardManagement() {
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <AlertCircle className="w-6 h-6 text-[#1D73EC]" />
+                <AlertCircle className="w-6 h-6 text-[#1668D9]" />
               </div>
               <div>
                 <DialogTitle className="text-xl">Docufy</DialogTitle>
@@ -986,7 +986,7 @@ export default function JobBoardManagement() {
             </Button>
             <Button
               onClick={confirmStatusUpdate}
-              className="bg-white text-[#1D73EC] border-2 border-blue-200 hover:bg-[#1D73EC] hover:text-white"
+              className="bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
             >
               Update Status
             </Button>

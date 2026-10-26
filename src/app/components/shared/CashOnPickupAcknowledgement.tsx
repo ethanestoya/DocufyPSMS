@@ -24,7 +24,7 @@ export function CashOnPickupAcknowledgement({
           type="checkbox"
           checked={checked}
           onChange={(e) => onChange(e.target.checked)}
-          className="mt-0.5 h-4 w-4 accent-[#1D73EC] shrink-0"
+          className="mt-0.5 h-4 w-4 accent-[#1668D9] shrink-0"
         />
         <span className="text-sm text-gray-700 leading-relaxed">
           By selecting <strong>Cash on Pickup</strong>, you agree to{" "}

@@ -29,6 +29,32 @@
   }
 }
 
+/* ── Reduced motion ────────────────────────────────────────────────────────
+   The app leans on animation for feedback (drawers, dialogs, step transitions,
+   the hydrating sweep, pulse dots). Nothing here is essential, so an OS-level
+   "reduce motion" preference switches it all off rather than merely shortening
+   it. Progress still shows through static bars and labels; `animate-spin`
+   spinners keep a slow rotation because a frozen spinner reads as "stuck". */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-spin {
+    animation-duration: 1.2s !important;
+    animation-iteration-count: infinite !important;
+  }
+
+  .animate-pulse {
+    animation: none !important;
+  }
+}
+
 /* ── Order Receipt document window ──────────────────────────────────────────
    The receipt opens in a spacious document WINDOW rather than a small modal:
    a compact header, the A4-width document centered on a neutral surface, and

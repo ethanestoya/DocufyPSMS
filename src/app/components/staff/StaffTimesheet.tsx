@@ -275,9 +275,9 @@ export default function StaffTimesheet() {
           {/* ── PAGE HEADER ─────────────────────────────────────────────── */}
           <header className="flex items-center justify-between gap-4">
             <div className="min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#102A5C]">
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#102A5C]">
                 Clock-In &amp; Timesheet
-              </h1>
+              </h2>
               <p className="mt-1 text-sm text-[#6B7890]">
                 Track your work hours, manage your attendance, and view your timesheet.
               </p>
@@ -290,7 +290,7 @@ export default function StaffTimesheet() {
               {/* Section A — Staff information */}
               <div className="flex-1 lg:pr-6">
                 <div className="flex items-start gap-4">
-                  <div className="h-16 w-16 shrink-0 rounded-full bg-[#1D73EC] text-white flex items-center justify-center text-lg font-bold uppercase shadow-lg shadow-[#1D73EC]/20">
+                  <div className="h-16 w-16 shrink-0 rounded-full bg-[#1668D9] text-white flex items-center justify-center text-lg font-bold uppercase shadow-lg shadow-[#1668D9]/20">
                     {initials}
                   </div>
                   <div className="min-w-0">
@@ -375,7 +375,7 @@ export default function StaffTimesheet() {
               type="button"
               onClick={() => setShowClockConfirm(true)}
               disabled={primaryDisabled}
-              className="w-full h-[56px] rounded-xl inline-flex items-center justify-center gap-2.5 text-base font-bold text-white bg-[#1D73EC] hover:bg-[#1659c4] border border-white/10 shadow-[0_10px_20px_-8px_rgba(29,115,236,0.55)] transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+              className="w-full h-[56px] rounded-xl inline-flex items-center justify-center gap-2.5 text-base font-bold text-white bg-[#1668D9] hover:bg-[#1659c4] border border-white/10 shadow-[0_10px_20px_-8px_rgba(29,115,236,0.55)] transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
             >
               {isOnClock ? (
                 <LogOut className="w-5 h-5" />

@@ -26,6 +26,7 @@ import {
   ChevronDown,
   Sun,
   ArrowLeft,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import Layout from "../Layout";
@@ -306,6 +307,7 @@ export default function Staff() {
       return matchesSearch && matchesStatus && matchesToday;
     });
   }, [staff, searchQuery, filterStatus, todayFilter, todayRowByEmail]);
+
 
   // Right-hand detail pane — the selected staff's attendance for the chosen period.
   const selectedMember = selectedStaff
@@ -659,7 +661,7 @@ export default function Staff() {
                   className="flex items-center gap-3 rounded-xl border border-slate-200/70 bg-white p-3 hover:border-green-300 hover:bg-green-50/40 text-left cursor-pointer transition-colors"
                 >
                   <div className="relative shrink-0">
-                    <div className="w-9 h-9 rounded-full bg-[#1D73EC] text-white flex items-center justify-center text-xs font-bold">
+                    <div className="w-9 h-9 rounded-full bg-[#1668D9] text-white flex items-center justify-center text-xs font-bold">
                       {getInitials(row.member.name)}
                     </div>
                     <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-white" />
@@ -677,7 +679,7 @@ export default function Staff() {
                     <p className="text-xs font-semibold text-green-700 tabular-nums">
                       {fmtHms(row.totalMs)}
                     </p>
-                    <p className="text-[10px] text-gray-400">working</p>
+                    <p className="text-[10px] text-gray-500">working</p>
                   </div>
                 </button>
               ))}
@@ -705,6 +707,7 @@ export default function Staff() {
             <div className="w-full lg:w-48">
               <FilterLabel applied={filterStatus !== "all"}>Status</FilterLabel>
               <ZoomSafeDropdown
+                label="Status filter"
                 value={filterStatus}
                 onChange={setFilterStatus}
                 placeholder="All Statuses"
@@ -768,16 +771,13 @@ export default function Staff() {
                   <tr
                     key={member.id}
                     onClick={() => handleRowSelect(member)}
-                    tabIndex={0}
-                    role="button"
-                    aria-label={`View ${member.name}'s attendance`}
                     className={`cursor-pointer transition-colors ${
                       isSelected ? "bg-blue-50" : "hover:bg-gray-50/70"
                     }`}
                   >
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-[#1D73EC] text-white flex items-center justify-center text-xs font-bold shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-[#1668D9] text-white flex items-center justify-center text-xs font-bold shrink-0">
                           {getInitials(member.name)}
                         </div>
                         <div className="min-w-0">
@@ -798,7 +798,7 @@ export default function Staff() {
                       <Badge
                         className={
                           member.role === "Admin"
-                            ? "bg-[#1D73EC]/10 text-[#1D73EC] border border-[#1D73EC]/20"
+                            ? "bg-[#1668D9]/10 text-[#1668D9] border border-[#1668D9]/20"
                             : "bg-gray-100 text-gray-700 border border-gray-200"
                         }
                       >
@@ -861,6 +861,17 @@ export default function Staff() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label={`View attendance and salary for ${member.name}`}
+                          title="View attendance & salary"
+                          className="group"
+                          onClick={() => handleRowSelect(member)}
+                        >
+                          <CalendarClock className="w-4 h-4 text-[#2F6FD6] group-hover:text-white" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Edit ${member.name}`}
                           title="Edit staff"
                           className="group"
                           onClick={() => openEdit(member)}
@@ -871,6 +882,7 @@ export default function Staff() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            aria-label={`Deactivate ${member.name}`}
                             title="Deactivate account"
                             className="group bg-red-50 hover:bg-red-500 hover:text-white transition-all"
                             onClick={() => setDeactivating(member)}
@@ -881,6 +893,7 @@ export default function Staff() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            aria-label={`Activate ${member.name}`}
                             title="Activate account"
                             className="hover:bg-green-50"
                             onClick={() => setActivating(member)}
@@ -965,7 +978,7 @@ export default function Staff() {
                 <div className="pt-4 sm:pt-5 px-6 sm:px-8">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-8">
                     <div className="flex items-center gap-4 min-w-0 flex-1">
-                      <div className="w-[72px] h-[72px] sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-[#1677F2] to-[#1D73EC] text-white flex items-center justify-center text-2xl sm:text-[28px] font-bold shrink-0 shadow-[0_10px_24px_-8px_rgba(22,119,242,0.6)]">
+                      <div className="w-[72px] h-[72px] sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-[#1677F2] to-[#1668D9] text-white flex items-center justify-center text-2xl sm:text-[28px] font-bold shrink-0 shadow-[0_10px_24px_-8px_rgba(22,119,242,0.6)]">
                         {getInitials(selectedStaff.name)}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -1587,7 +1600,7 @@ export default function Staff() {
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="flex items-center gap-3 rounded-xl border border-slate-200/70 bg-white p-4">
-                <div className="w-11 h-11 rounded-xl bg-[#1D73EC]/10 text-[#1D73EC] flex items-center justify-center shrink-0">
+                <div className="w-11 h-11 rounded-xl bg-[#1668D9]/10 text-[#1668D9] flex items-center justify-center shrink-0">
                   <Wallet className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -1673,6 +1686,7 @@ export default function Staff() {
             <div className="space-y-2">
               <Label>Role <span className="text-red-500">*</span></Label>
               <ZoomSafeDropdown
+                label="Role"
                 value={newStaff.role}
                 onChange={(value) => setNewStaff({ ...newStaff, role: value })}
                 placeholder="Select role"
@@ -1818,6 +1832,7 @@ export default function Staff() {
                 <div className="space-y-2">
                   <Label>Role <span className="text-red-500">*</span></Label>
                   <ZoomSafeDropdown
+                    label="Role"
                     value={editForm.role}
                     onChange={(value) =>
                       setEditForm({ ...editForm, role: value as "Staff" | "Admin" })
@@ -1833,6 +1848,7 @@ export default function Staff() {
                 <div className="space-y-2">
                   <Label>Account Status <span className="text-red-500">*</span></Label>
                   <ZoomSafeDropdown
+                    label="Account status"
                     value={editForm.status}
                     onChange={(value) =>
                       setEditForm({ ...editForm, status: value as "Active" | "Inactive" })
@@ -1850,6 +1866,7 @@ export default function Staff() {
               <div className="space-y-2">
                 <Label>Attendance Status</Label>
                 <ZoomSafeDropdown
+                  label="Attendance status"
                   value={editForm.attendanceStatus}
                   onChange={(value) =>
                     setEditForm({
@@ -1874,7 +1891,7 @@ export default function Staff() {
                       }
                       placeholder="State why this staff member is on leave…"
                       rows={2}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#2F6FD6] focus:ring-1 focus:ring-[#2F6FD6] outline-none resize-none"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-[#5C6B7F] focus:border-[#2F6FD6] focus:ring-1 focus:ring-[#2F6FD6] outline-none resize-none"
                     />
                     <p className="text-xs text-gray-500">
                       The reason is shown next to the On Leave badge until the

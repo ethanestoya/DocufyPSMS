@@ -993,7 +993,7 @@ const SERVICES_RANGES = [
 ] as const;
 type ServicesRangeId = (typeof SERVICES_RANGES)[number]["id"];
 
-const DONUT_COLORS = ["#1D73EC", "#2F6FD6", "#7FB0F0", "#A8CBF5", "#D6E7FB"];
+const DONUT_COLORS = ["#1668D9", "#2F6FD6", "#7FB0F0", "#A8CBF5", "#D6E7FB"];
 
 function serviceIcon(name: string, className = "w-4 h-4") {
   const n = name.toLowerCase();
@@ -1347,7 +1347,7 @@ function ServicesTab({ navigate }: { navigate: ReturnType<typeof useNavigate> })
           </div>
           <button
             onClick={() => navigate("/admin/pricing")}
-            className="inline-flex items-center gap-1.5 px-4 h-9 rounded-lg bg-white border-2 border-blue-200 text-sm font-semibold text-[#1D73EC] hover:bg-[#1D73EC] hover:text-white transition-all hover:-translate-y-0.5 hover:shadow-md"
+            className="inline-flex items-center gap-1.5 px-4 h-9 rounded-lg bg-white border-2 border-blue-200 text-sm font-semibold text-[#1668D9] hover:bg-[#1668D9] hover:text-white transition-all hover:-translate-y-0.5 hover:shadow-md"
           >
             <Plus className="w-4 h-4" /> Add Service
           </button>
@@ -1460,7 +1460,7 @@ export default function AdminDashboard({
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Dashboard</h1>
+            <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Dashboard</h2>
             <p className="text-sm text-slate-500 mt-1">Welcome back, {userName || "admin"}! Here's what's happening with Docufy today.</p>
           </div>
           {role === "staff" && overviewDateSelector}

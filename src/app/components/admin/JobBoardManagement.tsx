@@ -403,7 +403,7 @@ export default function JobBoardManagement() {
                 <div className="p-4 sm:p-6">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-[#F2F7FF]">
-                      <Briefcase className="h-6 w-6 text-[#1D73EC]" />
+                      <Briefcase className="h-6 w-6 text-[#1668D9]" />
                     </div>
 
                     <div className="min-w-0 flex-1">
@@ -415,9 +415,9 @@ export default function JobBoardManagement() {
                             {job.status === 'archived' && (
                               <Badge className="text-xs bg-gray-100 text-gray-700">{job.status}</Badge>
                             )}
-                            <span className="text-xs text-gray-400">·</span>
+                            <span className="text-xs text-gray-500">Â·</span>
                             <span className="text-xs text-gray-500">{job.department}</span>
-                            <span className="text-xs text-gray-400">·</span>
+                            <span className="text-xs text-gray-500">Â·</span>
                             <span className="text-xs text-gray-500">Posted {job.posted}</span>
                           </div>
                         </div>
@@ -426,7 +426,7 @@ export default function JobBoardManagement() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="border-blue-200 text-[#1D73EC] hover:bg-[#1D73EC] hover:text-white text-xs px-3"
+                            className="border-blue-200 text-[#1668D9] hover:bg-[#1668D9] hover:text-white text-xs px-3"
                             onClick={() => handleViewApplicants(job)}
                           >
                             <Eye className="w-3.5 h-3.5 mr-1" />
@@ -445,7 +445,7 @@ export default function JobBoardManagement() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="bg-white border-2 border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white text-xs px-3 transition-all"
+                              className="bg-white border-2 border-blue-300 text-[#2F6FD6] hover:bg-[#2F6FD6] hover:text-white text-xs px-3 transition-all"
                               onClick={() => setJobToRestore(job)}
                             >
                               Restore
@@ -472,7 +472,7 @@ export default function JobBoardManagement() {
                   <button
                     type="button"
                     onClick={() => setExpandedJobId(isExpanded ? null : job.id)}
-                    className="flex w-full items-center justify-between gap-2 px-4 sm:px-6 py-2.5 text-left text-sm font-semibold text-[#1D73EC] hover:text-[#10316B] transition-colors"
+                    className="flex w-full items-center justify-between gap-2 px-4 sm:px-6 py-2.5 text-left text-sm font-semibold text-[#1668D9] hover:text-[#10316B] transition-colors"
                     aria-expanded={isExpanded}
                   >
                     <span>{isExpanded ? "Hide description" : "Show description"}</span>
@@ -516,9 +516,9 @@ export default function JobBoardManagement() {
               Back to Job Postings
             </Button>
             <div className="text-left">
-              <h1 className="text-lg font-bold text-gray-900 sm:text-2xl sm:font-semibold sm:text-[#10316B] leading-snug">
+              <h2 className="text-lg font-bold text-gray-900 sm:text-2xl sm:font-semibold sm:text-[#10316B] leading-snug">
                 Applicants for {selectedJob?.title}
-              </h1>
+              </h2>
               <p className="text-xs text-gray-500 mt-1 sm:text-base sm:text-gray-600">
                 Review and manage student applications for this position.
               </p>
@@ -620,9 +620,9 @@ export default function JobBoardManagement() {
               Back to Applicants
             </Button>
             <div>
-              <h1 className="text-2xl font-semibold text-[#10316B]">
+              <h2 className="text-2xl font-semibold text-[#10316B]">
                 Application Details
-              </h1>
+              </h2>
               <p className="text-gray-600 mt-1">
                 Review application and update status
               </p>
@@ -853,7 +853,7 @@ export default function JobBoardManagement() {
                   Cancel
                 </Button>
                 <Button
-                  className="bg-white text-[#1D73EC] border-2 border-blue-200 hover:bg-[#1D73EC] hover:text-white"
+                  className="bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
                   onClick={handleStatusUpdate}
                 >
                   Update Status
@@ -976,7 +976,7 @@ export default function JobBoardManagement() {
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <AlertCircle className="w-6 h-6 text-[#1D73EC]" />
+                <AlertCircle className="w-6 h-6 text-[#1668D9]" />
               </div>
               <div>
                 <DialogTitle className="text-xl">Docufy</DialogTitle>
@@ -996,7 +996,7 @@ export default function JobBoardManagement() {
             </Button>
             <Button
               onClick={confirmCreate}
-              className="bg-white text-[#1D73EC] border-2 border-blue-200 hover:bg-[#1D73EC] hover:text-white"
+              className="bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
             >
               Create Posting
             </Button>
@@ -1010,7 +1010,7 @@ export default function JobBoardManagement() {
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <AlertCircle className="w-6 h-6 text-[#1D73EC]" />
+                <AlertCircle className="w-6 h-6 text-[#1668D9]" />
               </div>
               <div>
                 <DialogTitle className="text-xl">Docufy</DialogTitle>
@@ -1030,7 +1030,7 @@ export default function JobBoardManagement() {
             </Button>
             <Button
               onClick={confirmStatusUpdate}
-              className="bg-white text-[#1D73EC] border-2 border-blue-200 hover:bg-[#1D73EC] hover:text-white"
+              className="bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
             >
               Update Status
             </Button>

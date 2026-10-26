@@ -130,7 +130,7 @@ export default function JobBoard() {
           type="button"
           onClick={() => navigate(-1)}
           aria-label="Go back"
-          className="md:hidden inline-flex items-center gap-1 rounded-xl p-2 pl-0 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D73EC]"
+          className="md:hidden inline-flex items-center gap-1 rounded-xl p-2 pl-0 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
         >
           <ArrowLeft className="h-5 w-5" />
           <span className="text-sm font-medium">Back</span>
@@ -148,8 +148,8 @@ export default function JobBoard() {
               onClick={() => setTab('listings')}
               className={`w-full rounded-xl border-2 px-4 py-2.5 text-sm font-semibold transition-all sm:w-auto ${
                 tab === 'listings'
-                  ? 'bg-[#1D73EC] text-white border-[#1D73EC] shadow-md'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-[#1D73EC] hover:text-[#1D73EC]'
+                  ? 'bg-[#1668D9] text-white border-[#1668D9] shadow-md'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-[#1668D9] hover:text-[#1668D9]'
               }`}
             >
               Job Listings
@@ -158,14 +158,14 @@ export default function JobBoard() {
               onClick={() => setTab('applications')}
               className={`relative w-full rounded-xl border-2 px-4 py-2.5 text-sm font-semibold transition-all sm:w-auto ${
                 tab === 'applications'
-                  ? 'bg-[#1D73EC] text-white border-[#1D73EC] shadow-md'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-[#1D73EC] hover:text-[#1D73EC]'
+                  ? 'bg-[#1668D9] text-white border-[#1668D9] shadow-md'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-[#1668D9] hover:text-[#1668D9]'
               }`}
             >
               My Applications
               {applications.length > 0 && (
                 <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                  tab === 'applications' ? 'bg-white/20 text-white' : 'bg-[#1D73EC] text-white'
+                  tab === 'applications' ? 'bg-white/20 text-white' : 'bg-[#1668D9] text-white'
                 }`}>
                   {applications.length}
                 </span>
@@ -179,9 +179,9 @@ export default function JobBoard() {
           <div className="space-y-3">
             {jobs.length === 0 ? (
               <Card className="border border-gray-100 bg-white p-16 text-center shadow-sm">
-                <Briefcase className="mx-auto mb-4 h-10 w-10 text-[#1D73EC]/35" />
+                <Briefcase className="mx-auto mb-4 h-10 w-10 text-[#1668D9]/35" />
                 <p className="text-lg font-semibold text-gray-500">No job listings available</p>
-                <p className="mt-1 text-sm text-gray-400">New opportunities will appear here when they are posted.</p>
+                <p className="mt-1 text-sm text-gray-500">New opportunities will appear here when they are posted.</p>
               </Card>
             ) : jobs.map((job) => {
               const application = getApplicationForJob(job.id);
@@ -195,7 +195,7 @@ export default function JobBoard() {
                   <div className={`p-4 sm:p-6 ${isExpanded ? "pb-2 sm:pb-2" : ""}`}>
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-[#F2F7FF]">
-                        <Briefcase className="h-6 w-6 text-[#1D73EC]" />
+                        <Briefcase className="h-6 w-6 text-[#1668D9]" />
                       </div>
 
                       <div className="min-w-0 flex-1">
@@ -206,9 +206,9 @@ export default function JobBoard() {
                               <Badge className="text-xs bg-blue-100 text-blue-700">
                                 {job.type}
                               </Badge>
-                              <span className="text-xs text-gray-400">·</span>
+                              <span className="text-xs text-gray-500">·</span>
                               <span className="text-xs text-gray-500">{job.department}</span>
-                              <span className="text-xs text-gray-400">·</span>
+                              <span className="text-xs text-gray-500">·</span>
                               <span className="text-xs text-gray-500">Posted {job.posted}</span>
                               {application && (
                                 <Badge className={`text-xs border ${STATUS_COLORS[application.status]}`}>
@@ -263,7 +263,7 @@ export default function JobBoard() {
                         {!application && (
                           <div className="mt-4">
                             <Button
-                              className="w-full h-11 text-sm bg-[#1D73EC] text-white border-2 border-[#1D73EC] hover:bg-[#10316B] sm:w-auto"
+                              className="w-full h-11 text-sm bg-[#1668D9] text-white border-2 border-[#1668D9] hover:bg-[#10316B] sm:w-auto"
                               onClick={() => navigate(`/customer/job-apply/${job.id}`)}
                             >
                               Apply for this Position
@@ -288,9 +288,9 @@ export default function JobBoard() {
                   <Briefcase className="w-8 h-8 text-gray-300" />
                 </div>
                 <p className="font-semibold text-gray-500 text-lg">No applications yet</p>
-                <p className="text-smm text-gray-400 mt-1">Browse job listings and apply to get started.</p>
+                <p className="text-smm text-gray-500 mt-1">Browse job listings and apply to get started.</p>
                 <Button
-                  className="mt-6 bg-white text-[#1D73EC] border-2 border-blue-200 hover:bg-[#1D73EC] hover:text-white"
+                  className="mt-6 bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
                   onClick={() => setTab('listings')}
                 >
                   Browse Listings
@@ -306,7 +306,7 @@ export default function JobBoard() {
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex items-start gap-3 sm:gap-4">
                           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-[#F2F7FF]">
-                            <Briefcase className="h-6 w-6 text-[#1D73EC]" />
+                            <Briefcase className="h-6 w-6 text-[#1668D9]" />
                           </div>
                           <div className="min-w-0">
                             <h3 className="text-base font-bold text-[#1c1f26] sm:text-lg">{app.jobTitle}</h3>
@@ -317,7 +317,7 @@ export default function JobBoard() {
                               <Badge className={`text-xs border ${STATUS_COLORS[app.status]}`}>
                                 {app.status}
                               </Badge>
-                              <span className="text-xs text-gray-400">{applicationDisplayId(app.id)}</span>
+                              <span className="text-xs text-gray-500">{applicationDisplayId(app.id)}</span>
                             </div>
                           </div>
                         </div>
@@ -325,7 +325,7 @@ export default function JobBoard() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="w-full border-[#1D73EC] text-xs text-[#1D73EC] hover:bg-[#1D73EC] hover:text-white sm:w-auto"
+                          className="w-full border-[#1668D9] text-xs text-[#1668D9] hover:bg-[#1668D9] hover:text-white sm:w-auto"
                           onClick={() => setSelectedApp(app)}
                         >
                           <Eye className="mr-1.5 h-3.5 w-3.5" />
@@ -468,7 +468,7 @@ export default function JobBoard() {
                   </p>
                 </div>
                 <div className="p-4">
-                  <p className="font-bold text-[#1D73EC] text-base">{selectedApp.position}</p>
+                  <p className="font-bold text-[#1668D9] text-base">{selectedApp.position}</p>
                   <p className="text-xs text-gray-500 mt-0.5">
                     Submitted on {formatPHDate(selectedApp.appliedDate, "long")}
                   </p>
@@ -524,7 +524,7 @@ export default function JobBoard() {
                         href={selectedApp.portfolio}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 text-sm font-medium text-[#1D73EC] hover:text-[#10316B] hover:underline transition-colors break-all"
+                        className="inline-flex items-center gap-2 text-sm font-medium text-[#1668D9] hover:text-[#10316B] hover:underline transition-colors break-all"
                       >
                         <ExternalLink className="w-4 h-4 flex-shrink-0" />
                         {selectedApp.portfolio}
@@ -534,7 +534,7 @@ export default function JobBoard() {
                 </div>
               ) : (
                 <div className="rounded-xl border border-dashed border-gray-200 p-4 text-center">
-                  <p className="text-xs text-gray-400">No portfolio provided</p>
+                  <p className="text-xs text-gray-500">No portfolio provided</p>
                 </div>
               )}
 
@@ -612,7 +612,7 @@ export default function JobBoard() {
                 setShowSuccessDialog(false);
                 setTab('applications');
               }}
-              className="w-full bg-white text-[#1D73EC] border-2 border-blue-200 hover:bg-[#1D73EC] hover:text-white"
+              className="w-full bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
             >
               View My Applications
             </Button>

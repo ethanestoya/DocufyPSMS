@@ -398,7 +398,7 @@ export default function PricingManagement() {
         {/* Header */}
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-[#F2F7FF] text-[#1D73EC] flex items-center justify-center shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-[#F2F7FF] text-[#1668D9] flex items-center justify-center shrink-0">
               <BadgeDollarSign className="w-6 h-6" />
             </div>
             <div>
@@ -859,7 +859,7 @@ export default function PricingManagement() {
                   {formatDuration(durationTotalSeconds())}
                 </span>
               </p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-500">
                 Set 0 so orders never auto-expire while awaiting payment.
               </p>
             </div>

@@ -131,7 +131,7 @@ export function UnclaimedHeaderIndicator({
                   setOpen(false);
                   navigate(`/customer/track/${latestOrderId}`);
                 }}
-                className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-[#1D73EC] px-3 text-sm font-semibold text-white transition-all hover:bg-[#10316B] active:scale-[0.97]"
+                className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-[#1668D9] px-3 text-sm font-semibold text-white transition-all hover:bg-[#10316B] active:scale-[0.97]"
               >
                 View Order
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />

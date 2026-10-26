@@ -117,7 +117,7 @@ function FileIcon({
         <Presentation className={`${cls} text-blue-500`} />
       );
     case "document":
-      return <FileText className={`${cls} text-[#1D73EC]`} />;
+      return <FileText className={`${cls} text-[#1668D9]`} />;
     case "text":
       return <FileText className={`${cls} text-gray-500`} />;
     default:
@@ -234,7 +234,7 @@ export function FileAttachments({
     "w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all";
   const actionBtnCls = actionsLocked
     ? `${actionBtnBase} border-gray-200 bg-gray-50 text-gray-300`
-    : `${actionBtnBase} border-gray-300 text-gray-600 hover:text-[#1D73EC] hover:border-[#1D73EC] hover:bg-[#F2F7FF]`;
+    : `${actionBtnBase} border-gray-300 text-gray-600 hover:text-[#1668D9] hover:border-[#1668D9] hover:bg-[#F2F7FF]`;
   const lockTitle = `${lockedBy} is viewing this order`;
 
   return (
@@ -246,7 +246,7 @@ export function FileAttachments({
         return (
           <div
             key={index}
-            className="group flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200 hover:border-[#1D73EC] hover:shadow-sm transition-all"
+            className="group flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200 hover:border-[#1668D9] hover:shadow-sm transition-all"
           >
             {/* File icon */}
             <div className="w-9 h-9 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center flex-shrink-0">

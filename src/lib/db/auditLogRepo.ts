@@ -1,6 +1,7 @@
 import { supabase } from '../supabaseClient';
 import { isRlsDenied } from './errors';
 import { subscribeTableChanges } from './hooks';
+import { isUuid } from './uuid';
 import type { AuditLogInsert, AuditLogRow } from './types';
 
 // SuAppan-backed persistence for the Admin Audit Trail.
@@ -104,10 +105,10 @@ async function rowToDto(row: AuditLogRow): Promise<AuditLogDto> {
 export async function insertAuditEntry(write: AuditLogWrite): Promise<string | null> {
   const changes = Array.isArray(write.changes) ? write.changes : [];
   const row: AuditLogInsert = {
-    actor_id: write.actorId ?? null,
+    actor_id: isUuid(write.actorId) ? write.actorId : null,
     action: write.action,
     entity_type: write.entityType ?? null,
-    entity_id: write.entityId ?? null,
+    entity_id: isUuid(write.entityId) ? write.entityId : null,
     ip_address: write.ipAddress ?? null,
     user_agent: null,
     metadata: {

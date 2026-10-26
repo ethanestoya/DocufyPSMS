@@ -22,17 +22,17 @@ export type InventoryAlertState = Record<string, InventoryStatus>;
 
 interface AlertStateRow {
   item_id: string;
-  last_status: string;
+  status: string;
 }
 
 export async function fetchInventoryAlertState(): Promise<InventoryAlertState> {
   const { data, error } = await supabase
     .from('inventory_alert_state')
-    .select('item_id, last_status');
+    .select('item_id, status');
   if (error) throw error;
   const map: InventoryAlertState = {};
   for (const row of (data ?? []) as AlertStateRow[]) {
-    if (row.item_id) map[row.item_id] = row.last_status as InventoryStatus;
+    if (row.item_id) map[row.item_id] = row.status as InventoryStatus;
   }
   return map;
 }
@@ -44,7 +44,7 @@ export async function upsertInventoryAlertState(
   const { error } = await supabase.from('inventory_alert_state').upsert(
     {
       item_id: itemId,
-      last_status: status,
+      status,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'item_id' },

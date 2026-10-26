@@ -11,7 +11,6 @@ import {
   Banknote,
   Check,
   X,
-  ListOrdered,
   QrCode,
   Lock,
   Unlock,
@@ -79,6 +78,10 @@ type PaymentType = {
   method: string;
   status: "pending" | "verified" | "rejected";
   submittedAt: Date;
+  // When the payment was actually verified (staff/admin approval), not when the
+  // customer submitted it — "Verified Today" must count by this, otherwise an
+  // order submitted last week and approved this morning is never counted.
+  verifiedAt?: Date;
   time: string;
   reference?: string;
   proofImageUrl?: string;
@@ -112,6 +115,46 @@ type PaymentType = {
   // online/down payments the customer submitted; absent for cash at the shop).
   rowId?: string;
 };
+
+// Status filters. Every summary card and every Status option maps to exactly
+// one of these.
+type StatusFilter =
+  | "all"
+  | "pending"
+  | "verified"
+  | "verifiedToday"
+  | "closed"
+  | "cancelled"
+  | "expired";
+
+// ONE predicate per filter, used by BOTH the count on the card and the list
+// itself, so a card can never report 3 and then show 2 rows.
+function matchesStatusFilter(
+  payment: PaymentType,
+  filter: StatusFilter,
+  todayKey: string,
+): boolean {
+  switch (filter) {
+    case "pending":
+      return payment.status === "pending";
+    case "verified":
+      return payment.status === "verified";
+    case "verifiedToday":
+      return (
+        payment.status === "verified" &&
+        toPHTKey(payment.verifiedAt ?? payment.submittedAt) === todayKey
+      );
+    case "cancelled":
+      return payment.status === "rejected" && !payment.expired;
+    case "expired":
+      return payment.status === "rejected" && payment.expired === true;
+    case "closed":
+      return payment.status === "rejected";
+    case "all":
+    default:
+      return true;
+  }
+}
 
 function parseOrderTotal(order: {
   total?: string;
@@ -207,6 +250,9 @@ function generatePaymentsFromOrders(): PaymentType[] {
         method: paymentMethod,
         status: paymentStatus,
         submittedAt: orderDate,
+        verifiedAt: order.paymentVerifiedAt
+          ? new Date(order.paymentVerifiedAt)
+          : undefined,
         time: formatPHTime(orderDate).toLowerCase(),
         reference: order.paymentReferenceNumber || (isCashOnPickup ? 'Cash on Pickup' : ''),
         proofImageUrl: order.paymentProofUrl || SAMPLE_PROOF_IMAGE,
@@ -245,9 +291,7 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
     useState<PaymentType | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const hydrating = useHydrating();
-  const [statusFilter, setStatusFilter] = useState<
-    "all" | "pending" | "verified" | "rejected" | "cancelled" | "expired"
-  >("pending");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("pending");
   const [typeFilter, setTypeFilter] = useState<
     "all" | "cash" | "online" | "online-down"
   >("all");
@@ -607,6 +651,9 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
     setShowDialog(true);
   };
 
+  // One key for "today" shared by the filters and the card counts.
+  const todayKey = todayPHTKey();
+
   const filteredPayments = payments
     .filter((p) => {
       const query = searchQuery.toLowerCase();
@@ -617,19 +664,7 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
         !p.reference?.toLowerCase().includes(query)
       )
         return false;
-      if (statusFilter === "pending" && p.status !== "pending")
-        return false;
-      if (statusFilter === "verified" && p.status !== "verified")
-        return false;
-      if (statusFilter === "rejected" && !(p.status === "rejected" && !p.canceled))
-        return false;
-      if (
-        statusFilter === "cancelled" &&
-        !(p.status === "rejected" && p.canceled && !p.expired)
-      )
-        return false;
-      if (statusFilter === "expired" && !(p.status === "rejected" && p.expired))
-        return false;
+      if (!matchesStatusFilter(p, statusFilter, todayKey)) return false;
       if (typeFilter === "cash" && p.kind !== "cash") return false;
       if (typeFilter === "online" && p.kind !== "online") return false;
       if (typeFilter === "online-down" && p.kind !== "online-down")
@@ -702,28 +737,78 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
     [payments],
   );
 
+  // Counts are derived from the SAME predicate each card filters by, so a card
+  // can never advertise a number the list does not produce.
   const stats = {
-    pending: payments.filter((p) => p.status === "pending")
-      .length,
-    verifiedToday: payments.filter(
-      (p) =>
-        p.status === "verified" &&
-        toPHTKey(p.submittedAt) === todayPHTKey(),
+    pending: payments.filter((p) =>
+      matchesStatusFilter(p, "pending", todayKey),
     ).length,
-    inQueue: dataStore.getOrders().filter(
-      (o) => o.status === "In Queue",
+    verifiedToday: payments.filter((p) =>
+      matchesStatusFilter(p, "verifiedToday", todayKey),
     ).length,
-    canceled: dataStore.getOrders().filter(
-      (o) => o.status === "Canceled",
+    closed: payments.filter((p) =>
+      matchesStatusFilter(p, "closed", todayKey),
     ).length,
     totalVerifiedToday: payments
-      .filter(
-        (p) =>
-          p.status === "verified" &&
-          toPHTKey(p.submittedAt) === todayPHTKey(),
-      )
+      .filter((p) => matchesStatusFilter(p, "verifiedToday", todayKey))
       .reduce((sum, p) => sum + p.amount, 0),
   };
+
+  // The empty state must say WHY the list is empty — "no payments to verify"
+  // is wrong when the list is empty because of a filter, not because there is
+  // nothing to do.
+  const narrowedByHand =
+    searchQuery.trim() !== "" ||
+    dateFrom !== "" ||
+    dateTo !== "" ||
+    typeFilter !== "all" ||
+    methodFilter !== "all";
+
+  const emptyState = (() => {
+    if (narrowedByHand) {
+      return {
+        title: "No payments match these filters",
+        body: "Try a different search, date range, type or method.",
+      };
+    }
+    switch (statusFilter) {
+      case "pending":
+        return {
+          title: "No payments to verify",
+          body: "Payment records appear here when customers place orders.",
+        };
+      case "verifiedToday":
+        return {
+          title: "Nothing verified today",
+          body: "Payments you verify today will be listed here.",
+        };
+      case "verified":
+        return {
+          title: "No verified payments yet",
+          body: "Payments appear here once they have been verified.",
+        };
+      case "closed":
+        return {
+          title: "No cancelled or expired payments",
+          body: "Cancelled orders and payments past their deadline appear here.",
+        };
+      case "cancelled":
+        return {
+          title: "No cancelled payments",
+          body: "Orders cancelled by a customer or by staff appear here.",
+        };
+      case "expired":
+        return {
+          title: "No expired payments",
+          body: "Orders that ran past their payment deadline appear here.",
+        };
+      default:
+        return {
+          title: "No payments found",
+          body: "There are no payment records yet.",
+        };
+    }
+  })();
 
   return (
     <Layout menuItems={menuItems} title="Payment Verification" showBackButton>
@@ -741,8 +826,9 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
           </div>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 @min-[1100px]:grid-cols-5 gap-3 mb-4 shrink-0">
+        {/* Summary Cards — every card that shows a count filters the list; the
+            money total is display-only and deliberately does not look clickable. */}
+        <div className="grid grid-cols-2 @min-[1100px]:grid-cols-4 gap-3 mb-4 shrink-0">
           <SummaryCard
             label="Pending Verification"
             value={stats.pending}
@@ -758,18 +844,23 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
             icon={CheckCircle}
             iconBg="bg-green-50"
             iconColor="text-green-600"
-          />
-          <SummaryCard
-            label="In Queue"
-            value={stats.inQueue}
-            icon={ListOrdered}
+            active={statusFilter === "verifiedToday"}
+            onClick={() =>
+              setStatusFilter((f) =>
+                f === "verifiedToday" ? "all" : "verifiedToday",
+              )
+            }
           />
           <SummaryCard
             label="Cancelled / Expired"
-            value={stats.canceled}
+            value={stats.closed}
             icon={XCircle}
             iconBg="bg-red-50"
             iconColor="text-red-500"
+            active={statusFilter === "closed"}
+            onClick={() =>
+              setStatusFilter((f) => (f === "closed" ? "all" : "closed"))
+            }
           />
           <SummaryCard
             highlight
@@ -814,12 +905,13 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                 onChange={(v) => setStatusFilter(v as typeof statusFilter)}
                 applied={statusFilter !== "pending"}
                 options={[
-                  { value: "pending",   label: "Pending" },
-                  { value: "all",       label: "All Statuses" },
-                  { value: "verified",  label: "Verified" },
-                  { value: "rejected",  label: "Rejected" },
-                  { value: "cancelled", label: "Cancelled" },
-                  { value: "expired",   label: "Expired" },
+                  { value: "pending",       label: "Pending" },
+                  { value: "verifiedToday", label: "Verified Today" },
+                  { value: "verified",      label: "Verified (all time)" },
+                  { value: "closed",        label: "Cancelled / Expired" },
+                  { value: "cancelled",     label: "Cancelled" },
+                  { value: "expired",       label: "Expired" },
+                  { value: "all",           label: "All Statuses" },
                 ]}
               />
             </div>
@@ -913,8 +1005,8 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                   <tr>
                     <td colSpan={7} className="py-16 text-center">
                       <CreditCard className="mx-auto mb-3 h-10 w-10 text-[#1668D9]/35" />
-                      <p className="text-sm font-semibold text-gray-500">No payments to verify</p>
-                      <p className="mt-1 text-xs text-gray-500">Payment records will appear here when customers place orders.</p>
+                      <p className="text-sm font-semibold text-gray-500">{emptyState.title}</p>
+                      <p className="mt-1 text-xs text-gray-500">{emptyState.body}</p>
                     </td>
                   </tr>
                 ) : paginatedPayments.map((payment, index) => {

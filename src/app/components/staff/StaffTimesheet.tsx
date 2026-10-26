@@ -367,27 +367,23 @@ export default function StaffTimesheet() {
                   <p className="mt-4 font-mono font-bold tabular-nums tracking-tight text-4xl text-[#1976F3]">
                       {isOnClock ? sessionDisplay : "--:--:--"}
                     </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowClockConfirm(true)}
+                    disabled={primaryDisabled}
+                    className="mt-4 w-full h-11 rounded-lg inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#1668D9] hover:bg-[#1659c4] border border-white/10 shadow-[0_6px_14px_-8px_rgba(29,115,236,0.55)] transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+                  >
+                    {isOnClock ? (
+                      <LogOut className="w-4 h-4" />
+                    ) : (
+                      <LogIn className="w-4 h-4" />
+                    )}
+                    {primaryLabel}
+                  </button>
                 </div>
               </div>
             </div>
           </section>
-
-          {/* ── PRIMARY ACTION ────────────────────────────────────────────── */}
-          <div className="rounded-2xl bg-white border border-slate-200 shadow-[0_1px_3px_rgba(16,42,92,0.06)] p-2.5">
-            <button
-              type="button"
-              onClick={() => setShowClockConfirm(true)}
-              disabled={primaryDisabled}
-              className="w-full h-[56px] rounded-xl inline-flex items-center justify-center gap-2.5 text-base font-bold text-white bg-[#1668D9] hover:bg-[#1659c4] border border-white/10 shadow-[0_10px_20px_-8px_rgba(29,115,236,0.55)] transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
-            >
-              {isOnClock ? (
-                <LogOut className="w-5 h-5" />
-              ) : (
-                <LogIn className="w-5 h-5" />
-              )}
-              {primaryLabel}
-            </button>
-          </div>
 
           {/* ── ATTENDANCE SUMMARY CARDS ─────────────────────────────────── */}
           {hydrating && <CardSkeleton cards={3} columns={3} label="Loading attendance" />}

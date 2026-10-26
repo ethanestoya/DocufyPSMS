@@ -64,6 +64,7 @@ import { dataStore, Order } from "../../utils/dataStore";
 import { adminMenuItems } from "../../utils/adminMenuItems";
 import { inventoryStore, InventoryItem } from "../../utils/inventoryStore";
 import { pricingStore } from "../../utils/pricingStore";
+import { formatNumber } from "../../utils/formatNumber";
 import ShopStatusControl from "../shared/ShopStatusControl";
 import CreateNotificationCard from "../shared/CreateNotificationCard";
 import { toast } from "sonner";
@@ -411,11 +412,18 @@ function computeMetrics(orders: Order[], dateRange: { start: Date; end: Date }):
 
 // ─── sub-components ───────────────────────────────────────────────────────────
 function TrendText({ trend, label }: { trend: number; label: string }) {
-  const isUp = trend >= 0;
+  // A 0.0% change is not an increase — colouring it green claims a gain that
+  // did not happen. Flat reads neutral.
+  const isFlat = Math.abs(trend) < 0.05;
+  const isUp = trend > 0;
   return (
     <>
-      <span className={`text-xs font-semibold ${isUp ? "text-green-600" : "text-red-500"}`}>
-        {isUp ? "↗" : "↘"} {Math.abs(trend).toFixed(1)}%
+      <span
+        className={`text-xs font-semibold ${
+          isFlat ? "text-slate-500" : isUp ? "text-green-600" : "text-red-500"
+        }`}
+      >
+        {isFlat ? "No change" : `${isUp ? "↗" : "↘"} ${Math.abs(trend).toFixed(1)}%`}
       </span>
       <span className="truncate">{label}</span>
     </>
@@ -480,7 +488,6 @@ function InventorySnapshot({ items, navigate, className = "", inventoryPath = "/
   return (
     <SectionCard
       title="Inventory Snapshot"
-      subtitle="Quick visibility into stock levels"
       action={() => navigate(inventoryPath)}
       actionLabel="View Inventory"
       className={`${className} flex flex-col`}
@@ -553,7 +560,7 @@ function InventorySnapshot({ items, navigate, className = "", inventoryPath = "/
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs font-semibold text-slate-700">
-                      {item.currentStock} {item.unit}
+                      {formatNumber(item.currentStock, Number.isInteger(item.currentStock) ? 0 : 2)} {item.unit}
                       {isPaper && <span className="text-[10px] text-slate-500 font-medium ml-0.5">({pieces.toLocaleString()} pcs)</span>}
                     </span>
                     {statusBadge}
@@ -709,10 +716,10 @@ function OverviewTab({ metrics, navigate, items, role = "admin", dateSelector }:
                   const isPaid = o.status !== "Awaiting Payment" && o.status !== "Canceled";
                   const isWalkIn = o.orderSource === "walkin";
                   return (
-                    <div key={o.id} className="flex items-center gap-3 py-2 px-2 rounded-lg bg-slate-50/80 flex-1">
+                    <div key={o.id} className="flex items-center gap-3 py-2 px-2 rounded-lg bg-slate-50/80">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-800">{o.id}</span>
+                          <span className="text-xs font-bold text-slate-800">{o.displayId ?? o.id}</span>
                           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${isWalkIn ? "bg-slate-100 text-slate-600" : "bg-blue-50 text-[#2F6FD6]"}`}>
                             {isWalkIn ? "Walk-in" : "Print Order"}
                           </span>

@@ -903,15 +903,15 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
         )}
 
         {/* Summary Cards - 2 Rows */}
-        <div className="grid grid-cols-2 @min-[980px]:grid-cols-4 gap-2 sm:gap-4 mb-6 shrink-0">
+        <div className="grid grid-cols-2 @min-[980px]:grid-cols-3 gap-2 sm:gap-4 mb-6 shrink-0">
           {([
-            ["all", "All Orders", "Total orders", LayoutGrid, queueOrders.length],
-            ["inQueue", "In Queue", "Waiting to be printed", Clock, stats.inQueue],
-            ["printing", "Printing", "Currently printing", Printer, stats.printing],
-            ["completed", "Completed", "Ready for pickup", CheckCircle, stats.completed],
-            ["released", "Released", "Picked up", CheckCircle, stats.released],
-            ["canceled", "Canceled", "Canceled orders", XCircle, stats.canceled],
-          ] as const).map(([key, label, description, Icon, count]) => {
+            ["all", "Active Queue", LayoutGrid, queueOrders.length],
+            ["inQueue", "In Queue", Clock, stats.inQueue],
+            ["printing", "Printing", Printer, stats.printing],
+            ["completed", "Completed", CheckCircle, stats.completed],
+            ["released", "Released", CheckCircle, stats.released],
+            ["canceled", "Canceled", XCircle, stats.canceled],
+          ] as const).map(([key, label, Icon, count]) => {
             const s = ORDER_STATUS_STYLES[key];
             return (
               <SummaryCard
@@ -925,7 +925,6 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                 active={statusFilter === key}
                 activeBorder={s.accent}
                 activeBg={s.bg}
-                subtitle={description}
                 onClick={() => {
                   setStatusFilter(statusFilter === key ? "all" : key);
                 }}
@@ -1186,9 +1185,15 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                     <td colSpan={8}>
                       <div className="flex flex-col items-center justify-center py-16 text-gray-500">
                         <Search className="w-12 h-12 mb-3" />
-                        <p className="text-sm font-medium">No orders found</p>
+                        <p className="text-sm font-medium">
+                          {searchQuery || dateFrom || dateTo || statusFilter !== "all"
+                            ? "No orders match these filters"
+                            : "No active orders"}
+                        </p>
                         <p className="text-xs mt-1">
-                          Try adjusting your search or filter
+                          {searchQuery || dateFrom || dateTo || statusFilter !== "all"
+                            ? "Try a different search, date range or status."
+                            : "New orders appear here as customers place them."}
                         </p>
                       </div>
                     </td>

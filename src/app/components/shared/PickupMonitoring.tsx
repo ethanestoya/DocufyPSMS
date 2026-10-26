@@ -1,4 +1,4 @@
-// "Pickup Monitoring" â€” Admin/Staff workspace for tracking orders through the
+// "Pickup Monitoring" — Admin/Staff workspace for tracking orders through the
 // pickup phase (ready for pickup, overdue for pickup, collected) and the
 // automatically DERIVED unclaimed-order records.
 //
@@ -9,17 +9,13 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  PackageCheck,
-  Clock,
   Search,
   Eye,
   AlertTriangle,
   ClipboardList,
-  PackageX,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { useNavigate } from "react-router";
 import Layout from "../Layout";
 import StaffTimeInGate from "./StaffTimeInGate";
 import { ordersStore } from "../../utils/ordersStore";
@@ -27,7 +23,6 @@ import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { SummaryCard } from "../ui/summary-card";
 import { DateRangeFilter } from "../ui/date-range-filter";
 import {
   Dialog,
@@ -139,14 +134,9 @@ function earliestStatusAt(
 
 export default function PickupMonitoring({
   menuItems,
-  userRole,
 }: PickupMonitoringProps) {
-  const navigate = useNavigate();
   const closingTime = useShopClosingTime();
   const hydrating = useHydrating();
-
-  const unclaimedBase =
-    userRole === "admin" ? "/admin/orders/unclaimed" : "/staff/queue/unclaimed";
 
   const [orders, setOrders] = useState<OrderRow[]>(() => ordersStore.getOrders());
   const [filter, setFilter] = useState<PickupFilter>("all");
@@ -274,24 +264,20 @@ export default function PickupMonitoring({
 
   const readyForDisplay = (order: OrderRow): string => {
     const readyAt = readyAtFor(order);
-    if (!readyAt) return "â€”";
-    return `${formatPHDate(readyAt)} Â· ${formatPHTime(readyAt)}`;
+    if (!readyAt) return "—";
+    return `${formatPHDate(readyAt)} · ${formatPHTime(readyAt)}`;
   };
 
   return (
     <Layout menuItems={menuItems} title="Pickup Monitoring" showBackButton>
       <StaffTimeInGate>
         <div className="flex flex-col space-y-5">
-          <p className="max-w-2xl text-sm text-slate-500">
-            Monitor orders awaiting collection.
-          </p>
-
           {!isClosingTimeConfigured(closingTime) && (
             <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
               <span>
-                Pickup deadlines cannot be computed yet â€” set the shop closing time
-                in Admin â†’ Landing Page â†’ Shop Information to start tracking
+                Pickup deadlines cannot be computed yet — set the shop closing time
+                in Admin → Landing Page → Shop Information to start tracking
                 overdue and unclaimed orders.
               </span>
             </div>
@@ -301,45 +287,11 @@ export default function PickupMonitoring({
             <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
               <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-500" />
               <span>
-                Unclaimed-order information is unavailable right now â€” some order
+                Unclaimed-order information is unavailable right now — some order
                 status history could not be read.
               </span>
             </div>
           )}
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <SummaryCard
-              label="Ready for pickup"
-              value={counts.ready}
-              icon={PackageCheck}
-              iconBg="bg-[#EAF3FF]"
-              iconColor="text-[#1668D9]"
-              active={filter === "ready"}
-              onClick={() => setFilter((f) => (f === "ready" ? "all" : "ready"))}
-              trailing={<ChevronRight className="h-4 w-4 text-slate-300" />}
-            />
-            <SummaryCard
-              label="Overdue"
-              value={counts.overdue}
-              icon={Clock}
-              iconBg="bg-[#FDE8E8]"
-              iconColor="text-[#B91C1C]"
-              active={filter === "overdue"}
-              onClick={() =>
-                setFilter((f) => (f === "overdue" ? "all" : "overdue"))
-              }
-              trailing={<ChevronRight className="h-4 w-4 text-slate-300" />}
-            />
-            <SummaryCard
-              label="Unclaimed"
-              value={counts.unclaimed}
-              icon={PackageX}
-              iconBg="bg-[#FDE8E8]"
-              iconColor="text-[#B91C1C]"
-              onClick={() => navigate(unclaimedBase)}
-              trailing={<ChevronRight className="h-4 w-4 text-slate-300" />}
-            />
-          </div>
 
           <Card className="p-4 border border-slate-100 shadow-sm shrink-0">
             <div className="flex flex-col gap-4">
@@ -367,6 +319,10 @@ export default function PickupMonitoring({
               <div className="flex flex-wrap items-center gap-1.5">
                 {PICKUP_FILTERS.map(({ key, label }) => {
                   const active = filter === key;
+                  const count =
+                    key === "all"
+                      ? pickupOrders.length
+                      : counts[key as Exclude<PickupFilter, "all">];
                   return (
                     <Button
                       key={key}
@@ -381,6 +337,13 @@ export default function PickupMonitoring({
                       }
                     >
                       {label}
+                      <span
+                        className={`ml-1.5 text-[11px] font-semibold ${
+                          active ? "text-white/80" : "text-slate-400"
+                        }`}
+                      >
+                        {count}
+                      </span>
                     </Button>
                   );
                 })}
@@ -515,7 +478,7 @@ export default function PickupMonitoring({
               </table>
             </div>
 
-            {/* Footer â€” how many orders are in view, plus pagination. */}
+            {/* Footer — how many orders are in view, plus pagination. */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-gray-100 px-5 py-4">
               <p className="text-sm text-slate-500">
                 Showing{" "}
@@ -524,7 +487,7 @@ export default function PickupMonitoring({
                     ? 0
                     : totalPages === 1
                       ? tableRows.length
-                      : `${(currentPage - 1) * PAGE_SIZE + 1}â€“${Math.min(
+                      : `${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(
                           currentPage * PAGE_SIZE,
                           tableRows.length,
                         )}`}
@@ -598,7 +561,7 @@ export default function PickupMonitoring({
                       </span>
                     </div>
                     <DialogDescription className="mt-1 text-sm text-gray-500">
-                      Submitted on {formatPHDate(selected.submittedAt)} Â·{" "}
+                      Submitted on {formatPHDate(selected.submittedAt)} ·{" "}
                       {formatPHTime(selected.submittedAt)}
                     </DialogDescription>
                   </div>
@@ -640,7 +603,7 @@ export default function PickupMonitoring({
                   <p className="mt-1 text-sm font-semibold text-gray-900">
                     {deadlineFor(selected)
                       ? formatPHDateTime(deadlineFor(selected)!)
-                      : "Not configured â€” set the shop closing time to enable pickup deadlines."}
+                      : "Not configured — set the shop closing time to enable pickup deadlines."}
                   </p>
                   {recordById.get(selected.id) && (
                     <p className="mt-1.5 text-xs text-red-700">

@@ -102,7 +102,7 @@ const staffMenuItems = [
   },
 ];
 
-// What an announcement is about â€” shown as a small type label where useful.
+// What an announcement is about — shown as a small type label where useful.
 const TYPE_ICON: Record<
   AnnouncementType,
   React.ComponentType<{ className?: string }>
@@ -139,7 +139,7 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: "orders", label: "Orders" },
 ];
 
-// Inventory is an INTERNAL operational module â€” only admin and staff may see
+// Inventory is an INTERNAL operational module — only admin and staff may see
 // inventory-related functionality. Customers never get an Inventory filter.
 const STAFF_FILTERS: { key: FilterKey; label: string }[] = [
   ...FILTERS,
@@ -232,7 +232,7 @@ export default function NotificationsPage() {
         ? staffMenuItems
         : customerMenuItems;
 
-  // â”€â”€ Opening a notification â†’ mark read + open the shared detail modal â”€â”€â”€â”€â”€â”€
+  // ── Opening a notification → mark read + open the shared detail modal ──────
   const runNotificationAction = (n: Notification) => {
     if (n.type === "inventory" && user) {
       navigate(
@@ -322,7 +322,7 @@ export default function NotificationsPage() {
     }
   };
 
-  // â”€â”€ One unified feed: announcements + system notifications, newest first â”€â”€â”€
+  // ── One unified feed: announcements + system notifications, newest first ───
   const feed: FeedItem[] = [];
   for (const a of announcements) {
     const isEmergency = a.priority === "emergency";
@@ -355,7 +355,7 @@ export default function NotificationsPage() {
     });
   }
   for (const n of notifications) {
-    // Inventory alerts are internal (staff/admin only) â€” never render them to
+    // Inventory alerts are internal (staff/admin only) — never render them to
     // customers, even defensively.
     if (n.type === "inventory" && user?.role === "customer") continue;
     const meta = notificationMeta(n);
@@ -402,7 +402,7 @@ export default function NotificationsPage() {
     }
   });
 
-  // Group the filtered feed by Philippines date (TODAY / YESTERDAY / SEPT 3 â€¦).
+  // Group the filtered feed by Philippines date (TODAY / YESTERDAY / SEPT 3 …).
   const today = toPHT(new Date());
   const yesterday = new Date(
     today.getFullYear(),
@@ -549,7 +549,7 @@ export default function NotificationsPage() {
       hideMobileBackButton
     >
       <div className="mx-auto max-w-3xl space-y-5 pb-10">
-        {/* Mobile Back â€” sits directly under the header, same spot a sidebar item would */}
+        {/* Mobile Back — sits directly under the header, same spot a sidebar item would */}
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -658,7 +658,7 @@ export default function NotificationsPage() {
         )}
       </div>
 
-      {/* Shared Announcement Details Modal â€” same one used across Docufy */}
+      {/* Shared Announcement Details Modal — same one used across Docufy */}
       <AnnouncementDetailsModal
         open={!!detail}
         onOpenChange={(open) => {

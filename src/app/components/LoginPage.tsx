@@ -363,8 +363,11 @@ export default function LoginPage() {
               Organization email required
             </DialogTitle>
             <DialogDescription>
-              Only organization emails are supported for login. Please sign in
-              with an address like name@psu.palawan.edu.ph.
+              Non-corporate email accounts are not allowed. Use this organization
+              email address:{" "}
+              <span className="font-semibold text-red-600">
+                name@psu.palawan.edu.ph
+              </span>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

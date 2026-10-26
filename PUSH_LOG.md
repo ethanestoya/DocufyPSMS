@@ -1178,3 +1178,7 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Dropped the repeated organization-email paragraph from login, sign-up and reset, since the field placeholder already carries the rule.
 - Fixed five customer-screen defects: the dashboard Current Order card no longer stretches to a large empty card, My Orders ids and dates stop wrapping, Payment Verification no longer says "Waiting for Admin Verification" before anything is submitted, the stepper shows which step is current, and the blocked reason reads as a hint instead of a disabled field.
 - Typecheck and the production build pass.
+
+## October 26, 2026 2:07 PM (PHT) — aeprnts
+- Merged frontend-dev into deployment: HCI and accessibility defects fixed across the app (focus management, reduced motion, form validation with inline errors, human-readable DB errors, keyboard-accessible dropdowns, idle timeout fixed, route titles/skip links, order wizard safeguards, applicant job flow preserved, and customer-screen layout fixes).
+

@@ -119,7 +119,6 @@ export default function PaymentMethodsManagement() {
 
     if (!name) return toast.error("Please enter the payment method name");
     if (!accountName) return toast.error("Please enter the account name / account holder");
-    if (!accountNumber) return toast.error("Please enter the account number / payment account");
     if (paymentMethodsStore.nameExists(name, editingId || undefined)) {
       return toast.error("A payment method with this name already exists");
     }
@@ -146,6 +145,7 @@ export default function PaymentMethodsManagement() {
       showDbError("saving the payment method", err);
       return;
     }
+    setShowSaveConfirm(false);
     setShowFormDialog(false);
     setEditingId(null);
     setForm({ name: "", accountName: "", accountNumber: "", qrCode: undefined });
@@ -268,10 +268,12 @@ export default function PaymentMethodsManagement() {
                     <User className="w-4 h-4 text-[#2F6FD6] shrink-0" />
                     <span className="truncate">{method.accountName}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Hash className="w-4 h-4 text-[#2F6FD6] shrink-0" />
-                    <span className="font-mono truncate">{method.accountNumber}</span>
-                  </div>
+                  {method.accountNumber?.trim() && (
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Hash className="w-4 h-4 text-[#2F6FD6] shrink-0" />
+                      <span className="font-mono truncate">{method.accountNumber}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-4 border-t flex items-center justify-between gap-2 flex-wrap">
@@ -376,7 +378,10 @@ export default function PaymentMethodsManagement() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="pm-account-number">Account Number / Payment Account <span className="text-red-500">*</span></Label>
+              <Label htmlFor="pm-account-number">
+                Account Number / Payment Account{" "}
+                <span className="font-normal text-gray-500">(optional)</span>
+              </Label>
               <Input
                 id="pm-account-number"
                 type="text"
@@ -385,6 +390,9 @@ export default function PaymentMethodsManagement() {
                 placeholder="e.g. 09XXXXXXXXX"
                 className="h-11 bg-white text-sm border-gray-300 focus:border-[#2F6FD6] focus:ring-[#2F6FD6]/20"
               />
+              <p className="text-xs text-gray-500">
+                Leave this blank if the method has no account number to show.
+              </p>
             </div>
 
             <div className="space-y-2">

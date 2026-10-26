@@ -248,7 +248,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => {
       void supabase.auth.signOut();
     }, 0);
-    toast.error(EMAIL_POLICY_MESSAGE);
+    // No toast here: every path that reaches this ends on /login, where the
+    // organization-email window is shown and stays until the user dismisses it.
   };
 
   useEffect(() => {

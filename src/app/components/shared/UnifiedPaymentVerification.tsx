@@ -852,7 +852,7 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
             }
           />
           <SummaryCard
-            label="Cancelled / Expired"
+            label="Cancelled"
             value={stats.closed}
             icon={XCircle}
             iconBg="bg-red-50"

@@ -86,7 +86,9 @@ import {
   type PricingValues,
   type ColorTier,
 } from "../../utils/pricingStore";
-import PaymentMethodQRPanel from "./PaymentMethodQR";
+import PaymentMethodQRPanel, {
+  PaymentMethodQRFullView,
+} from "./PaymentMethodQR";
 import { CashOnPickupAcknowledgement } from "./CashOnPickupAcknowledgement";
 import {
   CASH_ON_PICKUP_BLOCKED_MESSAGE,
@@ -449,6 +451,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
   const [cashAcknowledged, setCashAcknowledged] = useState(false);
   const [onlineMethods, setOnlineMethods] = useState<PaymentMethodType[]>([]);
   const [showQRModal, setShowQRModal] = useState(false);
+  const [showFullQR, setShowFullQR] = useState(false);
 
   // Down-payment tier (customer, orders ₱50–99): all payment options stay
   // available here — the Partial/Full amount choice happens later on the
@@ -3729,7 +3732,13 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
 
       {/* View Payment QR Code Modal (customer only) */}
       {!isWalkin && (
-        <Dialog open={showQRModal} onOpenChange={setShowQRModal}>
+        <Dialog
+          open={showQRModal}
+          onOpenChange={(open) => {
+            setShowQRModal(open);
+            if (!open) setShowFullQR(false);
+          }}
+        >
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle className="text-[#10316B]">
@@ -3741,7 +3750,10 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
             </DialogHeader>
             <div className="space-y-4">
               {selectedMethod && onlineMethods.some((m) => m.id === selectedMethod.id) ? (
-                <PaymentMethodQRPanel method={selectedMethod} />
+                <PaymentMethodQRPanel
+                  method={selectedMethod}
+                  onExpand={() => setShowFullQR(true)}
+                />
               ) : (
                 <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
                   This payment method is no longer available. Please choose another
@@ -3760,6 +3772,16 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Full-size payment QR (customer only) — lets the customer scan the
+          code straight off the screen instead of downloading it first. */}
+      {!isWalkin && (
+        <PaymentMethodQRFullView
+          method={selectedMethod}
+          open={showFullQR}
+          onOpenChange={setShowFullQR}
+        />
       )}
 
       {/* Customer Success Modal */}

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
 import { ImageWithFallback } from "./shared/ImageWithFallback";
 import { useLogo } from "../hooks/useLogo";
@@ -11,25 +11,35 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
+  ShieldAlert,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import { Checkbox } from "./ui/checkbox";
 import { Alert, AlertDescription } from "./ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 import { EMAIL_POLICY_MESSAGE } from "../utils/authEmailPolicy";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   usePageTitle("Log in");
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   // A visitor who picked a job on the landing page arrives here with ?jobId=…
   // Carry it through authentication so they land on the application for THAT
   // position instead of the dashboard, having to find it again (F02).
   const pendingJobId = searchParams.get("jobId");
   const logo = useLogo();
   const authBg = useAuthBackgroundUrl();
-  const { login, signInWithGoogle, user } = useAuth();
+  const { login, signInWithGoogle, user, emailPolicyBlocked } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -37,6 +47,25 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [policyDialogOpen, setPolicyDialogOpen] = useState(false);
+
+  // A Google sign-in refused by the organization-email policy is refused AFTER
+  // the OAuth round trip, so there is no form field to attach the reason to.
+  // AuthCallbackPage hands the refusal over through router state (the
+  // database-trigger path) and AuthProvider exposes it for the session-guard
+  // path; either way the user gets a window that stays until it is dismissed
+  // instead of a toast that fades after a few seconds.
+  const policyBlocked =
+    emailPolicyBlocked ||
+    (location.state as { emailPolicyBlocked?: boolean } | null)
+      ?.emailPolicyBlocked === true;
+
+  React.useEffect(() => {
+    // location.key is part of the trigger on purpose: the flag stays true after
+    // the first refusal, so without it a SECOND refused attempt would not open
+    // the window again.
+    if (policyBlocked) setPolicyDialogOpen(true);
+  }, [policyBlocked, location.key]);
 
   React.useEffect(() => {
     if (user) {
@@ -321,6 +350,38 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      {/* The organization-email refusal has no field to live in, so it gets its
+          own small window instead of a toast that disappears. */}
+      <Dialog open={policyDialogOpen} onOpenChange={setPolicyDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2.5 pr-6">
+              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                <ShieldAlert className="h-4 w-4" aria-hidden="true" />
+              </span>
+              Organization email required
+            </DialogTitle>
+            <DialogDescription>
+              Non-corporate email accounts are not allowed. Use this organization
+              email address:{" "}
+              <span className="font-semibold text-red-600">
+                name@psu.palawan.edu.ph
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              data-primary-action
+              onClick={() => setPolicyDialogOpen(false)}
+              className="h-10 rounded-xl border-2 border-[#1668D9] bg-[#1668D9] text-sm font-semibold text-white hover:border-[#10316B] hover:bg-[#10316B]"
+            >
+              Back to login
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { subscribeTableChanges } from './hooks';
+import { isUuid } from './uuid';
 import type {
   AppRole,
   NotificationRow,
@@ -83,14 +84,6 @@ export async function resolveProfileIdByEmail(email: string): Promise<string | n
 export async function sessionUserProfileId(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   return data.session?.user?.id ?? null;
-}
-
-// Supabase `orders.id` is a UUID. The store also carries an `orderNumber`
-// (display "ORD-0001"); only pass a real UUID into the FK.
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function isUuid(value: string | null | undefined): value is string {
-  return !!value && UUID_RE.test(value);
 }
 
 // Recipient scoping: the local store's union includes convenience values

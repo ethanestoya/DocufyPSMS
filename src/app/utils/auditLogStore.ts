@@ -25,7 +25,8 @@ import {
   subscribeAuditLogs,
   type AuditLogDto,
 } from '../../lib/db/auditLogRepo';
-import { isRlsDenied, showDbError } from '../../lib/db/errors';
+import { isRlsDenied } from '../../lib/db/errors';
+import { toast } from 'sonner';
 
 const STORAGE_KEY = "docufy_audit_log_v1";
 
@@ -576,7 +577,8 @@ class AuditLogStore {
       if (isRlsDenied(err)) {
         console.warn('[audit] insert not synced (RLS) — kept locally:', entry.reference);
       } else {
-        showDbError('audit.record', err);
+        console.error('[db:audit.record]', err);
+        toast.warning("Saved, but the activity log couldn't sync to the server.");
       }
     });
   }

@@ -43,6 +43,8 @@ import {
 import { formatPHDate, formatPHTime, formatPHDateTime } from "../../utils/pht";
 import { formatCurrency } from "../../utils/formatNumber";
 import { getStatusBadgeClasses } from "../../utils/orderStatusPalette";
+import { TableSkeleton } from "../ui/table-skeleton";
+import { useHydrating } from "../../utils/useHydrating";
 import { computeOrderPayment } from "./OrderPaymentSummary";
 import {
   isClosingTimeConfigured,
@@ -73,6 +75,7 @@ export default function UnclaimedOrders({
   userRole,
 }: UnclaimedOrdersProps) {
   const navigate = useNavigate();
+  const hydrating = useHydrating();
   const {
     closingTime,
     uncollectedRecords,
@@ -216,6 +219,8 @@ export default function UnclaimedOrders({
               Unclaimed Orders
             </h2>
             <Card className="overflow-hidden">
+              {hydrating && <TableSkeleton columns={7} rows={8} />}
+              {!hydrating && (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-[#F2F7FF] border-b border-[#1668D9]/10">
@@ -352,6 +357,7 @@ export default function UnclaimedOrders({
                   </tbody>
                 </table>
               </div>
+              )}
             </Card>
           </div>
         </div>

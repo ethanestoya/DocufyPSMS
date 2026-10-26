@@ -37,6 +37,8 @@ import {
 import { useLogo } from "../../hooks/useLogo";
 import { logoStore } from "../../utils/logoStore";
 import { ConfirmationDialog } from "../ui/confirmation-dialog";
+import { DetailSkeleton } from "../ui/card-skeleton";
+import { useHydrating } from "../../utils/useHydrating";
 
 const sectionCards = [
   { id: "logo", label: "Logo", icon: <Eye className="w-4 h-4" /> },
@@ -104,6 +106,7 @@ function Field({
 }
 
 export default function LandingPageEditor() {
+  const hydrating = useHydrating();
   const [content, setContent] = useState<LandingPageContent>(() =>
     landingContentStore.getContent(),
   );
@@ -306,7 +309,8 @@ export default function LandingPageEditor() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
+        {hydrating && <DetailSkeleton blocks={3} label="Loading landing page content" />}
+        <div className={hydrating ? "hidden" : "grid grid-cols-1 lg:grid-cols-4 gap-5"}>
           {/* Section nav (desktop) */}
           <Card className="hidden lg:flex flex-col gap-1 p-3 bg-white self-start sticky top-6">
             <p className="px-3 pt-1 pb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">

@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import Layout from "../Layout";
 import { Card } from "../ui/card";
+import { DetailSkeleton } from "../ui/card-skeleton";
+import { useHydrating } from "../../utils/useHydrating";
 import { Button } from "../ui/button";
 import { dataStore } from "../../utils/dataStore";
 import { formatCurrency } from "../../utils/formatNumber";
@@ -46,6 +48,7 @@ const menuItems = [
 ];
 
 export default function DownPaymentMethod() {
+  const hydrating = useHydrating();
   const navigate = useNavigate();
   const { orderId } = useParams();
   const [amountChoice, setAmountChoice] = useState<"down" | "full">("down");
@@ -143,7 +146,12 @@ export default function DownPaymentMethod() {
       backButtonPath="/customer/dashboard"
       hideMobileBackButton
     >
-      <div className="max-w-3xl mx-auto space-y-4">
+      {hydrating && (
+        <div className="mx-auto max-w-3xl">
+          <DetailSkeleton blocks={2} label="Loading your order" />
+        </div>
+      )}
+      <div className={hydrating ? "hidden" : "max-w-3xl mx-auto space-y-4"}>
         <div>
           <h2 className="text-3xl font-semibold text-gray-900">
             Down Payment Method

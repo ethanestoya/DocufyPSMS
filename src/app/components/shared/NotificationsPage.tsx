@@ -24,6 +24,8 @@ import {
 import { toast } from "sonner";
 import Layout from "../Layout";
 import { ConfirmationDialog } from "../ui/confirmation-dialog";
+import { TableSkeleton } from "../ui/table-skeleton";
+import { useHydrating } from "../../utils/useHydrating";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router";
 import { adminMenuItems } from "../../utils/adminMenuItems";
@@ -192,6 +194,7 @@ const FILTER_EMPTY_TEXT: Record<FilterKey, string> = {
 };
 
 export default function NotificationsPage() {
+  const hydrating = useHydrating();
   const { user } = useAuth();
   const email = user?.email || "";
   const isAdmin = user?.role === "admin";
@@ -607,7 +610,11 @@ export default function NotificationsPage() {
         </div>
 
         {/* Unified feed */}
-        {feed.length === 0 ? (
+        {hydrating ? (
+          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
+            <TableSkeleton columns={2} rows={5} />
+          </div>
+        ) : feed.length === 0 ? (
           <div className="rounded-2xl border border-gray-100 bg-white py-14 px-6 text-center">
             <div className="w-12 h-12 bg-[#F2F7FF] rounded-2xl flex items-center justify-center mx-auto mb-3">
               <Bell className="w-6 h-6 text-[#1668D9]/40" />

@@ -1178,3 +1178,16 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Dropped the repeated organization-email paragraph from login, sign-up and reset, since the field placeholder already carries the rule.
 - Fixed five customer-screen defects: the dashboard Current Order card no longer stretches to a large empty card, My Orders ids and dates stop wrapping, Payment Verification no longer says "Waiting for Admin Verification" before anything is submitted, the stepper shows which step is current, and the blocked reason reads as a hint instead of a disabled field.
 - Typecheck and the production build pass.
+
+---
+
+## October 26, 2026 (2:29 PM PHT) - aeprnts
+- Skeleton loading is now on every screen that loads records, so a page no longer flashes zeros or "no records found" while the app is still fetching. When loading finishes, each page falls back to its real empty state.
+- Added two shared placeholders alongside the existing table one: a card placeholder for grids of cards (job postings, applicants, dashboard tiles) and a panel placeholder for single-record pages. Both announce "Loading" to screen readers instead of staying silent.
+- Covered the dashboards: the customer dashboard and the admin/staff dashboard show placeholder cards and panels instead of zeroed figures on first paint.
+- Covered the job board: customer listings, the customer's own applications, the admin postings list, and both applicant lists.
+- Covered the review and monitoring pages: Audit Trail, Late Pick-up History, Customer Restrictions, and the Notifications feed.
+- Covered the order pages: Order Tracking, customer Payment Verification, and Down Payment Method.
+- Covered the remaining admin pages: Pricing Management's price tabs, Terms & Privacy, the Landing Page editor, and the Staff Timesheet summary cards.
+- Left the forms themselves without a placeholder on purpose: login, sign-up, the print request and walk-in wizards, the job application form and the profile pages. Covering a form someone is filling in would hide their own work rather than help them.
+- Typecheck and the production build pass.

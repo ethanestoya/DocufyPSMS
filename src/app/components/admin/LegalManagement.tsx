@@ -26,6 +26,8 @@ import {
   type LegalSection,
 } from "../../utils/legalContentStore";
 import { ConfirmationDialog } from "../ui/confirmation-dialog";
+import { DetailSkeleton } from "../ui/card-skeleton";
+import { useHydrating } from "../../utils/useHydrating";
 import LegalPolicyDialog from "../shared/LegalPolicyDialog";
 
 type SectionField = "termsSections" | "privacySections";
@@ -179,6 +181,7 @@ function PolicyCard({
 }
 
 export default function LegalManagement() {
+  const hydrating = useHydrating();
   const [content, setContent] = useState<LegalContent>(() =>
     legalContentStore.getContent(),
   );
@@ -304,7 +307,8 @@ export default function LegalManagement() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {hydrating && <DetailSkeleton blocks={2} label="Loading policies" />}
+        <div className={hydrating ? "hidden" : "grid grid-cols-1 lg:grid-cols-2 gap-5"}>
           <PolicyCard
             heading="Terms & Conditions"
             hint="Appears under the 'Terms & Condition' link on the landing page footer, sign up, and checkout."

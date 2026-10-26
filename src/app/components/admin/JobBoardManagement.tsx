@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import Layout from "../Layout";
 import { Card } from "../ui/card";
+import { CardSkeleton } from "../ui/card-skeleton";
+import { useHydrating } from "../../utils/useHydrating";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -54,6 +56,7 @@ import { notificationStore } from "../../utils/notificationStore";
 const menuItems = adminMenuItems;
 
 export default function JobBoardManagement() {
+  const hydrating = useHydrating();
   const [jobs, setJobs] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [showDialog, setShowDialog] = useState(false);
@@ -392,7 +395,8 @@ export default function JobBoardManagement() {
           </div>
 
           {/* Job Listings */}
-          <div className="grid grid-cols-1 gap-6">
+          {hydrating && <CardSkeleton cards={3} columns={1} label="Loading job postings" />}
+          <div className={hydrating ? "hidden" : "grid grid-cols-1 gap-6"}>
             {jobs.filter(job => job.status === jobFilter).map((job) => {
               const isExpanded = expandedJobId === job.id;
               return (
@@ -525,7 +529,8 @@ export default function JobBoardManagement() {
             </div>
           </div>
 
-          <div className="space-y-4">
+          {hydrating && <CardSkeleton cards={2} columns={1} label="Loading applicants" />}
+          <div className={hydrating ? "hidden" : "space-y-4"}>
             {selectedJob?.applicants && selectedJob.applicants.length > 0 ? (
               <div className="border rounded-lg bg-white divide-y">
                 {selectedJob.applicants.map((applicant: any) => (

@@ -24,6 +24,8 @@ import {
 import { toast } from "sonner";
 import Layout from "../Layout";
 import { Card } from "../ui/card";
+import { DetailSkeleton } from "../ui/card-skeleton";
+import { useHydrating } from "../../utils/useHydrating";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -160,6 +162,7 @@ const menuItems = [
 ];
 
 export default function PaymentVerification() {
+  const hydrating = useHydrating();
   const navigate = useNavigate();
   const location = useLocation();
   const { orderId } = useParams();
@@ -613,7 +616,12 @@ onClick={goToNewRequest}
       backButtonPath="/customer/new-request"
       hideMobileBackButton
     >
-      <div className="max-w-3xl mx-auto space-y-4">
+      {hydrating && (
+        <div className="mx-auto max-w-3xl">
+          <DetailSkeleton blocks={3} label="Loading your order" />
+        </div>
+      )}
+      <div className={hydrating ? "hidden" : "max-w-3xl mx-auto space-y-4"}>
         {/* Back to previous step (returns to the resumed print request) */}
         <button
           type="button"

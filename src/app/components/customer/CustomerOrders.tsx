@@ -28,6 +28,8 @@ import { UnclaimedOrderWarning } from "../shared/UnclaimedOrderWarning";
 import { useUnclaimedOffenses } from "../../utils/useUnclaimedOffenses";
 import { getStatusBadgeClasses, getCustomerStatusLabel } from "../../utils/orderStatusPalette";
 import { formatPHDate, formatPHTime } from "../../utils/pht";
+import { TableSkeleton } from "../ui/table-skeleton";
+import { useHydrating } from "../../utils/useHydrating";
 
 const menuItems = [
   {
@@ -55,6 +57,7 @@ const menuItems = [
 export default function CustomerOrders() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const hydrating = useHydrating();
 
   // The customer's derived unclaimed orders (shared with the notice above),
   // used only to highlight the affected order rows.
@@ -281,6 +284,12 @@ export default function CustomerOrders() {
 
         {/* ── Orders Table ───────────────────────────────────── */}
         <Card className="overflow-hidden bg-white shadow-sm gap-0">
+          {/* The list paints from the local mirror first, so an empty table is
+              ambiguous. The skeleton claims the loading case and leaves the
+              empty state meaning what it says. */}
+          {hydrating && <TableSkeleton columns={7} rows={10} />}
+          {!hydrating && (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-[#F2F7FF] border-b border-[#1668D9]/10">
@@ -433,6 +442,8 @@ export default function CustomerOrders() {
               </div>
             )}
           </div>
+          </>
+          )}
         </Card>
       </div>
 

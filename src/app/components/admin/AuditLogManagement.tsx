@@ -33,6 +33,8 @@ import { DateRangeFilter } from "../ui/date-range-filter";
 import { SummaryCard } from "../ui/summary-card";
 import { ZoomSafeDropdown } from "../ui/zoom-safe-dropdown";
 import { FilterLabel } from "../ui/filter-label";
+import { TableSkeleton } from "../ui/table-skeleton";
+import { useHydrating } from "../../utils/useHydrating";
 import {
   Dialog,
   DialogContent,
@@ -197,6 +199,7 @@ function DetailRow({
 }
 
 export default function AuditLogManagement() {
+  const hydrating = useHydrating();
   const [entries, setEntries] = useState<AuditEntry[]>(() =>
     auditLogStore.getEntries(),
   );
@@ -434,6 +437,9 @@ export default function AuditLogManagement() {
 
         {/* Activity table â€” no Description column by design */}
         <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
+          {hydrating && <TableSkeleton columns={7} rows={10} />}
+          {!hydrating && (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
               <thead>
@@ -579,6 +585,8 @@ export default function AuditLogManagement() {
               </Button>
             </div>
           </div>
+          </>
+          )}
         </Card>
       </div>
 

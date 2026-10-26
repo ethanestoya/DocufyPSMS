@@ -21,6 +21,8 @@ import { toast } from "sonner";
 import Layout from "../Layout";
 import { Button } from "../ui/button";
 import { ConfirmationDialog } from "../ui/confirmation-dialog";
+import { CardSkeleton } from "../ui/card-skeleton";
+import { useHydrating } from "../../utils/useHydrating";
 import { useAuth } from "../../contexts/AuthContext";
 import {
   attendanceStore,
@@ -123,6 +125,7 @@ function StatusPill({ meta }: { meta: Pill }) {
 }
 
 export default function StaffTimesheet() {
+  const hydrating = useHydrating();
   const { user } = useAuth();
   const email = user?.email ?? "";
 
@@ -387,7 +390,8 @@ export default function StaffTimesheet() {
           </div>
 
           {/* ── ATTENDANCE SUMMARY CARDS ─────────────────────────────────── */}
-          <div className="grid grid-cols-1 @min-[720px]:grid-cols-3 gap-4">
+          {hydrating && <CardSkeleton cards={3} columns={3} label="Loading attendance" />}
+          <div className={hydrating ? "hidden" : "grid grid-cols-1 @min-[720px]:grid-cols-3 gap-4"}>
             <SummaryCard
               icon={Clock}
               title="Today"

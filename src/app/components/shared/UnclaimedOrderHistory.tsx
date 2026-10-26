@@ -27,6 +27,8 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { DateRangeFilter } from "../ui/date-range-filter";
+import { TableSkeleton } from "../ui/table-skeleton";
+import { useHydrating } from "../../utils/useHydrating";
 import {
   Dialog,
   DialogContent,
@@ -78,6 +80,7 @@ export default function UnclaimedOrderHistory({
   userRole,
 }: UnclaimedOrderHistoryProps) {
   const navigate = useNavigate();
+  const hydrating = useHydrating();
   const { closingTime, latePickups, ordersById, historyUnavailable } =
     useUnclaimedAdminData();
 
@@ -201,6 +204,8 @@ export default function UnclaimedOrderHistory({
               Late Pick-up History
             </h2>
             <Card className="overflow-hidden">
+              {hydrating && <TableSkeleton columns={7} rows={8} />}
+              {!hydrating && (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-[#F2F7FF] border-b border-[#1668D9]/10">
@@ -358,6 +363,7 @@ export default function UnclaimedOrderHistory({
                   </tbody>
                 </table>
               </div>
+              )}
             </Card>
           </div>
         </div>

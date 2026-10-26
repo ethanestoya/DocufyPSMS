@@ -40,6 +40,8 @@ import { formatPHDate, formatPHTime, formatPHDateTime } from "../../utils/pht";
 import { formatCurrency } from "../../utils/formatNumber";
 import { getStatusBadgeClasses } from "../../utils/orderStatusPalette";
 import { computeOrderPayment } from "./OrderPaymentSummary";
+import { TableSkeleton } from "../ui/table-skeleton";
+import { useHydrating } from "../../utils/useHydrating";
 import {
   closingDeadline,
   deriveUnclaimedRecords,
@@ -141,6 +143,7 @@ export default function PickupMonitoring({
 }: PickupMonitoringProps) {
   const navigate = useNavigate();
   const closingTime = useShopClosingTime();
+  const hydrating = useHydrating();
 
   const unclaimedBase =
     userRole === "admin" ? "/admin/orders/unclaimed" : "/staff/queue/unclaimed";
@@ -386,6 +389,9 @@ export default function PickupMonitoring({
           </Card>
 
           <Card className="overflow-hidden">
+            {hydrating && <TableSkeleton columns={5} rows={10} />}
+            {!hydrating && (
+            <>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-[#F2F7FF] border-b border-[#1668D9]/10">
@@ -565,6 +571,8 @@ export default function PickupMonitoring({
                 </div>
               )}
             </div>
+            </>
+            )}
           </Card>
         </div>
       </StaffTimeInGate>

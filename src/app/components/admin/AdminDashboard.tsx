@@ -42,6 +42,8 @@ import {
 } from "lucide-react";
 import Layout from "../Layout";
 import { Card } from "../ui/card";
+import { CardSkeleton, DetailSkeleton } from "../ui/card-skeleton";
+import { useHydrating } from "../../utils/useHydrating";
 import { DateRangeFilter } from "../ui/date-range-filter";
 import { SummaryCard } from "../ui/summary-card";
 import {
@@ -1420,6 +1422,7 @@ export default function AdminDashboard({
   userName,
 }: AdminDashboardProps) {
   const navigate = useNavigate();
+  const hydrating = useHydrating();
   const [activeTab, setActiveTab] = useState<Tab>("Overview");
   const [dateRangeId, setDateRangeId] = useState("this-month");
   const [customStart, setCustomStart] = useState("");
@@ -1484,7 +1487,12 @@ export default function AdminDashboard({
         )}
 
         {/* Tab content */}
-        {role === "admin" ? (
+        {hydrating ? (
+          <div className="space-y-4">
+            <CardSkeleton cards={4} columns={3} label="Loading dashboard" />
+            <DetailSkeleton blocks={2} />
+          </div>
+        ) : role === "admin" ? (
           <>
             {activeTab === "Overview" && <OverviewTab metrics={metrics} navigate={navigate} items={inventoryItems} dateSelector={overviewDateSelector} />}
             {activeTab === "Sales" && <SalesTab metrics={metrics} navigate={navigate} />}

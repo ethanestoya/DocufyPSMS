@@ -1,7 +1,7 @@
-// Admin Audit Trail â€” Management -> Audit Trail (/admin/audit-trail).
+// Admin Audit Trail — Management -> Audit Trail (/admin/audit-trail).
 //
 // Read-only investigation surface for "who changed what, when". The table is
-// deliberately kept to the six scannable facts plus one action button â€”
+// deliberately kept to the six scannable facts plus one action button —
 // NO description column. A free-text column repeated what Date/User/Action/
 // Module/Reference already said, made every row tall, and pushed the useful
 // signal off-screen on a 1366px laptop. The narrative, the exact before/after
@@ -106,7 +106,7 @@ function csvCell(value: string | number | undefined | null): string {
 }
 
 // Export the currently-filtered activities as a CSV download (Excel-friendly:
-// BOM so â‚±/em-dashes render, quoted cells so commas/newlines stay intact).
+// BOM so ₱/em-dashes render, quoted cells so commas/newlines stay intact).
 function exportAuditCsv(rows: AuditEntry[]) {
   const header = [
     "Date & Time (PHT)",
@@ -291,7 +291,7 @@ export default function AuditLogManagement() {
               Audit Trail
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              A permanent record of every change made in Docufy â€” who acted, what
+              A permanent record of every change made in Docufy — who acted, what
               they changed, and when.
             </p>
           </div>
@@ -347,7 +347,7 @@ export default function AuditLogManagement() {
                 <Input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="User, reference, or moduleâ€¦"
+                  placeholder="User, reference, or module…"
                   className="pl-10"
                 />
               </div>
@@ -435,7 +435,7 @@ export default function AuditLogManagement() {
           ) : null}
         </Card>
 
-        {/* Activity table â€” no Description column by design */}
+        {/* Activity table — no Description column by design */}
         <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
           {hydrating && <TableSkeleton columns={7} rows={10} />}
           {!hydrating && (
@@ -557,7 +557,7 @@ export default function AuditLogManagement() {
             <p className="text-sm text-slate-500">
               {filtered.length === 0
                 ? "Showing 0 activities"
-                : `Showing ${rangeStart}â€“${rangeEnd} of ${filtered.length} activit${
+                : `Showing ${rangeStart}–${rangeEnd} of ${filtered.length} activit${
                     filtered.length === 1 ? "y" : "ies"
                   }`}
             </p>
@@ -590,7 +590,7 @@ export default function AuditLogManagement() {
         </Card>
       </div>
 
-      {/* Details pop-up â€” everything the table deliberately omits */}
+      {/* Details pop-up — everything the table deliberately omits */}
       <Dialog
         open={selected !== null}
         onOpenChange={(open) => {
@@ -689,7 +689,7 @@ export default function AuditLogManagement() {
                   </p>
                 </section>
 
-                {/* Optional investigation metadata â€” omitted when unknown */}
+                {/* Optional investigation metadata — omitted when unknown */}
                 {selected.ipAddress ||
                 selected.device ||
                 selected.transactionId ? (

@@ -537,7 +537,7 @@ function InventoryReports() {
       </div>
 
       {/* Current Inventory Report */}
-      <ReportSection title="Current Inventory Report" subtitle="Reflects the same data as the Inventory Overview table">
+      <ReportSection title="Current Inventory Report">
         {currentReportItems.length === 0 ? (
           <p className="py-8 text-center text-sm text-slate-500">No inventory items match the current filters.</p>
 ) : (
@@ -562,7 +562,14 @@ function InventoryReports() {
                       <td className="px-4 py-2.5 font-medium text-slate-800">{item.name}</td>
                       <td className="px-4 py-2.5 text-slate-500">{item.category}</td>
                       <td className="px-4 py-2.5 text-slate-500 capitalize">{item.unit}</td>
-                      <td className="px-4 py-2.5 text-right font-bold text-slate-900">{fmtQty(item.currentStock)}</td>
+                      <td className="px-4 py-2.5 text-right font-bold text-slate-900">
+                        {fmtQty(item.currentStock)}
+                        {item.category === "Paper" && (
+                          <span className="ml-1 text-[10px] font-medium text-slate-500">
+                            ({formatNumber(inventoryStore.getItemPieces(item), 0)} pcs)
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-2.5 text-right text-slate-500">{fmtQty(item.minimumStock)}</td>
                       <td className="px-4 py-2.5">
                         {isOut && <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">Out of Stock</span>}
@@ -887,8 +894,8 @@ export default function InventoryManagement({
           <SummaryCard
             icon={FileText}
             label="Papers Left"
-            value={formatNumber(papersLeftReams, 2)}
-            subtitle="reams in stock"
+            value={`${formatNumber(papersLeftPieces, 0)} pcs`}
+            subtitle={`${formatNumber(papersLeftReams, 2)} reams`}
             iconBg="bg-blue-100"
             iconColor="text-[#2F6FD6]"
           />
@@ -909,11 +916,11 @@ export default function InventoryManagement({
           />
           <SummaryCard
             icon={Inbox}
-            label="Bond Paper Stock"
-            value={`${formatNumber(papersLeftPieces, 0)} pcs`}
-            subtitle="total paper pieces on hand"
-            iconBg="bg-blue-100"
-            iconColor="text-[#2F6FD6]"
+            label="Out of Stock"
+            value={inventoryStore.getOutOfStockItems().length}
+            iconBg="bg-red-100"
+            iconColor="text-red-600"
+            valueColor="text-red-600"
           />
         </div>
 
@@ -1109,32 +1116,34 @@ export default function InventoryManagement({
               <p className="text-sm text-slate-500">
                 Showing {filteredItems.length} item{filteredItems.length === 1 ? "" : "s"}
               </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={page === 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="bg-white text-slate-600 border border-gray-200 hover:bg-[#F2F7FF] hover:text-[#2F6FD6] hover:border-[#2F6FD6] disabled:opacity-40 disabled:pointer-events-none rounded-md px-3 h-9"
-                >
-                  <ChevronLeft className="h-4 w-4 mr-1" /> Previous
-                </Button>
-                <Button
-                  type="button"
-                  className="bg-[#2F6FD6] text-white hover:bg-[#2557b8] rounded-md shadow-sm shadow-[#2F6FD6]/30 h-9 w-9"
-                >
-                  {page}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={page === pageCount}
-                  onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-                  className="bg-white text-slate-600 border border-gray-200 hover:bg-[#F2F7FF] hover:text-[#2F6FD6] hover:border-[#2F6FD6] disabled:opacity-40 disabled:pointer-events-none rounded-md px-3 h-9"
-                >
-                  Next <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              </div>
+              {pageCount > 1 && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={page === 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    className="bg-white text-slate-600 border border-gray-200 hover:bg-[#F2F7FF] hover:text-[#2F6FD6] hover:border-[#2F6FD6] disabled:opacity-40 disabled:pointer-events-none rounded-md px-3 h-9"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+                  </Button>
+                  <Button
+                    type="button"
+                    className="bg-[#2F6FD6] text-white hover:bg-[#2557b8] rounded-md shadow-sm shadow-[#2F6FD6]/30 h-9 w-9"
+                  >
+                    {page}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={page === pageCount}
+                    onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+                    className="bg-white text-slate-600 border border-gray-200 hover:bg-[#F2F7FF] hover:text-[#2F6FD6] hover:border-[#2F6FD6] disabled:opacity-40 disabled:pointer-events-none rounded-md px-3 h-9"
+                  >
+                    Next <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              )}
             </div>
             </>
           )}

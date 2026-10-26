@@ -1179,11 +1179,9 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Fixed five customer-screen defects: the dashboard Current Order card no longer stretches to a large empty card, My Orders ids and dates stop wrapping, Payment Verification no longer says "Waiting for Admin Verification" before anything is submitted, the stepper shows which step is current, and the blocked reason reads as a hint instead of a disabled field.
 - Typecheck and the production build pass.
 
-<<<<<<< HEAD
 ## October 26, 2026 2:07 PM (PHT) — aeprnts
 - Merged frontend-dev into deployment: HCI and accessibility defects fixed across the app (focus management, reduced motion, form validation with inline errors, human-readable DB errors, keyboard-accessible dropdowns, idle timeout fixed, route titles/skip links, order wizard safeguards, applicant job flow preserved, and customer-screen layout fixes).
 
-=======
 ---
 
 ## October 26, 2026 (2:29 PM PHT) - aeprnts
@@ -1196,4 +1194,27 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Covered the remaining admin pages: Pricing Management's price tabs, Terms & Privacy, the Landing Page editor, and the Staff Timesheet summary cards.
 - Left the forms themselves without a placeholder on purpose: login, sign-up, the print request and walk-in wizards, the job application form and the profile pages. Covering a form someone is filling in would hide their own work rather than help them.
 - Typecheck and the production build pass.
->>>>>>> origin/frontend-dev
+
+---
+
+## October 26, 2026 (4:27 PM PHT) - aeprnts
+- Cut back the admin and staff operational screens so each page says one thing once. No pricing, payment, permission, order-status or database logic touched.
+- Made the Payment Verification cards real filters: one rule now decides both the number on a card and the rows in the list, so a card can never advertise a count the list does not produce.
+- Fixed "Verified Today" to count by when a payment was approved instead of when it was submitted, so a payment sent last week and approved this morning is counted.
+- Removed the "Rejected" status option, which could never match a single row because a rejection only ever happens when the order is cancelled.
+- Removed the "In Queue" card from Payment Verification: it counted orders rather than payments and repeated the Orders page.
+- Made the empty state explain itself — nothing to verify yet, nothing verified today, or no payments match these filters — instead of always claiming there is nothing to verify.
+- Renamed the first Orders card to "Active Queue", since it counts only work still in progress while "Released" counts orders already collected.
+- Laid the Orders summary cards out as 3 + 3 instead of a ragged 4 + 2, and dropped the descriptions that repeated each card's own label.
+- Removed the three Pickup Monitoring summary cards that filtered the same table as the chip row, and moved their counts onto the chips so one control does the filtering.
+- Fixed the Staff Dashboard's Recent Transactions to show the order number customers recognise instead of a raw database identifier.
+- Fixed inventory stock on the dashboard to read as a normal figure instead of a long floating-point artefact.
+- Made a flat trend read "No change" instead of a green arrow claiming a gain that did not happen.
+- Combined Inventory's two paper figures into one card showing pieces with reams beneath, replacing a second card that counted the same paper again under a brand name.
+- Replaced Inventory's duplicated paper card with the real Out of Stock count.
+- Hid Inventory's pagination while everything fits on one page.
+- Made the Current Inventory Report show pieces for paper items, so it agrees with the Overview table.
+- Moved the Timesheet's full-width Time Out bar into the session panel as a normal button, directly under the timer it stops.
+- Shortened the Unclaimed Orders introduction from six lines to one sentence.
+- Repaired corrupted characters in five files where the source bytes were damaged, so dashes, arrows, the peso sign and separators display correctly.
+- Typecheck and the production build pass.

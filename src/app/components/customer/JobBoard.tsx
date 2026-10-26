@@ -211,8 +211,12 @@ export default function JobBoard() {
                               <Badge className="text-xs bg-blue-100 text-blue-700">
                                 {job.type}
                               </Badge>
-                              <span className="text-xs text-gray-500">·</span>
-                              <span className="text-xs text-gray-500">{job.department}</span>
+                              {job.department && (
+                                <>
+                                  <span className="text-xs text-gray-500">·</span>
+                                  <span className="text-xs text-gray-500">{job.department}</span>
+                                </>
+                              )}
                               <span className="text-xs text-gray-500">·</span>
                               <span className="text-xs text-gray-500">Posted {job.posted}</span>
                               {application && (

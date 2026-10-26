@@ -20,6 +20,9 @@ import {
   MapPin,
   Info,
   AlertTriangle,
+  Copy,
+  Wallet,
+  ReceiptText,
 } from "lucide-react";
 import { toast } from "sonner";
 import Layout from "../Layout";
@@ -50,7 +53,7 @@ import { OrderReceiptDialog } from "../shared/OrderReceipt";
 import { generateReceiptData } from "../../utils/invoiceUtils";
 import { pricingStore, formatPrice, type PricingValues } from "../../utils/pricingStore";
 import { landingContentStore, DEFAULT_MAP_EMBED } from "../../utils/landingContentStore";
-import { computeOrderPayment } from "../shared/OrderPaymentSummary";
+import { computeOrderPayment, type OrderPaymentSummary } from "../shared/OrderPaymentSummary";
 import { shopPhotosStore, type ShopPhoto } from "../../utils/shopPhotosStore";
 import { useUnclaimedOffenses } from "../../utils/useUnclaimedOffenses";
 
@@ -70,6 +73,136 @@ const OFFENSE_WORDS: Record<number, string> = {
 /** "First" / "Second" / … for small ordinals; a numeric fallback beyond ten. */
 function ordinalWord(n: number): string {
   return OFFENSE_WORDS[n] ?? `${n}th`;
+}
+
+/** "1 page" / "2 pages" — keeps the mobile copy grammatical at every count. */
+function plural(n: number, one: string, many = `${one}s`): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+/**
+ * Bottom-sheet shell used by the mobile Order Tracking layout: a panel pinned to
+ * the bottom of the screen with a grabber, an icon + title header, its own close
+ * button, and a single scrolling body. The shared Dialog supplies the portal,
+ * focus trap and Escape handling, so only the surface is restyled here.
+ */
+function MobileSheet({
+  open,
+  onOpenChange,
+  icon,
+  title,
+  subtitle,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  icon: React.ReactNode;
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
+  // Focus the panel itself when the sheet opens (instead of the close button, as
+  // Radix would), so the sheet announces its title and no focus ring lands on X.
+  const panelRef = React.useRef<HTMLDivElement | null>(null);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        ref={panelRef}
+        tabIndex={-1}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          panelRef.current?.focus({ preventScroll: true });
+        }}
+        aria-describedby={undefined}
+        className="fixed inset-x-0 bottom-0 left-0 top-auto z-50 flex max-h-[90vh] w-full max-w-full translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-t-[28px] rounded-b-none border-0 bg-white p-0 shadow-[0_-10px_40px_rgba(15,23,42,0.18)] outline-none data-[state=open]:slide-in-from-bottom-full data-[state=open]:duration-300 data-[state=closed]:slide-out-to-bottom-full data-[state=closed]:duration-200 sm:max-w-full [&>[data-slot=dialog-close]]:hidden"
+      >
+        <div className="flex flex-shrink-0 justify-center pb-1 pt-2.5">
+          <span className="h-1.5 w-10 rounded-full bg-slate-300" aria-hidden="true" />
+        </div>
+
+        <div className="flex flex-shrink-0 items-start gap-3 px-4 pb-3">
+          <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#EEF4FF] text-[#1668D9]">
+            {icon}
+          </span>
+          <div className="min-w-0 flex-1">
+            <DialogTitle className="text-[17px] font-bold leading-tight text-slate-900">
+              {title}
+            </DialogTitle>
+            {subtitle && (
+              <p className="mt-0.5 truncate text-xs text-slate-500">{subtitle}</p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            aria-label="Close"
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-7">{children}</div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Tappable row in the mobile "Order Details" list; opens the matching sheet. */
+function MobileDetailRow({
+  icon,
+  title,
+  subtitle,
+  onClick,
+  action,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle?: string;
+  onClick?: () => void;
+  action?: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all hover:border-[#C7DCFA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9] focus-visible:ring-offset-2 active:scale-[0.99]"
+    >
+      <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#EEF4FF] text-[#1668D9]">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-slate-900">
+          {title}
+        </span>
+        {subtitle && (
+          <span className="mt-0.5 block truncate text-xs text-slate-500">
+            {subtitle}
+          </span>
+        )}
+      </span>
+      {action ?? (
+        <ChevronRight className="h-5 w-5 flex-shrink-0 text-slate-300" aria-hidden="true" />
+      )}
+    </button>
+  );
+}
+
+/** Label above value, used in the sheet grids. */
+function SheetField({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[11px] text-slate-500">{label}</p>
+      <p className="mt-0.5 text-[13px] font-semibold text-slate-900">{value}</p>
+    </div>
+  );
 }
 
 const menuItems = [
@@ -107,13 +240,16 @@ export default function OrderTracking() {
   const [cancellationReason, setCancellationReason] = useState("");
   const [orderData, setOrderData] = useState(
     dataStore.getOrderById(orderId || ""),
-  );
-  const [pricing, setPricing] = useState<PricingValues>(pricingStore.getPricing());
+  );  const [pricing, setPricing] = useState<PricingValues>(pricingStore.getPricing());
   const [shopContent, setShopContent] = useState(() => landingContentStore.getContent());
   const [shopLocationOpen, setShopLocationOpen] = useState(false);
   const [showShopPhotos, setShowShopPhotos] = useState(false);
   const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
   const [unclaimedDialogOpen, setUnclaimedDialogOpen] = useState(false);
+  // Which bottom sheet the mobile Order Details list has open.
+  const [activeSheet, setActiveSheet] = useState<
+    "printing" | "payment" | "cost" | null
+  >(null);
   const [shopPhotos, setShopPhotos] = useState<ShopPhoto[]>(() => shopPhotosStore.getPhotos());
 
   useEffect(() => {
@@ -185,7 +321,7 @@ export default function OrderTracking() {
     return Number.isFinite(parsed) ? parsed : 0;
   })();
 
-  const pickupRemaining = orderData
+  const paymentSummary: OrderPaymentSummary = orderData
     ? computeOrderPayment({
         total: orderTotalNumber,
         costBreakdown: orderData.costBreakdown,
@@ -196,8 +332,17 @@ export default function OrderTracking() {
         fullPaymentRequired: orderData.fullPaymentRequired,
         fullPaymentVerified: orderData.fullPaymentVerified,
         fullPaymentAmount: orderData.fullPaymentAmount,
-      }).remaining
-    : 0;
+      })
+    : {
+        total: 0,
+        amountPaid: 0,
+        remaining: 0,
+        status: "Payment Due",
+        fullPaymentRequired: false,
+        downPaymentRequired: false,
+      };
+
+  const pickupRemaining = paymentSummary.remaining;
 
   const pickupStatus = isUnclaimed
     ? { label: "Unclaimed", className: "bg-[#FFF5D6] text-[#92400E] border-[#F59E0B]/40" }
@@ -298,6 +443,148 @@ export default function OrderTracking() {
     return String(val).charAt(0).toUpperCase() + String(val).slice(1);
   };
 
+  // Per-file labels shared by the mobile rows and sheet (the desktop block below
+  // keeps its own inline copies untouched).
+  const colorModeLabel = (file: any): string => {
+    const mode = getFileOption(file, "colorMode", "");
+    if (mode === "bw") return "Black & White";
+    if (mode === "colored") return "Colored";
+    return orderData?.printType || "N/A";
+  };
+
+  const pageRangeLabel = (file: any): string => {
+    if (getFileOption(file, "pageRange", "all") !== "all") {
+      const specific = getFileOption(file, "specificPages", "");
+      if (specific) return `Pages: ${specific}`;
+    }
+    return "All Pages";
+  };
+
+  // ── Mobile view ───────────────────────────────────────────────────────────
+  const displayOrderId = orderData?.displayId || orderId || "";
+  const placedInstant = orderData?.createdAt || orderData?.date;
+  const mobileFileCount = attachedFiles.length;
+  const mobileTotalPages =
+    attachedFiles.reduce(
+      (sum, file) => sum + (Number(getFileOption(file, "pageCount", 0)) || 0),
+      0,
+    ) || (orderData?.pages ?? 0);
+  const mobileCopies = orderData?.copies || 1;
+  const paymentMethodLabel =
+    orderData?.paymentMethod === "Cash"
+      ? "Cash on Pickup"
+      : orderData?.paymentMethod || "Not specified";
+
+  const addonsTotal = (orderData?.addons || []).reduce(
+    (sum, addon) => sum + addon.price * addon.quantity,
+    0,
+  );
+  const printingCost = Math.max(orderTotalNumber - addonsTotal, 0);
+
+  // One short word for the status card's PAYMENT cell — the full story lives in
+  // the payment sheet, and a long label there wraps the whole meta row.
+  const paymentMetaLabel = (() => {
+    if (paymentSummary.status === "Paid") return "Paid";
+    if (paymentSummary.status === "Partially Paid") return "50% Paid";
+    if (orderData?.paymentReferenceNumber) return "Pending";
+    return "Unpaid";
+  })();
+
+  const paymentMetaPaid = paymentSummary.status !== "Payment Due";
+
+  // The mobile payment sheet's headline state + explanation, derived from the
+  // same stored flags the desktop card reads — nothing invented.
+  const mobilePaymentState = (() => {
+    if (!orderData) {
+      return { title: "Not available", note: "", verified: false };
+    }
+    if (orderData.status === "Canceled") {
+      return {
+        title: "Canceled",
+        note: "This order was canceled, so no payment is collected.",
+        verified: false,
+      };
+    }
+    if (orderData.paymentMethod === "Cash") {
+      return orderData.paymentVerified
+        ? {
+            title: "Paid at the Shop",
+            note: "Payment confirmed — order is being processed.",
+            verified: true,
+          }
+        : {
+            title: "Awaiting Payment at Shop",
+            note: `Pay ${formatPrice(
+              paymentSummary.total,
+            )} in cash at the shop before the deadline.`,
+            verified: false,
+          };
+    }
+    if (orderData.downPaymentRequired || orderData.downPaymentVerified) {
+      const down = orderData.downPaymentAmount || 0;
+      const balance = Math.max(paymentSummary.total - down, 0);
+      return orderData.downPaymentVerified
+        ? {
+            title: "Down Payment Verified",
+            note: `${formatPrice(down)} (50% down) paid via ${paymentMethodLabel} — ${formatPrice(
+              balance,
+            )} balance due on pickup.`,
+            verified: true,
+          }
+        : {
+            title: "Awaiting Down Payment",
+            note: `Pay at least ${formatPrice(
+              down,
+            )} (50% down) via ${paymentMethodLabel} before printing — balance due on pickup.`,
+            verified: false,
+          };
+    }
+    if (orderData.paymentVerified) {
+      return {
+        title: "Paid",
+        note: `Payment verified via ${paymentMethodLabel}.`,
+        verified: true,
+      };
+    }
+    return {
+      title: "Pending Verification",
+      note: "Your payment is being verified by admin or staff.",
+      verified: false,
+    };
+  })();
+
+  /** Icon for the mobile status card, in the status palette's own color. */
+  const statusIconNode = (cls: string) => {
+    switch (currentOrderStatus) {
+      case "Printing":
+        return <Printer className={cls} />;
+      case "In Queue":
+        return <Clock className={cls} />;
+      case "Completed":
+        return <CheckCircle className={cls} />;
+      case "Released":
+        return <PackageIcon className={cls} />;
+      case "Canceled":
+        return <X className={cls} />;
+      default:
+        return <Clock className={cls} />;
+    }
+  };
+
+  const sheetSubtitleFiles = `${plural(mobileFileCount, "file")} · ${plural(
+    mobileTotalPages,
+    "page",
+  )} · ${plural(mobileCopies, "copy", "copies")} each`;
+
+  const handleCopyOrderId = async () => {
+    try {
+      await navigator.clipboard.writeText(displayOrderId);
+      toast.success("Order ID copied");
+    } catch {
+      toast.error("Couldn't copy the order ID");
+    }
+  };
+
   return (
     <Layout
       menuItems={menuItems}
@@ -313,6 +600,627 @@ export default function OrderTracking() {
       ) : (
       <div className="max-w-4xl mx-auto space-y-4">
         <ShopStatusBanner />
+
+        {/* ── MOBILE ─────────────────────────────────────────────────────────
+            Phone layout: one status card, an unclaimed/payment notice, the
+            pickup panel, then a tappable "Order Details" list whose rows open
+            bottom sheets. The stacked desktop cards below only render from md. */}
+        <div className="space-y-4 md:hidden">
+          <button
+            type="button"
+            onClick={() => navigate("/customer/orders")}
+            aria-label="Go back"
+            className="-ml-1 inline-flex items-center gap-1.5 rounded-lg py-1 text-[15px] font-medium text-slate-600 transition-colors hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            Back
+          </button>
+
+          <header>
+            <h2 className="text-[28px] font-bold leading-tight tracking-tight text-slate-900">
+              Order Tracking
+            </h2>
+            <p className="mt-1 text-sm leading-relaxed text-slate-500">
+              Track your print job status · Order{" "}
+              <span className="font-semibold text-slate-700 whitespace-nowrap">
+                {displayOrderId}
+              </span>
+            </p>
+          </header>
+
+          {/* Current status + total/payment/placed, in one card. */}
+          <section className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
+            <div className={`border-l-4 p-4 ${statusStyle.accent}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="inline-flex min-w-0 items-center gap-1 rounded-lg border border-slate-200 bg-[#FBFDFF] py-1 pl-2.5 pr-1">
+                  <span className="truncate font-mono text-[11px] font-semibold tracking-tight text-slate-600">
+                    {displayOrderId}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopyOrderId}
+                    aria-label="Copy order ID"
+                    className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                {isUnclaimed && (
+                  <span className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full border border-[#F0D9AE] bg-[#FFF6E6] px-2.5 py-1 text-[11px] font-semibold text-[#92610C]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#DC2626]" aria-hidden="true" />
+                    Unclaimed
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-3.5 flex items-center gap-3">
+                <span
+                  className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full ${statusStyle.bg}`}
+                >
+                  {statusIconNode(`h-6 w-6 ${statusStyle.icon}`)}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.09em] text-slate-400">
+                    Current Status
+                  </p>
+                  <p
+                    className={`truncate text-[26px] font-bold leading-tight ${statusStyle.label}`}
+                  >
+                    {currentOrderLabel}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-[1fr_1fr_auto] gap-3 border-t border-slate-100 pt-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.07em] text-slate-400">
+                    Total
+                  </p>
+                  <p className="mt-0.5 text-[15px] font-bold text-slate-900">
+                    {formatPrice(orderTotalNumber)}
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.07em] text-slate-400">
+                    Payment
+                  </p>
+                  <p
+                    className={`mt-0.5 text-[15px] font-bold ${
+                      paymentMetaPaid ? "text-[#3B7A1E]" : "text-slate-900"
+                    }`}
+                  >
+                    {paymentMetaLabel}
+                  </p>
+                </div>
+                <div className="min-w-0 text-right">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.07em] text-slate-400">
+                    Placed
+                  </p>
+                  <p className="mt-0.5 text-[13px] font-bold text-slate-900">
+                    {placedInstant ? formatPHDate(placedInstant, "short") : "—"}
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    {placedInstant ? formatPHTime(placedInstant) : ""}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Awaiting payment: the deadline lives here so it isn't lost now that
+              the desktop amber card is hidden on phones. */}
+          {isAwaitingPayment && (
+            <section className="rounded-2xl border border-[#F3D9A4] bg-[#FFF9EE] p-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#FDEBC8]">
+                  <Clock className="h-4 w-4 text-[#B45309]" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-[#8A5007]">
+                    {orderData?.cancellationReason === "Payment Deadline Expired"
+                      ? "Payment deadline expired"
+                      : "Payment needed before printing"}
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-[#8A5007]">
+                    {holdReason ||
+                      (orderData?.paymentMethod === "Cash"
+                        ? "Pay in cash at the shop to confirm this order."
+                        : "Your online payment is pending verification.")}
+                  </p>
+                  {orderData?.paymentMethod === "Cash" &&
+                    orderData?.paymentDeadline && (
+                      <div className="mt-2 rounded-xl border border-[#F3D9A4] bg-white/70 p-2.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-[#92610C]">
+                          Pay before
+                        </p>
+                        <p className="mt-0.5 text-[13px] font-semibold text-[#8A5007]">
+                          {formatPHDateTime(orderData.paymentDeadline)}
+                        </p>
+                        <div className="mt-1">
+                          <PaymentDeadlineCountdown
+                            deadline={orderData.paymentDeadline}
+                          />
+                        </div>
+                      </div>
+                    )}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Unclaimed order notice */}
+          {isUnclaimed && (
+            <button
+              type="button"
+              onClick={() => setUnclaimedDialogOpen(true)}
+              aria-haspopup="dialog"
+              className="flex w-full flex-col gap-2 rounded-2xl border border-[#F3D9A4] bg-[#FFF9EE] p-4 text-left transition-colors hover:bg-[#FFF4E0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B] focus-visible:ring-offset-2"
+            >
+              <span className="flex items-center gap-3">
+                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#FDEBC8]">
+                  <AlertTriangle className="h-5 w-5 text-[#B45309]" aria-hidden="true" />
+                </span>
+                <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                  <span className="text-[15px] font-bold text-[#8A5007]">
+                    Unclaimed Order
+                  </span>
+                  {unclaimedOffenseLabel && (
+                    <span className="rounded border border-[#E3C08A] bg-[#FDF1DC] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#A16207]">
+                      {unclaimedOffenseLabel}
+                    </span>
+                  )}
+                </span>
+                <ChevronRight
+                  className="h-5 w-5 flex-shrink-0 text-[#B45309]"
+                  aria-hidden="true"
+                />
+              </span>
+              <span className="text-xs leading-relaxed text-[#8A5007]">
+                {UNCLAIMED_MESSAGE}
+              </span>
+            </button>
+          )}
+
+          {/* Pickup information */}
+          {isOrderCompleted && (
+            <section className="rounded-2xl border border-[#DCE9FB] bg-[#F5F9FF] p-4">
+              <div className="flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#1668D9] shadow-[0_1px_2px_rgba(15,23,42,0.06)]">
+                  <MapPin className="h-4 w-4" />
+                </span>
+                <h2 className="text-lg font-bold text-slate-900">
+                  Pickup Information
+                </h2>
+              </div>
+
+              <div className="mt-3 overflow-hidden rounded-xl border border-[#DCE9FB] bg-white">
+                <div className="grid grid-cols-2 divide-x divide-[#E8EFFA]">
+                  <div className="min-w-0 p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.07em] text-slate-400">
+                      Pickup Date
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-slate-900">
+                      {pickupDate || "Not available"}
+                    </p>
+                  </div>
+                  <div className="min-w-0 p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.07em] text-slate-400">
+                      Pickup Time
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-slate-900">
+                      {pickupTime || "Not available"}
+                    </p>
+                  </div>
+                </div>
+                <div className="border-t border-[#E8EFFA] p-3">
+                  <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.07em] text-slate-400">
+                    <MapPin className="h-3 w-3 text-[#1668D9]" aria-hidden="true" />
+                    Pickup Location
+                  </p>
+                  <p className="mt-1 text-sm font-medium leading-snug text-slate-700">
+                    {pickupLocation || "Docufy Printing Services"}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShopLocationOpen(true)}
+                className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#1668D9] text-sm font-semibold text-white transition-colors hover:bg-[#10316B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9] focus-visible:ring-offset-2 active:scale-[0.99]"
+              >
+                <MapPin className="h-4 w-4" />
+                View Shop Location
+              </button>
+
+              {!isUnclaimed && pickupRemaining > 0 && (
+                <p className="mt-2 text-center text-[11px] leading-relaxed text-slate-500">
+                  A remaining balance of {formatPrice(pickupRemaining)} is
+                  collected at the shop.
+                </p>
+              )}
+            </section>
+          )}
+
+          {/* Order details — tap a row to open its sheet. */}
+          <section className="space-y-2.5">
+            <div className="flex items-end justify-between px-0.5">
+              <h2 className="text-lg font-bold text-slate-900">Order Details</h2>
+              <span className="text-[11px] text-slate-400">Tap to view</span>
+            </div>
+
+            <MobileDetailRow
+              icon={<Printer className="h-5 w-5" />}
+              title="Printing Details"
+              subtitle={sheetSubtitleFiles}
+              onClick={() => setActiveSheet("printing")}
+            />
+            <MobileDetailRow
+              icon={<Wallet className="h-5 w-5" />}
+              title="Payment Method and Status"
+              subtitle={`${paymentMethodLabel} · ${paymentMetaLabel}`}
+              onClick={() => setActiveSheet("payment")}
+            />
+            <MobileDetailRow
+              icon={<FileText className="h-5 w-5" />}
+              title="Cost Breakdown"
+              subtitle={`${formatPrice(orderTotalNumber)} total`}
+              onClick={() => setActiveSheet("cost")}
+            />
+
+            {orderData && receiptData && (
+              <button
+                type="button"
+                onClick={() => setShowReceipt(true)}
+                className="group flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all hover:border-[#C7DCFA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9] focus-visible:ring-offset-2 active:scale-[0.99]"
+              >
+                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#EEF4FF] text-[#1668D9]">
+                  <ReceiptText className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-slate-900">
+                    Order Receipt
+                  </span>
+                  <span className="mt-0.5 block truncate text-[11px] leading-4 text-slate-500">
+                    {receiptData.receiptNumber}
+                  </span>
+                  <span className="block text-[11px] font-semibold leading-4 text-slate-600">
+                    {formatPrice(receiptData.total)}
+                  </span>
+                </span>
+                <span className="inline-flex h-9 flex-shrink-0 items-center gap-1.5 rounded-lg border border-[#CDE0FA] bg-[#F4F8FF] px-3 text-xs font-semibold text-[#1668D9] transition-colors group-hover:border-[#1668D9] group-hover:bg-[#1668D9] group-hover:text-white">
+                  <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                  View Receipt
+                </span>
+              </button>
+            )}
+          </section>
+
+          <p className="px-1 pb-1 text-center text-[11px] leading-relaxed text-slate-400">
+            Status and pickup details are updated by Docufy Printing Services.
+          </p>
+
+          {/* ── Bottom sheets ─────────────────────────────────────────────── */}
+          <MobileSheet
+            open={activeSheet === "printing"}
+            onOpenChange={(open) => setActiveSheet(open ? "printing" : null)}
+            icon={<Printer className="h-5 w-5" />}
+            title="Printing Details"
+            subtitle={sheetSubtitleFiles}
+          >
+            <div className="grid grid-cols-3 gap-2 rounded-xl bg-[#F7F9FC] p-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-400">
+                  Order Date
+                </p>
+                <p className="mt-0.5 text-[13px] font-semibold text-slate-900">
+                  {placedInstant ? formatPHDate(placedInstant, "short") : "—"}
+                </p>
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-400">
+                  Order Time
+                </p>
+                <p className="mt-0.5 text-[13px] font-semibold text-slate-900">
+                  {placedInstant ? formatPHTime(placedInstant) : "—"}
+                </p>
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-400">
+                  Total Pages
+                </p>
+                <p className="mt-0.5 text-[13px] font-semibold text-slate-900">
+                  {plural(mobileTotalPages, "page")}
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-2 mt-4 flex items-center justify-between">
+              <p className="text-xs font-semibold text-slate-600">Files</p>
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
+                {mobileFileCount}
+              </span>
+            </div>
+            <div className="space-y-2.5">
+              {attachedFiles.map((file, index) => (
+                <div
+                  key={`${file.name}-${index}`}
+                  className="rounded-xl border border-slate-200 bg-white p-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[#EEF4FF] text-[#1668D9]">
+                      <FileText className="h-4 w-4" />
+                    </span>
+                    <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-slate-800">
+                      {file.name}
+                    </p>
+                    <span className="flex-shrink-0 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-bold text-slate-500">
+                      {(file.name.split(".").pop() || file.type || "")
+                        .toString()
+                        .toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2.5">
+                    <SheetField
+                      label="Paper Size"
+                      value={formatPaperSize(
+                        getFileOption(file, "paperSize", "N/A"),
+                      )}
+                    />
+                    <SheetField
+                      label="Number of Copies"
+                      value={getFileOption(file, "copies", 0)}
+                    />
+                    <SheetField
+                      label="Color Mode"
+                      value={colorModeLabel(file)}
+                    />
+                    <SheetField
+                      label="Page Range"
+                      value={pageRangeLabel(file)}
+                    />
+                    <SheetField
+                      label="Total Pages"
+                      value={plural(
+                        Number(
+                          getFileOption(
+                            file,
+                            "pageCount",
+                            orderData?.pages || 0,
+                          ),
+                        ) || 0,
+                        "page",
+                      )}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {mobileFileCount > 0 && (
+              <>
+                <div className="mb-2 mt-4 flex items-center justify-between">
+                  <p className="text-xs font-semibold text-slate-600">
+                    Attached Files
+                  </p>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
+                    {mobileFileCount}
+                  </span>
+                </div>
+                <FileAttachments
+                  files={attachedFiles}
+                  orderId={orderId || ""}
+                  showView
+                  showDownload
+                  labelledActions
+                />
+              </>
+            )}
+
+            {orderData?.notes && (
+              <>
+                <p className="mb-2 mt-4 text-xs font-semibold text-slate-600">
+                  Additional Notes
+                </p>
+                <p className="whitespace-pre-wrap rounded-xl bg-[#F7F9FC] p-3 text-[13px] leading-relaxed text-slate-700">
+                  {orderData.notes}
+                </p>
+              </>
+            )}
+
+            {orderData?.colorMode === "colored" && (
+              <div className="mt-4 flex items-center gap-3 rounded-xl border border-[#DCE9FB] bg-[#F5F9FF] p-3">
+                <Info className="h-4 w-4 flex-shrink-0 text-[#1668D9]" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-semibold text-slate-900">
+                    Document Analysis
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    {orderData?.pages || 0} pages · Mixed (Color &amp; B&amp;W)
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveSheet(null);
+                    setShowColorBreakdown(true);
+                  }}
+                  className="flex-shrink-0 text-[11px] font-semibold text-[#1668D9] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
+                >
+                  View Page Color Breakdown
+                </button>
+              </div>
+            )}
+          </MobileSheet>
+
+          <MobileSheet
+            open={activeSheet === "payment"}
+            onOpenChange={(open) => setActiveSheet(open ? "payment" : null)}
+            icon={<Wallet className="h-5 w-5" />}
+            title="Payment Method and Status"
+            subtitle={`${paymentMethodLabel} · ${paymentMetaLabel}`}
+          >
+            <div className="rounded-xl border border-slate-200 p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.07em] text-slate-400">
+                Payment Method
+              </p>
+              <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-slate-900">
+                <Wallet className="h-4 w-4 text-[#1668D9]" aria-hidden="true" />
+                {paymentMethodLabel}
+              </p>
+            </div>
+
+            <div
+              className={`mt-2.5 rounded-xl border p-3 ${
+                mobilePaymentState.verified
+                  ? "border-[#C7E7CC] bg-[#F3FBF4]"
+                  : "border-[#F3D9A4] bg-[#FFF9EE]"
+              }`}
+            >
+              <div className="flex items-start gap-2.5">
+                {mobilePaymentState.verified ? (
+                  <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#3B7A1E]" />
+                ) : (
+                  <Clock className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#B45309]" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-slate-900">
+                    {mobilePaymentState.title}
+                  </p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-slate-600">
+                    {mobilePaymentState.note}
+                  </p>
+                </div>
+                <span
+                  className={`flex-shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                    mobilePaymentState.verified
+                      ? "border-[#C7E7CC] bg-white text-[#3B7A1E]"
+                      : "border-[#F3D9A4] bg-white text-[#A16207]"
+                  }`}
+                >
+                  {mobilePaymentState.verified ? "Verified" : "Pending"}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-2.5 grid grid-cols-3 gap-2 rounded-xl border border-slate-200 bg-[#F7F9FC] p-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-400">
+                  Total
+                </p>
+                <p className="mt-0.5 text-[13px] font-bold text-[#1668D9]">
+                  {formatPrice(paymentSummary.total)}
+                </p>
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-400">
+                  Paid
+                </p>
+                <p className="mt-0.5 text-[13px] font-bold text-slate-900">
+                  {formatPrice(paymentSummary.amountPaid)}
+                </p>
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-400">
+                  Balance
+                </p>
+                <p className="mt-0.5 text-[13px] font-bold text-slate-900">
+                  {formatPrice(paymentSummary.remaining)}
+                </p>
+              </div>
+            </div>
+
+            <p className="mb-2 mt-4 text-xs font-semibold text-slate-600">
+              Order
+            </p>
+            <div className="overflow-hidden rounded-xl border border-slate-200">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-3">
+                <span className="flex items-center gap-2 text-xs text-slate-500">
+                  <FileText className="h-3.5 w-3.5" /> Order ID
+                </span>
+                <span className="font-mono text-[11px] font-semibold text-slate-900">
+                  {displayOrderId}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3 p-3">
+                <span className="flex items-center gap-2 text-xs text-slate-500">
+                  <Clock className="h-3.5 w-3.5" /> Placed
+                </span>
+                <span className="text-[11px] font-semibold text-slate-900">
+                  {placedInstant ? formatPHDateTime(placedInstant) : "—"}
+                </span>
+              </div>
+            </div>
+          </MobileSheet>
+
+          <MobileSheet
+            open={activeSheet === "cost"}
+            onOpenChange={(open) => setActiveSheet(open ? "cost" : null)}
+            icon={<FileText className="h-5 w-5" />}
+            title="Cost Breakdown"
+            subtitle={`${formatPrice(orderTotalNumber)} total`}
+          >
+            <div className="rounded-xl border border-slate-200 p-3.5 text-[13px]">
+              <div className="flex justify-between gap-3">
+                <span className="text-slate-600">
+                  Printing cost ({plural(orderData?.pages || 0, "page")} ×{" "}
+                  {plural(orderData?.copies || 0, "copy", "copies")})
+                </span>
+                <span className="font-semibold text-slate-900">
+                  {formatPrice(printingCost)}
+                </span>
+              </div>
+              {(orderData?.addons?.length || 0) > 0 && (
+                <>
+                  {orderData!.addons!.map((addon, index) => (
+                    <div
+                      key={`${addon.name}-${index}`}
+                      className="mt-2 flex justify-between gap-3"
+                    >
+                      <span className="min-w-0 text-slate-600">
+                        {addon.name}{" "}
+                        <span className="text-slate-400">× {addon.quantity}</span>
+                      </span>
+                      <span className="flex-shrink-0 font-medium text-slate-900">
+                        {formatPrice(addon.price * addon.quantity)}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="mt-2 flex justify-between gap-3 border-t border-slate-100 pt-2">
+                    <span className="text-slate-600">Add-ons subtotal</span>
+                    <span className="font-semibold text-slate-900">
+                      {formatPrice(addonsTotal)}
+                    </span>
+                  </div>
+                </>
+              )}
+              <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-200 pt-3">
+                <span className="text-sm font-bold text-slate-900">
+                  Grand Total
+                </span>
+                <span className="text-lg font-bold text-[#1668D9]">
+                  {formatPrice(orderTotalNumber)}
+                </span>
+              </div>
+            </div>
+
+            {canCancelOrder && (
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveSheet(null);
+                  setCancellationReason("");
+                  setShowCancelDialog(true);
+                }}
+                className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-xl border-2 border-red-200 bg-white text-sm font-semibold text-red-600 transition-colors hover:border-red-400 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2"
+              >
+                Cancel Order
+              </button>
+            )}
+          </MobileSheet>
+        </div>
+
+        {/* ── DESKTOP / TABLET ─────────────────────────────────────────────── */}
+        <div className="hidden space-y-4 md:block">
 
         {/* Mobile back button (under the header) */}
         <button
@@ -953,6 +1861,7 @@ export default function OrderTracking() {
           </Card>
         )}
 
+        </div>
       </div>
       )}
 

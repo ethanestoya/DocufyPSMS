@@ -419,8 +419,12 @@ export default function JobBoardManagement() {
                             {job.status === 'archived' && (
                               <Badge className="text-xs bg-gray-100 text-gray-700">{job.status}</Badge>
                             )}
-                            <span className="text-xs text-gray-500">·</span>
-                            <span className="text-xs text-gray-500">{job.department}</span>
+                            {job.department && (
+                              <>
+                                <span className="text-xs text-gray-500">·</span>
+                                <span className="text-xs text-gray-500">{job.department}</span>
+                              </>
+                            )}
                             <span className="text-xs text-gray-500">·</span>
                             <span className="text-xs text-gray-500">Posted {job.posted}</span>
                           </div>

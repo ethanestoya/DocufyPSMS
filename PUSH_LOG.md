@@ -1218,3 +1218,14 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Shortened the Unclaimed Orders introduction from six lines to one sentence.
 - Repaired corrupted characters in five files where the source bytes were damaged, so dashes, arrows, the peso sign and separators display correctly.
 - Typecheck and the production build pass.
+
+---
+
+## October 26, 2026 (4:40 PM PHT) - prans
+- Merged frontend-dev's operational-screen pass into deployment: the payment verification filters, orders summary, pickup monitoring, dashboard, inventory and timesheet changes now live on the release line.
+- Shipped the Shop Status fix: pausing the shop no longer fails, because the activity log only writes a database id when the value really is one and the low-stock check reads the live table's status column.
+- Added the mobile Order Tracking layout: phone customers get one status card, the unclaimed notice, a pickup card with the shop location, and Order Details rows that open bottom sheets, while the desktop layout is untouched.
+- Fixed the job board meta line: a posting without a department now reads "· Posted 2 days ago" instead of showing two separators with nothing between them, on both the admin and customer job lists.
+- Restored the corrupted characters across the admin and staff screens, so dashes, arrows, the peso sign and separators display as written.
+- Cleaned the push log: removed conflict markers that were committed earlier, so entries read in date order again.
+- Typecheck and the production build pass.

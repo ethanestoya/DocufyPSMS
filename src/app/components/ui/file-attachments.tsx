@@ -45,6 +45,9 @@ interface FileAttachmentsProps {
   // at once; clicking one explains why instead of silently doing nothing.
   // Left undefined by consumers with no session locks (customer Order Tracking).
   lockedBy?: string | null;
+  // Render the actions as labelled controls ("View" pill + download icon) for
+  // mobile detail sheets, instead of the default icon-only squares.
+  labelledActions?: boolean;
 }
 
 function getFileExtension(name: string): string {
@@ -160,6 +163,7 @@ export function FileAttachments({
   showDownload = false,
   showView = false,
   lockedBy = null,
+  labelledActions = false,
 }: FileAttachmentsProps) {
   // A live lock held by someone else blocks the file actions.
   const actionsLocked = !!lockedBy;
@@ -235,6 +239,10 @@ export function FileAttachments({
   const actionBtnCls = actionsLocked
     ? `${actionBtnBase} border-gray-200 bg-gray-50 text-gray-300`
     : `${actionBtnBase} border-gray-300 text-gray-600 hover:text-[#1668D9] hover:border-[#1668D9] hover:bg-[#F2F7FF]`;
+  // Labelled variant (mobile sheets): a "View" pill next to the icon buttons.
+  const viewLabelCls = actionsLocked
+    ? "inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 text-[11px] font-semibold text-gray-300"
+    : "inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#CDE0FA] bg-[#F4F8FF] px-2.5 text-[11px] font-semibold text-[#1668D9] transition-colors hover:bg-[#1668D9] hover:text-white hover:border-[#1668D9]";
   const lockTitle = `${lockedBy} is viewing this order`;
 
   return (
@@ -277,15 +285,16 @@ export function FileAttachments({
 
             {/* Actions */}
             <div className="flex items-center gap-1.5 flex-shrink-0">
-              {/* View icon button — opens the document in a new tab */}
+              {/* View — opens the document in a new tab (labelled in sheets) */}
               {showView && (
                 <button
                   onClick={actionsLocked ? guardLockedAction : () => handleView(file)}
                   aria-disabled={actionsLocked || undefined}
                   title={actionsLocked ? lockTitle : `View ${file.name}`}
-                  className={actionBtnCls}
+                  className={labelledActions ? viewLabelCls : actionBtnCls}
                 >
                   <Eye className="w-3.5 h-3.5" />
+                  {labelledActions && <span>View</span>}
                 </button>
               )}
               {/* Download icon button — only shown when showDownload is true */}

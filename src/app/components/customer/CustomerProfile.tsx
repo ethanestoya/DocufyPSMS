@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { LayoutDashboard, FileText, Briefcase, Package, User, Mail, Phone, ArrowLeft, AlertCircle, Key, Camera, ChevronRight, Lock, LogOut, Pencil } from 'lucide-react';
+import { LayoutDashboard, FileText, Briefcase, Package, User, Mail, Phone, ArrowLeft, AlertCircle, Key, Camera, ChevronRight, Lock, LogOut, Pencil, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '../Layout';
 import { Card } from '../ui/card';
@@ -127,6 +127,7 @@ export default function CustomerProfile() {
   const { user, resetPassword, updateProfile, updateProfileImage, syncProfileDetails, logout } = useAuth();
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [passwordData, setPasswordData] = useState({
@@ -231,7 +232,7 @@ export default function CustomerProfile() {
 
     setIsEditing(false);
     setShowSaveDialog(false);
-    toast.success('Profile updated successfully.');
+    setShowSuccessDialog(true);
   };
 
   const handleChangePassword = async () => {
@@ -622,6 +623,26 @@ export default function CustomerProfile() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {showSuccessDialog && (
+        <Dialog open onOpenChange={setShowSuccessDialog}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="text-[#10316B] flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-emerald-500" /> Profile updated
+              </DialogTitle>
+              <DialogDescription>
+                Your profile has been updated successfully.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button onClick={() => setShowSuccessDialog(false)} className="bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white">
+                OK
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {showLogoutConfirm && (
         <ConfirmationDialog

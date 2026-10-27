@@ -43,6 +43,7 @@ export default function StaffProfile() {
   // Saving uploads the avatar to Supabase Storage, so it is a real round-trip.
   const [saving, setSaving] = useState(false);
   const [showSavedMessage, setShowSavedMessage] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(() => user?.profileImage || null);
@@ -191,8 +192,7 @@ export default function StaffProfile() {
 
       setIsEditing(false);
       setShowSavedMessage(true);
-      setTimeout(() => setShowSavedMessage(false), 3000);
-      toast.success('Profile updated successfully.');
+      setShowSuccessDialog(true);
     } finally {
       setSaving(false);
     }
@@ -502,6 +502,26 @@ export default function StaffProfile() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {showSuccessDialog && (
+        <Dialog open onOpenChange={setShowSuccessDialog}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="text-[#10316B] flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-emerald-500" /> Profile updated
+              </DialogTitle>
+              <DialogDescription>
+                Your profile has been updated successfully.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button onClick={() => setShowSuccessDialog(false)} className="bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white">
+                OK
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {showLogoutConfirm && (
         <ConfirmationDialog

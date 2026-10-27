@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   LayoutDashboard,
@@ -91,6 +91,21 @@ export default function JobApplyForm() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Set<string>>(new Set());
+
+  // Auto-fill name/email from the logged-in user (still editable).
+  useEffect(() => {
+    if (!user) return;
+    setFormData((prev) => {
+      const next = { ...prev };
+      if (!prev.firstName && !prev.lastName) {
+        const parts = (user.name || "").trim().split(/\s+/);
+        if (parts.length > 0 && parts[0]) next.firstName = parts[0];
+        if (parts.length > 1) next.lastName = parts.slice(1).join(" ");
+      }
+      if (!prev.email && user.email) next.email = user.email;
+      return next;
+    });
+  }, [user]);
 
   const markTouched = (field: string) => {
     setTouched((prev) => new Set(prev).add(field));

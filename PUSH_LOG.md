@@ -1259,3 +1259,10 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Made the Shop Status card read "Accepting new orders." / "New orders are on hold." / "Closed as scheduled." instead of repeating "Docufy is currently..." under a badge that already says the state.
 - Trimmed the walk-in and timesheet copy: photocopy price field, photocopy and print-type steps, payment note, both walk-in confirmations, the PDF upload note, the color note, the resume notice, and the timesheet footnote (which also stopped claiming the timesheet is stored only on this device).
 - Typecheck and the production build pass.
+
+## 2026-10-27 — Prans
+
+- Merged latest frontend-dev updates and applied local session edits.
+- Auto-filled First Name, Last Name and Email in the customer Job Application form from the logged-in user (still editable).
+- Replaced the fading 'Profile updated successfully.' toast with a dismissible modal dialog on Customer, Staff and Admin profile pages.
+- Typecheck passes.

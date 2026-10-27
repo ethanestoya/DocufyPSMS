@@ -676,14 +676,14 @@ export default function OrderTracking() {
           {/* Current status + total/payment/placed, in one card. */}
           <section className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
             <div className={`border-l-4 p-4 ${statusStyle.accent}`}>
-              <div className="flex items-start justify-between gap-2">
-                {isUnclaimed && (
+              {isUnclaimed && (
+                <div className="flex items-start justify-between gap-2">
                   <span className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full border border-[#F0D9AE] bg-[#FFF6E6] px-2.5 py-1 text-[11px] font-semibold text-[#92610C]">
                     <span className="h-1.5 w-1.5 rounded-full bg-[#DC2626]" aria-hidden="true" />
                     Unclaimed
                   </span>
-                )}
-              </div>
+                </div>
+              )}
 
               <div className="mt-3.5 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">

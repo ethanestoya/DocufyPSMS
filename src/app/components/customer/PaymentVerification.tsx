@@ -1217,7 +1217,7 @@ onClick={goToNewRequest}
                   type="submit"
                   loading={submitting}
                   loadingText="Submitting..."
-className="w-full h-11 sm:flex-1 sm:h-9 bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white hover:-translate-y-0.5 hover:shadow-md"
+className="w-full h-11 sm:flex-1 sm:h-9 bg-[#1668D9] text-white border-2 border-[#1668D9] hover:bg-[#10316B]"
                 >
                   Submit Reference
                 </Button>
@@ -1239,13 +1239,14 @@ className="w-full h-11 sm:flex-1 sm:h-9 bg-white text-[#1668D9] border-2 border-
                 type="button"
                 variant="outline"
                 onClick={() => navigate("/customer/dashboard")}
-                className="w-full h-11 sm:flex-1 sm:h-9"
+                className="w-full h-11 sm:flex-1 sm:h-9 bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200"
               >
                 Dashboard
               </Button>
               <Button
+                variant="outline"
                 onClick={() => navigate(`/customer/track/${orderId}`)}
-                className="w-full h-11 sm:flex-1 sm:h-9 bg-[#1668D9] text-white border-2 border-[#1668D9] hover:bg-[#10316B]"
+                className="w-full h-11 sm:flex-1 sm:h-9"
               >
                 Track Order
               </Button>

@@ -1239,14 +1239,14 @@ className="w-full h-11 sm:flex-1 sm:h-9 bg-[#1668D9] text-white border-2 border-
                 type="button"
                 variant="outline"
                 onClick={() => navigate("/customer/dashboard")}
-                className="w-full h-11 sm:flex-1 sm:h-9 bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200"
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-60 disabled:border-gray-300 disabled:bg-gray-200 disabled:text-gray-500 disabled:hover:bg-gray-200 disabled:hover:text-gray-500 disabled:hover:translate-y-0 disabled:hover:shadow-none [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-white text-slate-700 border-2 border-blue-400 hover:-translate-y-0.5 hover:bg-[#2F6FD6] hover:text-white hover:shadow-md dark:bg-input/30 dark:hover:bg-input/50 h-9 px-4 py-2 has-[>svg]:px-3 flex-1"
               >
                 Dashboard
               </Button>
               <Button
                 variant="outline"
                 onClick={() => navigate(`/customer/track/${orderId}`)}
-                className="w-full h-11 sm:flex-1 sm:h-9"
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-60 disabled:border-gray-300 disabled:bg-gray-200 disabled:text-gray-500 disabled:hover:bg-gray-200 disabled:hover:text-gray-500 disabled:hover:translate-y-0 disabled:hover:shadow-none [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:-translate-y-0.5 hover:shadow-md h-9 px-4 py-2 has-[>svg]:px-3 flex-1 bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
               >
                 Track Order
               </Button>

@@ -22,6 +22,7 @@ import { formatCurrency } from "../../utils/formatNumber";
 import { pricingStore } from "../../utils/pricingStore";
 import { paymentMethodsStore, type PaymentMethodType } from "../../utils/paymentMethodsStore";
 import { applyDownPaymentPlan } from "../../utils/pendingOrderStore";
+import { clearPrintDraft } from "../shared/PrintTransaction";
 import { ConfirmationDialog } from "../ui/confirmation-dialog";
 
 const menuItems = [
@@ -131,10 +132,11 @@ export default function DownPaymentMethod() {
       // applyDownPaymentPlan has written the cash choice onto it, so the order
       // stays on hold until staff/admin verifies the down payment, then enters
       // the queue. Send the customer straight to order tracking.
-      toast.success(
-        decision.isFull ? "Full payment selected" : "Down payment selected",
-      );
-      navigate(`/customer/track/${orderId}`);
+       toast.success(
+         decision.isFull ? "Full payment selected" : "Down payment selected",
+       );
+       clearPrintDraft();
+       navigate(`/customer/track/${orderId}`);
     }
   };
 

@@ -504,6 +504,11 @@ export default function PaymentVerification() {
       toast.success("Payment details submitted. Awaiting verification by staff.");
     }
 
+    // The submitted order no longer needs its checkout draft — clearing it
+    // prevents a later "New Print Request" from being redirected back to
+    // this payment verification page.
+    clearPrintDraft();
+
     // Show success dialog instead of navigating immediately
     setShowSuccessDialog(true);
     } finally {

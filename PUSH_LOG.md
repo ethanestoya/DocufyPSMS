@@ -1288,3 +1288,9 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Fixed false 'something went wrong while saving' error when updating order status (printing to completed) on mobile: post-update re-read failure no longer surfaces as a save failure.
 - Typecheck and production build pass.
 
+
+## 2026-10-27 — Prans
+
+- Fixed new print request redirecting to payment verification after a previous payment was already submitted: clear the checkout draft on payment submission (online) and on pay-at-shop selection.
+- Typecheck and production build pass.
+

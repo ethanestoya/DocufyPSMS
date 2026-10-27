@@ -33,6 +33,13 @@ interface AttachedFile {
   url?: string;
   storagePath?: string;
   uploadedAt?: string;
+  // Optional print spec, used by the "card" appearance to state what the file
+  // is actually going to be printed as ("14 pages · Short paper · 1 copy").
+  // Absent on older orders — the row then falls back to the file size.
+  pages?: number;
+  paperSize?: string;
+  copies?: number;
+  colorMode?: string;
 }
 
 interface FileAttachmentsProps {
@@ -48,6 +55,11 @@ interface FileAttachmentsProps {
   // Render the actions as labelled controls ("View" pill + download icon) for
   // mobile detail sheets, instead of the default icon-only squares.
   labelledActions?: boolean;
+  // "list" (default) is the compact row used by the customer order view and the
+  // mobile sheets. "card" is the single-file presentation used by the staff
+  // Order Details dialog: a large file tile, the name, what it prints as, and
+  // two labelled actions beneath.
+  appearance?: "list" | "card";
 }
 
 function getFileExtension(name: string): string {
@@ -164,6 +176,7 @@ export function FileAttachments({
   showView = false,
   lockedBy = null,
   labelledActions = false,
+  appearance = "list",
 }: FileAttachmentsProps) {
   // A live lock held by someone else blocks the file actions.
   const actionsLocked = !!lockedBy;
@@ -245,11 +258,105 @@ export function FileAttachments({
     : "inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#CDE0FA] bg-[#F4F8FF] px-2.5 text-[11px] font-semibold text-[#1668D9] transition-colors hover:bg-[#1668D9] hover:text-white hover:border-[#1668D9]";
   const lockTitle = `${lockedBy} is viewing this order`;
 
+  // "card" appearance (staff Order Details). Complete literals so Tailwind's
+  // scanner keeps them.
+  const cardActionCls = actionsLocked
+    ? "inline-flex h-10 items-center gap-2 rounded-[10px] border border-[#E5E7EB] bg-[#F9FAFB] px-4 text-[13px] font-semibold text-[#9CA3AF]"
+    : "inline-flex h-10 items-center gap-2 rounded-[10px] border border-[#D5DBE5] bg-white px-4 text-[13px] font-semibold text-[#111827] transition-colors hover:bg-[#F9FAFB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8] focus-visible:ring-offset-2";
+
   return (
-    <div className="space-y-2">
+    <div className={appearance === "card" ? "space-y-4" : "space-y-2"}>
       {files.map((file, index) => {
         const badgeCls = FileBadgeColor(file);
         const ext = getFileExtension(file.name).toUpperCase();
+
+        if (appearance === "card") {
+          // What this file prints as, e.g. "14 pages · Short paper · 1 copy".
+          const spec = [
+            file.pages
+              ? `${file.pages} ${file.pages === 1 ? "page" : "pages"}`
+              : null,
+            file.paperSize
+              ? `${file.paperSize.charAt(0).toUpperCase()}${file.paperSize.slice(1)} paper`
+              : null,
+            file.copies
+              ? `${file.copies} ${file.copies === 1 ? "copy" : "copies"}`
+              : null,
+            file.colorMode
+              ? file.colorMode === "bw"
+                ? "Black & white"
+                : "Color"
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+
+          return (
+            <div
+              key={index}
+              className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4"
+            >
+              <div
+                aria-hidden="true"
+                className="flex size-14 shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white"
+              >
+                <span
+                  className={`text-[13px] font-bold tracking-tight ${
+                    getFileCategory(file) === "pdf"
+                      ? "text-[#DC2626]"
+                      : "text-[#1D4ED8]"
+                  }`}
+                >
+                  {ext || file.type}
+                </span>
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="break-words text-[15px] font-semibold leading-snug text-[#111827]">
+                  {file.name}
+                </p>
+                <p className="mt-1 text-[13px] text-[#6B7280]">
+                  {spec || file.size}
+                </p>
+
+                <div className="mt-3 flex flex-wrap gap-2.5">
+                  {showView && (
+                    <button
+                      type="button"
+                      onClick={
+                        actionsLocked ? guardLockedAction : () => handleView(file)
+                      }
+                      aria-disabled={actionsLocked || undefined}
+                      title={actionsLocked ? lockTitle : `Preview ${file.name}`}
+                      className={cardActionCls}
+                    >
+                      <Eye className="size-4" aria-hidden="true" />
+                      Preview
+                    </button>
+                  )}
+                  {showDownload && (
+                    <button
+                      type="button"
+                      onClick={
+                        actionsLocked
+                          ? guardLockedAction
+                          : () => handleDownload(file)
+                      }
+                      aria-disabled={actionsLocked || undefined}
+                      title={
+                        actionsLocked ? lockTitle : `Download ${file.name}`
+                      }
+                      className={cardActionCls}
+                    >
+                      <Download className="size-4" aria-hidden="true" />
+                      Download
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        }
 
         return (
           <div

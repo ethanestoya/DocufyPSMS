@@ -601,7 +601,7 @@ export default function Staff() {
         </div>
 
         {/* Today's attendance — dashboard-style KPI cards; click to filter the directory */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
           {[
             { value: "all", label: "All", count: kpis.total, icon: Users, iconBg: "bg-blue-50", iconColor: "text-[#2F6FD6]", pulse: false },
             { value: "on-time", label: "On Time", count: kpis.onTime, icon: UserCheck, iconBg: "bg-green-50", iconColor: "text-green-600", pulse: false },

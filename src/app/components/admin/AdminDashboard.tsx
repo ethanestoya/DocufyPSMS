@@ -404,7 +404,7 @@ function TrendText({ trend, label }: { trend: number; label: string }) {
   return (
     <>
       <span
-        className={`text-xs font-semibold ${
+        className={`text-[13px] font-semibold ${
           isFlat ? "text-slate-500" : isUp ? "text-green-600" : "text-red-500"
         }`}
       >
@@ -435,21 +435,21 @@ function SectionCard({
   bodyClassName?: string;
 }) {
   return (
-    <Card className={`bg-white shadow-sm border border-slate-100 ${className}`}>
-      <div className="flex items-center justify-between px-5 pt-4 pb-2.5">
-        <div>
+    <Card className={`gap-0 bg-white rounded-2xl border border-slate-200/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${className}`}>
+      <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
+        <div className="min-w-0">
           <h3 className="text-base font-semibold text-slate-800">{title}</h3>
-          {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
+          {subtitle && <p className="text-[13px] text-slate-500 mt-0.5">{subtitle}</p>}
         </div>
         {headerRight ? (
-          <div className="flex items-center gap-2">{headerRight}</div>
+          <div className="flex items-center gap-2 shrink-0">{headerRight}</div>
         ) : action && actionLabel ? (
-          <button onClick={action} className="text-xs font-semibold text-[#2F6FD6] hover:underline flex items-center gap-1">
+          <button onClick={action} className="text-[13px] font-semibold text-[#2F6FD6] hover:underline flex items-center gap-1 shrink-0">
             {actionLabel} <ChevronRight className="w-3.5 h-3.5" />
           </button>
         ) : null}
       </div>
-      <div className={`px-5 pb-4 ${bodyClassName}`}>{children}</div>
+      <div className={`px-5 pb-5 ${bodyClassName}`}>{children}</div>
     </Card>
   );
 }
@@ -479,32 +479,32 @@ function InventorySnapshot({ items, navigate, className = "", inventoryPath = "/
       bodyClassName="flex-1 flex flex-col"
     >
       <div className="grid grid-cols-3 gap-2 text-center sm:gap-3">
-        <div className="p-2.5 bg-gray-50 rounded-lg">
-          <p className="text-[10px] sm:text-xs font-medium text-slate-500">Total Items</p>
-          <p className="text-lg sm:text-2xl font-bold text-[#2F6FD6] mt-0.5 sm:mt-1">{activeItems.length}</p>
+        <div className="p-3 bg-slate-50/70 border border-slate-200/60 rounded-xl">
+          <p className="text-xs font-medium text-slate-500">Total Items</p>
+          <p className="text-xl sm:text-2xl font-semibold text-[#2F6FD6] mt-1">{activeItems.length}</p>
         </div>
-        <div className="p-2.5 bg-gray-50 rounded-lg">
-          <p className="text-[10px] sm:text-xs font-medium text-slate-500">Low Stock</p>
-          <p className="text-lg sm:text-2xl font-bold text-amber-600 mt-0.5 sm:mt-1">{lowStockItems.length}</p>
+        <div className="p-3 bg-slate-50/70 border border-slate-200/60 rounded-xl">
+          <p className="text-xs font-medium text-slate-500">Low Stock</p>
+          <p className="text-xl sm:text-2xl font-semibold text-amber-600 mt-1">{lowStockItems.length}</p>
         </div>
-        <div className="p-2.5 bg-gray-50 rounded-lg">
-          <p className="text-[10px] sm:text-xs font-medium text-slate-500">Out of Stock</p>
-          <p className="text-lg sm:text-2xl font-bold text-red-600 mt-0.5 sm:mt-1">{outOfStockItems.length}</p>
+        <div className="p-3 bg-slate-50/70 border border-slate-200/60 rounded-xl">
+          <p className="text-xs font-medium text-slate-500">Out of Stock</p>
+          <p className="text-xl sm:text-2xl font-semibold text-red-600 mt-1">{outOfStockItems.length}</p>
         </div>
       </div>
 
       {urgentItems.length === 0 ? (
-        <div className="mt-3 flex items-center gap-2 p-2 bg-green-50 text-green-700 rounded-md">
+        <div className="mt-3 flex items-center gap-2 p-2.5 bg-green-50 text-green-700 rounded-xl">
           <CheckCircle className="w-4 h-4 shrink-0 text-green-600" />
           <p className="text-xs font-medium">All inventory levels are currently healthy.</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Needs Attention</p>
+        <div className="mt-3 space-y-2">
+          <p className="text-xs font-semibold text-slate-500 mb-2">Needs Attention</p>
           {urgentItems.map((item) => {
             const isOut = inventoryStore.getInventoryStatus(item) === "out";
             return (
-              <div key={item.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
+              <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50/80">
                 <div className="flex items-center gap-2 min-w-0">
                   <AlertTriangle className={`w-4 h-4 shrink-0 ${isOut ? "text-red-500" : "text-amber-500"}`} />
                   <p className="text-sm font-medium text-slate-700 truncate">{item.name}</p>
@@ -520,7 +520,7 @@ function InventorySnapshot({ items, navigate, className = "", inventoryPath = "/
 
       {/* Fills remaining row height without growing the card */}
       <div className="mt-3 min-h-0 flex-1 flex flex-col">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Current Stock Levels</p>
+        <p className="text-xs font-semibold text-slate-500 mb-1.5">Current Stock Levels</p>
         {activeItems.length === 0 ? (
           <p className="text-xs text-slate-500">No inventory items yet.</p>
         ) : (
@@ -538,7 +538,7 @@ function InventorySnapshot({ items, navigate, className = "", inventoryPath = "/
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">In Stock</span>
                 );
               return (
-                <div key={item.id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-slate-50">
+                <div key={item.id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl bg-slate-50/80">
                   <div className="flex items-center gap-2 min-w-0">
                     <Package className="w-4 h-4 shrink-0 text-slate-400" />
                     <p className="text-sm font-medium text-slate-700 truncate">{item.name}</p>
@@ -620,7 +620,7 @@ function DateRangeSelector({ selectedLabel, rangeId, onSelect, customStart, cust
 }
 
 // ─── Overview Tab ─────────────────────────────────────────────────────────────
-function OverviewTab({ metrics, navigate, items, role = "admin", dateSelector }: { metrics: DashboardMetrics; navigate: ReturnType<typeof useNavigate>; items: InventoryItem[]; role?: "admin" | "staff"; dateSelector?: React.ReactNode }) {
+function OverviewTab({ metrics, navigate, items, role = "admin" }: { metrics: DashboardMetrics; navigate: ReturnType<typeof useNavigate>; items: InventoryItem[]; role?: "admin" | "staff" }) {
   const {
     totalSales, totalOrders, walkInCount, activeCustomers,
     prevTotalSales, prevTotalOrders, prevWalkInCount, prevActiveCustomers,
@@ -643,21 +643,6 @@ function OverviewTab({ metrics, navigate, items, role = "admin", dateSelector }:
 
   return (
     <div className="space-y-5">
-      {/* Tab header */}
-      {(role === "admin" || dateSelector) && (
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        {role === "admin" && (
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Overview</h2>
-          </div>
-        )}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:ml-auto">
-          {role === "admin" && <CreateNotificationCard />}
-          {dateSelector}
-        </div>
-      </div>
-      )}
-
       {/* Summary Cards */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 @min-[1040px]:grid-cols-4">
         <SummaryCard
@@ -791,24 +776,24 @@ function OverviewTab({ metrics, navigate, items, role = "admin", dateSelector }:
             <EmptyState icon={Clock} message="No transactions yet" />
           ) : (
             <div className="flex flex-col gap-3 h-full">
-              <div className="flex flex-col gap-3 flex-1">
+              <div className="flex flex-col flex-1 divide-y divide-slate-100">
                 {recentOrders.slice(0, 6).map((o) => {
                   const isPaid = o.status !== "Awaiting Payment" && o.status !== "Canceled";
                   const isWalkIn = o.orderSource === "walkin";
                   return (
-                    <div key={o.id} className="flex items-center gap-3 py-2 px-2 rounded-lg bg-slate-50/80">
+                    <div key={o.id} className="flex items-center gap-3 py-2.5">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-800">{o.displayId ?? o.id}</span>
-                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${isWalkIn ? "bg-slate-100 text-slate-600" : "bg-blue-50 text-[#2F6FD6]"}`}>
+                          <span className="text-[13px] font-semibold text-slate-800">{o.displayId ?? o.id}</span>
+                          <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded ${isWalkIn ? "bg-slate-100 text-slate-600" : "bg-blue-50 text-[#2F6FD6]"}`}>
                             {isWalkIn ? "Walk-in" : "Print Order"}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-500 mt-0.5 truncate">{o.customerName || "—"}</p>
+                        <p className="text-[13px] text-slate-500 mt-0.5 truncate">{o.customerName || "—"}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-sm font-bold text-slate-900">{fmt(parseTotal(o))}</p>
-                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${isPaid ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
+                        <p className="text-sm font-semibold text-slate-900">{fmt(parseTotal(o))}</p>
+                        <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${isPaid ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
                           {isPaid ? "Paid" : "Pending"}
                         </span>
                       </div>
@@ -1003,6 +988,7 @@ function ServicesTab({ navigate }: { navigate: ReturnType<typeof useNavigate> })
           label="Most Used Service"
           value={mostUsed ? mostUsed.name : "—"}
           icon={Printer}
+          valueClassName="text-lg font-semibold leading-tight tracking-tight text-slate-900 sm:text-xl break-words"
           subtitle={
             mostUsed
               ? `${totalOrders > 0 ? Math.round((mostUsed.count / totalOrders) * 100) : 0}% of total orders`
@@ -1013,6 +999,7 @@ function ServicesTab({ navigate }: { navigate: ReturnType<typeof useNavigate> })
           label="Top Revenue Service"
           value={topRevenue ? topRevenue.name : "—"}
           icon={TrendingUp}
+          valueClassName="text-lg font-semibold leading-tight tracking-tight text-slate-900 sm:text-xl break-words"
           subtitle={topRevenue ? `${fmt(topRevenue.revenue)} revenue` : "No revenue yet"}
         />
         <SummaryCard
@@ -1312,7 +1299,11 @@ export default function AdminDashboard({
             <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Dashboard</h2>
             <p className="text-sm text-slate-500 mt-1">Welcome back, {userName || "admin"}.</p>
           </div>
-          {role === "staff" && overviewDateSelector}
+          {/* The date range belongs to Overview — Services carries its own picker. */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+            {role === "admin" && activeTab === "Overview" && <CreateNotificationCard />}
+            {(role === "staff" || activeTab === "Overview") && overviewDateSelector}
+          </div>
         </div>
 
         {/* Tabs (admin only — staff get a single Overview page) */}
@@ -1340,7 +1331,7 @@ export default function AdminDashboard({
           </div>
         ) : role === "admin" ? (
           <>
-            {activeTab === "Overview" && <OverviewTab metrics={metrics} navigate={navigate} items={inventoryItems} dateSelector={overviewDateSelector} />}
+            {activeTab === "Overview" && <OverviewTab metrics={metrics} navigate={navigate} items={inventoryItems} />}
             {activeTab === "Services" && <ServicesTab navigate={navigate} />}
           </>
         ) : (

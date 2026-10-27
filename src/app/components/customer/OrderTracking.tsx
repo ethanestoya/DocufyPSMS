@@ -283,6 +283,51 @@ export default function OrderTracking() {
     return unsubscribe;
   }, [orderId]);
 
+  // Poll so admin/staff status & payment changes appear live without a manual
+  // refresh (realtime delivery is not reliable for the customer session).
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const refresh = async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        await dataStore.refreshFromBackend();
+      } catch {
+        // keep stale data on failure
+      }
+      const next = dataStore.getOrderById(orderId || "");
+      if (next) setOrderData(next);
+    };
+
+    const start = () => {
+      if (intervalId) return;
+      intervalId = setInterval(refresh, 8000);
+    };
+    const stop = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void refresh();
+        start();
+      } else {
+        stop();
+      }
+    };
+
+    if (document.visibilityState === "visible") start();
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [orderId]);
+
   const currentOrderStatus = orderData?.status || "Awaiting Payment";
   const statusStyle = getOrderStatusStyle(currentOrderStatus);
   const currentOrderLabel = getCustomerStatusLabel(orderData);

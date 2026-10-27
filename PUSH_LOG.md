@@ -1277,3 +1277,8 @@ New entries are added at the bottom, below the most recent one, so the log reads
 
 - Converted the sessionManager idle-warning toast to a dismissible modal pop-up with a 'Stay signed in' action button (via global popup bus).
 - Typecheck passes.
+
+## 2026-10-27 — Prans (10:59 PM PHT)
+
+- Implemented live order status polling on the customer Order Tracking page (8s interval, visibility-gated, no manual refresh needed) and converted the "Payment verified!" toast to a dismissible modal pop-up.
+- Typecheck and production build pass.

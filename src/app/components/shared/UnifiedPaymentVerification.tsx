@@ -18,6 +18,7 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { toast } from "sonner";
+import { usePopup } from "../../contexts/PopupContext";
 import Layout from "../Layout";
 import StaffTimeInGate from "./StaffTimeInGate";
 import { Card } from "../ui/card";
@@ -284,6 +285,7 @@ interface UnifiedPaymentVerificationProps {
 
 export default function UnifiedPaymentVerification({ menuItems, userRole }: UnifiedPaymentVerificationProps) {
   const [searchParams] = useSearchParams();
+  const { showPopup } = usePopup();
   const [payments, setPayments] = useState<PaymentType[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPayment, setSelectedPayment] =
@@ -619,11 +621,12 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
         ),
       );
       setSelectedPayment({ ...selectedPayment, status });
-      toast.success(
-        status === "verified"
-          ? "Payment verified! Order has been added to the queue."
-          : `Payment marked as ${status}`
-      );
+       showPopup(
+         status === "verified"
+           ? "Payment verified! Order has been added to the queue."
+           : `Payment marked as ${status}`,
+         "success"
+       );
 
       // Close dialog after verification
       setShowDialog(false);

@@ -1234,3 +1234,16 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Pushed the latest payment and login improvements to frontend-dev: customers can open a full-size payment QR on the print request screen, account numbers are optional, and organization-email sign-in refusals remain visible until dismissed.
 - Closed the payment-method confirmation immediately after a successful save and clarified the Cancelled filter label.
 - Typecheck and the production build pass.
+
+## October 27, 2026 (11:48 AM PHT) - prans
+- Redesigned the Payment Details window in Payment Verification: one calm column showing the customer, status, amount and a short detail list, replacing four stacked cards that repeated the order ID, the status chip and the submission time.
+- Added the online-payment rows to that list — reference number, receiving account and a "View screenshot" link — and dropped the QR block, which belongs to the customer's payment step, not to verification.
+- Moved the reviewer lock out of a green banner and into the action footer, so "Only you can verify this order" sits beside the buttons it governs and the colleague/available/processed states share one line.
+- Fixed an open review turning read-only after switching tabs or applications: the five-minute review lock lapsed while the tab was throttled in the background and never renewed again, so Payment Verification and Orders now share one heartbeat that renews every 30 seconds and re-claims the order the moment the reviewer returns (including after sleep), without ever stealing a colleague's live lock.
+- Typecheck and the production build pass.
+
+## October 27, 2026 (11:55 AM PHT) - prans
+- Merged frontend-dev into deployment, so the redesigned Payment Details window and the review-lock fix are now on the release line.
+- Payment Verification's details window reads as one column now — customer and status, the amount, then the reference, receiving account and proof rows — instead of four cards repeating the same order ID, status and timestamp, with the reviewer lock moved beside the buttons it governs.
+- Payment Verification and Orders share one lock heartbeat that renews every 30 seconds and re-claims the order when the reviewer returns to a throttled tab, so an open review no longer turns read-only after switching tabs or applications.
+- Typecheck and the production build pass.

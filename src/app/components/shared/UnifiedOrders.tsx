@@ -80,6 +80,7 @@ import {
   releaseLock,
   verifyLockOnServer,
   subscribeToLocks,
+  holdLockWhileOpen,
 } from "../../utils/orderLocks";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -303,33 +304,17 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
   // keep renewing OUR lock so it persists for as long as we keep viewing —
   // it never vanishes mid-review. A dead tab stops beating and expires.
   //
-  // Re-claims unconditionally rather than only when `stillHoldsLock()` is true.
-  // That guard read the local mirror, so the FIRST time the lock went missing
-  // (a tab that slept past the TTL, a slow `claim_order_lock` push, or a
-  // hydrate landing before our optimistic claim reached the DB) the heartbeat
-  // silently stopped renewing and the order could stay unlocked for the rest of
-  // the session — the dialog stayed open, so nothing ever re-asserted it. Claim
-  // is a no-op against someone else's live lock and a renewal against our own,
-  // so calling it every beat is both safe and self-healing.
+  // Renewal lives in `holdLockWhileOpen` so this screen and Payment Verification
+  // behave identically: it re-claims on a 30s beat AND whenever the tab/window
+  // is looked at again, which is what keeps a dialog from turning read-only
+  // after a backgrounded tab was throttled (or frozen) past the lock's TTL.
+  // Claim is a no-op against someone else's live lock and a renewal against
+  // our own, so calling it again is both safe and self-healing.
   useEffect(() => {
     if (!selectedOrder || !showDialog || !isActionableStatus(selectedOrder.status) || isPhotocopyOrder(selectedOrder)) {
       return;
     }
-    const beat = () => claimLock(selectedOrder.id, myName);
-    const iv = setInterval(beat, 30000);
-    // Also re-assert when the tab comes back to the foreground: a backgrounded
-    // tab can be throttled well past the TTL, and the reviewer is looking at the
-    // order again the moment they switch back.
-    const onVisible = () => {
-      if (document.visibilityState === "visible") beat();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", onVisible);
-    return () => {
-      clearInterval(iv);
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", onVisible);
-    };
+    return holdLockWhileOpen(selectedOrder.id, myName);
   }, [selectedOrder?.id, selectedOrder?.status, showDialog, myName]);
 
   // Read ?orderId=... so a notification click can deep-open a specific order

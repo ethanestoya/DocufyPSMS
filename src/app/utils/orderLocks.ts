@@ -274,6 +274,57 @@ async function pushClaim(orderId: string): Promise<void> {
 }
 
 /**
+ * Keep OUR hold on one order alive for as long as a reviewer keeps it open.
+ *
+ * A plain `setInterval` heartbeat is not enough: a backgrounded tab has its
+ * timers throttled, and Chrome can freeze an occluded tab outright, so the
+ * 5-minute TTL can lapse while the dialog is STILL open. The reviewer comes
+ * back, `getLock` reports the hold gone, and their own window turns read-only
+ * until they close and reopen it.
+ *
+ * So this re-asserts the hold on every "the page is being looked at again"
+ * signal (tab shown again, window focused, page restored from the back/forward
+ * cache), on top of the 30s renewal. `claimLock` never steals a live lock held
+ * by somebody else, so re-asserting is always safe: it renews ours, or returns
+ * theirs and lets the UI show who holds it now.
+ *
+ * Returns a stop function; call it when the dialog closes or the order changes.
+ */
+export function holdLockWhileOpen(orderId: string, heldBy: string): () => void {
+  const beat = () => {
+    if (orderId) claimLock(orderId, heldBy);
+  };
+
+  beat();
+  const iv = window.setInterval(beat, 30000);
+
+  const onResume = () => {
+    if (document.visibilityState === "visible") beat();
+  };
+  // Waking from sleep can resume the page without a focus/visibility event, so
+  // the first interaction after that also repairs the hold. Guarded so a normal
+  // click never costs a claim round-trip: when the hold is healthy this is a
+  // pure in-memory check.
+  const onInteract = () => {
+    if (!stillHoldsLock(orderId, heldBy)) beat();
+  };
+  document.addEventListener("visibilitychange", onResume);
+  window.addEventListener("focus", onResume);
+  window.addEventListener("pageshow", onResume);
+  window.addEventListener("pointerdown", onInteract, { passive: true });
+  window.addEventListener("keydown", onInteract);
+
+  return () => {
+    window.clearInterval(iv);
+    document.removeEventListener("visibilitychange", onResume);
+    window.removeEventListener("focus", onResume);
+    window.removeEventListener("pageshow", onResume);
+    window.removeEventListener("pointerdown", onInteract);
+    window.removeEventListener("keydown", onInteract);
+  };
+}
+
+/**
  * Release a held lock. NEVER releases a lock held by someone else —
  * passing `heldBy` (the current user's name) makes this safe across machines:
  * closing our window only ever frees OUR lock, never another reviewer's.

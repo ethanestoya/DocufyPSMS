@@ -677,7 +677,33 @@ export default function OrderTracking() {
           <section className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
             <div className={`border-l-4 p-4 ${statusStyle.accent}`}>
               <div className="flex items-start justify-between gap-2">
-                <div className="inline-flex min-w-0 items-center gap-1 rounded-lg border border-slate-200 bg-[#FBFDFF] py-1 pl-2.5 pr-1">
+                {isUnclaimed && (
+                  <span className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full border border-[#F0D9AE] bg-[#FFF6E6] px-2.5 py-1 text-[11px] font-semibold text-[#92610C]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#DC2626]" aria-hidden="true" />
+                    Unclaimed
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-3.5 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span
+                    className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full ${statusStyle.bg}`}
+                  >
+                    {statusIconNode(`h-6 w-6 ${statusStyle.icon}`)}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.09em] text-slate-400">
+                      Current Status
+                    </p>
+                    <p
+                      className={`truncate text-[26px] font-bold leading-tight ${statusStyle.label}`}
+                    >
+                      {currentOrderLabel}
+                    </p>
+                  </div>
+                </div>
+                <div className="inline-flex min-w-0 items-center gap-1 rounded-lg border border-slate-200 bg-[#FBFDFF] py-1 pl-2.5 pr-1 flex-shrink-0">
                   <span className="truncate font-mono text-[11px] font-semibold tracking-tight text-slate-600">
                     {displayOrderId}
                   </span>
@@ -689,30 +715,6 @@ export default function OrderTracking() {
                   >
                     <Copy className="h-3.5 w-3.5" />
                   </button>
-                </div>
-                {isUnclaimed && (
-                  <span className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full border border-[#F0D9AE] bg-[#FFF6E6] px-2.5 py-1 text-[11px] font-semibold text-[#92610C]">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#DC2626]" aria-hidden="true" />
-                    Unclaimed
-                  </span>
-                )}
-              </div>
-
-              <div className="mt-3.5 flex items-center gap-3">
-                <span
-                  className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full ${statusStyle.bg}`}
-                >
-                  {statusIconNode(`h-6 w-6 ${statusStyle.icon}`)}
-                </span>
-                <div className="min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.09em] text-slate-400">
-                    Current Status
-                  </p>
-                  <p
-                    className={`truncate text-[26px] font-bold leading-tight ${statusStyle.label}`}
-                  >
-                    {currentOrderLabel}
-                  </p>
                 </div>
               </div>
 

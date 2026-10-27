@@ -1284,7 +1284,7 @@ export default function OrderTracking() {
             Order Tracking
           </h2>
           <p className="text-gray-500 mt-1">
-            Track your print job status - Order {orderId}
+            Track your print job status - Order {displayOrderId}
           </p>
         </div>
 
@@ -1520,7 +1520,7 @@ export default function OrderTracking() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-xs text-gray-600">Order ID</Label>
-                <p className="font-semibold text-gray-900">{orderId}</p>
+                <p className="font-semibold text-gray-900">{displayOrderId}</p>
               </div>
               <div>
                 <Label className="text-xs text-gray-600">Status</Label>
@@ -1923,7 +1923,7 @@ export default function OrderTracking() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-[#2F6FD6]" />
-              Page Color Breakdown - Order {orderId}
+              Page Color Breakdown - Order {displayOrderId}
             </DialogTitle>
             <DialogDescription>
               Detailed color analysis for each page in your document

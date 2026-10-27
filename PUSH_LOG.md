@@ -1294,3 +1294,9 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Fixed new print request redirecting to payment verification after a previous payment was already submitted: clear the checkout draft on payment submission (online) and on pay-at-shop selection.
 - Typecheck and production build pass.
 
+
+## 2026-10-27 — Prans
+
+- Fixed customer Order Tracking showing a raw UUID instead of the friendly order ID (header, Order ID field, Page Color Breakdown).
+- Typecheck and production build pass.
+

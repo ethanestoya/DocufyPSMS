@@ -337,7 +337,7 @@ export function AttendanceDayModal({ row, open, onOpenChange }: AttendanceDayMod
           onOpenChange={setShowSaveAdjustConfirm}
           onConfirm={saveAdjust}
           title="Adjust Time?"
-          description={`Overwrite ${adjust.row.member.name}'s ${adjust.field === "timeIn" ? "clock-in" : "clock-out"} for ${fmtLongDay(adjust.row.date)} to ${adjValue}? This changes their recorded hours and status.`}
+          description={`Set ${adjust.row.member.name}'s ${adjust.field === "timeIn" ? "clock-in" : "clock-out"} for ${fmtLongDay(adjust.row.date)} to ${adjValue}?`}
           confirmLabel="Save Changes"
           cancelLabel="Go Back"
           destructive={false}
@@ -354,7 +354,7 @@ export function AttendanceDayModal({ row, open, onOpenChange }: AttendanceDayMod
           description={
             absenceTarget.row.absence === absenceTarget.type
               ? `Clear the ${absenceTarget.type === "on-leave" ? "On Leave" : "Absent"} status for ${absenceTarget.row.member.name} on ${fmtLongDay(absenceTarget.row.date)}?`
-              : `Mark ${absenceTarget.row.member.name} as ${absenceTarget.type === "on-leave" ? "On Leave" : "Absent"} for ${fmtLongDay(absenceTarget.row.date)}? This updates their attendance status and the Time Off report.`
+              : `Mark ${absenceTarget.row.member.name} as ${absenceTarget.type === "on-leave" ? "On Leave" : "Absent"} for ${fmtLongDay(absenceTarget.row.date)}?`
           }
           confirmLabel={absenceTarget.row.absence === absenceTarget.type ? "Clear" : (absenceTarget.type === "on-leave" ? "Mark On Leave" : "Mark Absent")}
           cancelLabel="Go Back"
@@ -369,7 +369,7 @@ export function AttendanceDayModal({ row, open, onOpenChange }: AttendanceDayMod
           onOpenChange={() => setResetTarget(null)}
           onConfirm={() => { resetDay(resetTarget); setResetTarget(null); }}
           title="Reset Day's Record?"
-          description={`Delete all attendance data for ${resetTarget.member.name} on ${fmtLongDay(resetTarget.date)}? This removes their clock-in/out times, hours rendered, and any leave/absence flag. This cannot be undone.`}
+          description={`Delete ${resetTarget.member.name}'s attendance for ${fmtLongDay(resetTarget.date)}? This cannot be undone.`}
           confirmLabel="Reset Record"
           cancelLabel="Keep Record"
           destructive

@@ -490,7 +490,7 @@ export default function AdminProfile() {
           onOpenChange={setShowLogoutConfirm}
           onConfirm={() => { logout(); setShowLogoutConfirm(false); }}
           title="Sign out of Docufy?"
-          description="You will be returned to the sign-in page. Your session will be preserved, but sign-in will be required to continue."
+          description="You'll need to sign in again to continue."
           confirmLabel="Sign Out"
           cancelLabel="Stay Signed In"
           destructive={false}

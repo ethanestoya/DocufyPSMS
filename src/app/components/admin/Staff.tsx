@@ -1458,7 +1458,7 @@ export default function Staff() {
                                 <span className="text-[#1677F2]">{formatCurrency(summary.amount)}</span>
                               </p>
                               <p className="mt-0.5 text-xs text-[#54606E] max-w-sm">
-                                Releasing pays this period and starts a new tracking period. Attendance history is kept.
+                                Starts a new period. Attendance history is kept.
                               </p>
                             </div>
                           </div>
@@ -1976,7 +1976,7 @@ export default function Staff() {
         onOpenChange={setShowAddConfirm}
         onConfirm={handleAddStaff}
         title="Create Staff Account?"
-        description={`This will create a new sign-in account for ${newStaff.fullName.trim() || "this staff member"} (${newStaff.email.trim() || ""}). They will be able to log in with the credentials you set.`}
+        description={`${newStaff.fullName.trim() || "This staff member"} (${newStaff.email.trim() || "no email"}) can sign in with the password you set.`}
         confirmLabel="Create Account"
         cancelLabel="Go Back"
         destructive={false}
@@ -1988,7 +1988,7 @@ export default function Staff() {
         onOpenChange={setShowEditConfirm}
         onConfirm={handleSaveEdit}
         title={`Save Changes${editingStaff ? ` to ${editForm?.name || editingStaff.name}?` : "?"}`}
-        description={`Are you sure you want to save the changes to ${editingStaff?.name || "this staff member"}'s account? Changes to email or role take effect immediately.`}
+        description="Email and role changes apply immediately."
         confirmLabel="Save Changes"
         cancelLabel="Go Back"
         destructive={false}
@@ -2073,9 +2073,9 @@ export default function Staff() {
         title="Release Salary?"
         description={
           releasing
-            ? `This will mark the current salary period as paid and reset salary tracking. Attendance records are kept. Staff: ${releasing.name} · Current Salary: ${formatCurrency(
+            ? `Paying ${releasing.name}: ${formatCurrency(
                 salaryStore.getStaffSummary(releasing.email).amount,
-              )}`
+              )}. A new salary period starts after this.`
             : ""
         }
         confirmLabel="Confirm Release"

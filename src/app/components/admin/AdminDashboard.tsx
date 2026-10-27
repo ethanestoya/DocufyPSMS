@@ -37,8 +37,6 @@ import {
   CircleOff,
   StickyNote,
   Image,
-  Sunrise,
-  Sunset,
 } from "lucide-react";
 import Layout from "../Layout";
 import { Card } from "../ui/card";
@@ -71,7 +69,10 @@ import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
-const TABS = ["Overview", "Sales", "Services"] as const;
+// Sales used to be a third tab, but it led with its own four KPI cards and
+// repeated figures Overview already showed. Its two charts live on Overview
+// now, so there is one place to look for a number instead of two.
+const TABS = ["Overview", "Services"] as const;
 type Tab = (typeof TABS)[number];
 
 const DATE_RANGES = [
@@ -125,22 +126,6 @@ function formatDate(iso: string | undefined): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
-}
-
-function formatRelativeTime(iso: string | undefined): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "—";
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const dDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const diffMs = todayStart.getTime() - dDate.getTime();
-  const diffDays = Math.round(diffMs / 86400000);
-  const timeStr = d.toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit", hour12: true });
-  if (diffDays === 0) return `Today, ${timeStr}`;
-  if (diffDays === 1) return `Yesterday, ${timeStr}`;
-  if (diffDays < 7) return `${diffDays}d ago, ${timeStr}`;
-  return `${d.toLocaleDateString("en-PH", { month: "short", day: "numeric" })}, ${timeStr}`;
 }
 
 function getDateRange(id: string, customStart?: string, customEnd?: string): { start: Date; end: Date; label: string } {
@@ -639,13 +624,19 @@ function OverviewTab({ metrics, navigate, items, role = "admin", dateSelector }:
   const {
     totalSales, totalOrders, walkInCount, activeCustomers,
     prevTotalSales, prevTotalOrders, prevWalkInCount, prevActiveCustomers,
-    recentOrders,
+    recentOrders, dailySales, weeklySales, monthlySales,
   } = metrics;
+
+  const [salesView, setSalesView] = useState<"daily" | "weekly" | "monthly">("monthly");
+  const chartData = salesView === "daily" ? dailySales : salesView === "weekly" ? weeklySales : monthlySales;
 
   const salesTrendPct = prevTotalSales > 0 ? ((totalSales - prevTotalSales) / prevTotalSales) * 100 : 0;
   const ordersTrendPct = prevTotalOrders > 0 ? ((totalOrders - prevTotalOrders) / prevTotalOrders) * 100 : 0;
   const walkInTrendPct = prevWalkInCount > 0 ? ((walkInCount - prevWalkInCount) / prevWalkInCount) * 100 : 0;
   const customerTrendPct = prevActiveCustomers > 0 ? ((activeCustomers - prevActiveCustomers) / prevActiveCustomers) * 100 : 0;
+
+  const salesComparisonPct = prevTotalSales > 0 ? (totalSales / prevTotalSales) * 100 : 0;
+  const salesDiff = totalSales - prevTotalSales;
 
   const ordersPath = role === "staff" ? "/staff/queue" : "/admin/orders";
   const inventoryPath = role === "staff" ? "/staff/inventory" : "/admin/inventory";
@@ -698,6 +689,95 @@ function OverviewTab({ metrics, navigate, items, role = "admin", dateSelector }:
       {/* Shop Status Control */}
       <ShopStatusControl />
 
+      {/* Sales Trend + Sales Comparison — folded in from the retired Sales tab */}
+      {role === "admin" && (
+        <div className="grid grid-cols-1 @min-[900px]:grid-cols-3 gap-4 sm:gap-5">
+          <SectionCard
+            title="Sales Trend"
+            subtitle="Revenue performance over time"
+            className="lg:col-span-2"
+            headerRight={
+              <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
+                {(["daily", "weekly", "monthly"] as const).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setSalesView(v)}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${
+                      salesView === v
+                        ? "bg-white text-[#2F6FD6] shadow-sm"
+                        : "text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    {v.charAt(0).toUpperCase() + v.slice(1)}
+                  </button>
+                ))}
+              </div>
+            }
+          >
+            {chartData.length === 0 ? (
+              <EmptyState icon={TrendingUp} message="No sales data for this period" />
+            ) : (
+              <div className="h-52 lg:h-[260px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="salesGrad2" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#2F6FD6" stopOpacity={0.25} />
+                        <stop offset="100%" stopColor="#2F6FD6" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 600 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 600 }} tickFormatter={(v: number) => fmtShortPlain(v)} />
+                    <Tooltip formatter={(v: number) => [fmt(v), "Sales"]} contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(15,23,42,0.08)", fontSize: 12 }} />
+                    <Area type="monotone" dataKey="sales" stroke="#2F6FD6" strokeWidth={2} fill="url(#salesGrad2)" dot={{ r: 3.5, fill: "#2F6FD6", stroke: "#fff", strokeWidth: 2 }} activeDot={{ r: 5 }} isAnimationActive={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </SectionCard>
+
+          <SectionCard title="Sales Comparison" subtitle="Current vs previous period">
+            {totalSales === 0 && prevTotalSales === 0 ? (
+              <EmptyState icon={BarChart3} message="No sales data available for comparison." />
+            ) : (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-between sm:gap-4">
+                  <div className="sm:flex-1">
+                    <p className="text-[10px] sm:text-xs text-slate-500 font-medium uppercase sm:normal-case tracking-wide">This Period</p>
+                    <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                      <p className="text-lg sm:text-2xl font-bold text-slate-900">{fmtShort(totalSales)}</p>
+                      {prevTotalSales > 0 && (
+                        <span className={`inline-flex items-center gap-0.5 text-xs font-semibold px-2 py-0.5 rounded-full ${salesTrendPct >= 0 ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
+                          {salesTrendPct >= 0 ? "↗" : "↘"} {Math.abs(salesTrendPct).toFixed(1)}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="sm:flex-1">
+                    <p className="text-[10px] sm:text-xs text-slate-500 font-medium uppercase sm:normal-case tracking-wide">Previous Period</p>
+                    <p className="text-lg sm:text-2xl font-bold text-slate-500 mt-0.5">{fmtShort(prevTotalSales)}</p>
+                  </div>
+                </div>
+                {prevTotalSales > 0 && (
+                  <div className="w-full bg-slate-100 rounded-full h-2 sm:h-3 overflow-hidden">
+                    <div className="bg-[#2F6FD6] h-full rounded-full transition-all" style={{ width: `${Math.min(salesComparisonPct, 100)}%` }} />
+                  </div>
+                )}
+                {salesDiff !== 0 && (
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {salesDiff > 0
+                      ? <>You earned <span className="font-semibold text-green-600">{fmt(salesDiff)}</span> more than the previous period.</>
+                      : <>You earned <span className="font-semibold text-red-500">{fmt(Math.abs(salesDiff))}</span> less than the previous period.</>
+                    }
+                  </p>
+                )}
+              </div>
+            )}
+          </SectionCard>
+        </div>
+      )}
+
       {/* Recent Transactions + Inventory Snapshot */}
       <div className="grid grid-cols-1 @min-[900px]:grid-cols-3 gap-4 sm:gap-5">
         <SectionCard
@@ -747,246 +827,6 @@ function OverviewTab({ metrics, navigate, items, role = "admin", dateSelector }:
         </SectionCard>
 
         <InventorySnapshot items={items} navigate={navigate} className="lg:col-span-2" inventoryPath={inventoryPath} />
-      </div>
-    </div>
-  );
-}
-
-// ─── Sales Tab ────────────────────────────────────────────────────────────────
-function SalesTab({ metrics, navigate }: { metrics: DashboardMetrics; navigate: ReturnType<typeof useNavigate> }) {
-  const { totalSales, totalOrders, prevTotalSales, prevTotalOrders, recentOrders, dailySales, weeklySales, monthlySales, todaySales } = metrics;
-  const [salesView, setSalesView] = useState<"daily" | "weekly" | "monthly">("monthly");
-
-  const chartData = salesView === "daily" ? dailySales : salesView === "weekly" ? weeklySales : monthlySales;
-
-  const revenueTrendPct = prevTotalSales > 0 ? ((totalSales - prevTotalSales) / prevTotalSales) * 100 : 0;
-  const ordersTrendPct = prevTotalOrders > 0 ? ((totalOrders - prevTotalOrders) / prevTotalOrders) * 100 : 0;
-  const aov = totalOrders > 0 ? totalSales / totalOrders : 0;
-  const prevAov = prevTotalOrders > 0 ? prevTotalSales / prevTotalOrders : 0;
-  const aovTrendPct = prevAov > 0 ? ((aov - prevAov) / prevAov) * 100 : 0;
-
-  const salesComparisonPct = prevTotalSales > 0 ? (totalSales / prevTotalSales) * 100 : 0;
-  const salesDiff = totalSales - prevTotalSales;
-
-  const dailyTotal = todaySales.morning.sales + todaySales.afternoon.sales;
-  const morningShare = dailyTotal > 0 ? (todaySales.morning.sales / dailyTotal) * 100 : 0;
-  const afternoonShare = dailyTotal > 0 ? (todaySales.afternoon.sales / dailyTotal) * 100 : 0;
-
-  const recentSales = recentOrders.filter((o) => o.status !== "Canceled").slice(0, 5);
-
-  return (
-    <div className="space-y-5">
-      {/* Page header */}
-      <div>
-        <h2 className="text-xl font-semibold tracking-tight text-slate-900">Sales</h2>
-        <p className="text-sm text-slate-500 mt-1">Sales performance and revenue overview.</p>
-      </div>
-
-      {/* KPI Summary Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 @min-[1040px]:grid-cols-4">
-        <SummaryCard
-          icon={DollarSign}
-          label="Total Revenue"
-          value={fmt(totalSales)}
-          subtitle={<TrendText trend={revenueTrendPct} label="vs previous period" />}
-        />
-        <SummaryCard
-          icon={Package}
-          label="Total Orders"
-          value={totalOrders.toLocaleString()}
-          subtitle={<TrendText trend={ordersTrendPct} label="vs previous period" />}
-        />
-        <SummaryCard
-          icon={ShoppingCart}
-          label="Average Order Value"
-          value={fmt(aov)}
-          subtitle={<TrendText trend={aovTrendPct} label="vs previous period" />}
-        />
-        <SummaryCard
-          icon={TrendingUp}
-          label="Sales Growth"
-          value={`${revenueTrendPct >= 0 ? "+" : ""}${revenueTrendPct.toFixed(1)}%`}
-          valueColor={revenueTrendPct >= 0 ? "text-green-600" : "text-red-500"}
-          subtitle="vs previous period"
-        />
-      </div>
-
-      {/* Sales Trend (wider) + Today's Sales */}
-      <div className="grid grid-cols-1 @min-[900px]:grid-cols-3 gap-4 sm:gap-5">
-        <SectionCard
-          title="Sales Trend"
-          subtitle="Revenue performance over time"
-          className="lg:col-span-2"
-          headerRight={
-            <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
-              {(["daily", "weekly", "monthly"] as const).map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setSalesView(v)}
-                  className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${
-                    salesView === v
-                      ? "bg-white text-[#2F6FD6] shadow-sm"
-                      : "text-slate-500 hover:text-slate-700"
-                  }`}
-                >
-                  {v.charAt(0).toUpperCase() + v.slice(1)}
-                </button>
-              ))}
-            </div>
-          }
-        >
-          {chartData.length === 0 ? (
-            <EmptyState icon={TrendingUp} message="No sales data for this period" />
-          ) : (
-            <div className="h-52 lg:h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="salesGrad2" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#2F6FD6" stopOpacity={0.25} />
-                      <stop offset="100%" stopColor="#2F6FD6" stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 600 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 600 }} tickFormatter={(v: number) => fmtShortPlain(v)} />
-                  <Tooltip formatter={(v: number) => [fmt(v), "Sales"]} contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(15,23,42,0.08)", fontSize: 12 }} />
-                  <Area type="monotone" dataKey="sales" stroke="#2F6FD6" strokeWidth={2} fill="url(#salesGrad2)" dot={{ r: 3.5, fill: "#2F6FD6", stroke: "#fff", strokeWidth: 2 }} activeDot={{ r: 5 }} isAnimationActive={false} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </SectionCard>
-
-        {/* Today's Sales — Morning vs Afternoon */}
-        <SectionCard title="Today's Sales" subtitle="Morning vs afternoon breakdown for today">
-          {dailyTotal === 0 ? (
-            <EmptyState icon={Sunrise} message="No sales recorded yet today" />
-          ) : (
-            <div className="space-y-4">
-              <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-sky-100/60 border border-blue-100">
-                <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-lg bg-white text-[#2F6FD6] flex items-center justify-center shadow-sm">
-                    <Sunrise className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Morning</p>
-                    <p className="text-[11px] text-slate-500">Before 12:00 PM</p>
-                  </div>
-                </div>
-                <p className="text-2xl font-bold text-slate-900 mt-3">{fmt(todaySales.morning.sales)}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{todaySales.morning.orders} {todaySales.morning.orders === 1 ? "order" : "orders"} · {morningShare.toFixed(0)}% of today</p>
-              </div>
-              <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-100/60 border border-amber-100">
-                <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-lg bg-white text-amber-600 flex items-center justify-center shadow-sm">
-                    <Sunset className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Afternoon</p>
-                    <p className="text-[11px] text-slate-500">12:00 PM onwards</p>
-                  </div>
-                </div>
-                <p className="text-2xl font-bold text-slate-900 mt-3">{fmt(todaySales.afternoon.sales)}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{todaySales.afternoon.orders} {todaySales.afternoon.orders === 1 ? "order" : "orders"} · {afternoonShare.toFixed(0)}% of today</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold text-slate-500 shrink-0">Morning</span>
-                <div className="flex-1 h-2.5 bg-slate-100 rounded-full overflow-hidden flex">
-                  <div className="h-full bg-[#2F6FD6] transition-all" style={{ width: `${morningShare}%` }} />
-                  <div className="h-full bg-amber-500 transition-all" style={{ width: `${afternoonShare}%` }} />
-                </div>
-                <span className="text-xs font-semibold text-slate-500 shrink-0">Afternoon</span>
-              </div>
-              <p className="text-xs text-slate-500">Total for today: <span className="font-semibold text-slate-700">{fmt(dailyTotal)}</span></p>
-            </div>
-          )}
-        </SectionCard>
-      </div>
-
-      {/* Bottom: Sales Comparison + Recent Sales */}
-      <div className="grid grid-cols-1 @min-[820px]:grid-cols-2 gap-4 sm:gap-5">
-        {/* Sales Comparison */}
-        <SectionCard title="Sales Comparison" subtitle="Current vs previous period">
-          {totalSales === 0 && prevTotalSales === 0 ? (
-            <EmptyState icon={BarChart3} message="No sales data available for comparison." />
-          ) : (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-between sm:gap-4">
-                <div className="sm:flex-1">
-                  <p className="text-[10px] sm:text-xs text-slate-500 font-medium uppercase sm:normal-case tracking-wide">This Period</p>
-                  <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                    <p className="text-lg sm:text-2xl font-bold text-slate-900">{fmtShort(totalSales)}</p>
-                    {prevTotalSales > 0 && (
-                      <span className={`inline-flex items-center gap-0.5 text-xs font-semibold px-2 py-0.5 rounded-full ${revenueTrendPct >= 0 ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
-                        {revenueTrendPct >= 0 ? "↗" : "↘"} {Math.abs(revenueTrendPct).toFixed(1)}%
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="sm:flex-1">
-                  <p className="text-[10px] sm:text-xs text-slate-500 font-medium uppercase sm:normal-case tracking-wide">Previous Period</p>
-                  <p className="text-lg sm:text-2xl font-bold text-slate-500 mt-0.5">{fmtShort(prevTotalSales)}</p>
-                </div>
-              </div>
-              {prevTotalSales > 0 && (
-                <div className="w-full bg-slate-100 rounded-full h-2 sm:h-3 overflow-hidden">
-                  <div className="bg-[#2F6FD6] h-full rounded-full transition-all" style={{ width: `${Math.min(salesComparisonPct, 100)}%` }} />
-                </div>
-              )}
-              {salesDiff !== 0 && (
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {salesDiff > 0
-                    ? <>You earned <span className="font-semibold text-green-600">{fmt(salesDiff)}</span> more than the previous period.</>
-                    : <>You earned <span className="font-semibold text-red-500">{fmt(Math.abs(salesDiff))}</span> less than the previous period.</>
-                  }
-                </p>
-              )}
-            </div>
-          )}
-        </SectionCard>
-
-        {/* Recent Sales */}
-        <SectionCard
-          title="Recent Sales"
-          subtitle="Latest sales in the selected period"
-          action={() => navigate("/admin/orders")}
-          actionLabel="View All"
-        >
-          {recentSales.length === 0 ? (
-            <EmptyState icon={Clock} message="No sales in this period" />
-          ) : (
-            <div className="w-full overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-slate-100">
-                    <th className="text-left py-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Order</th>
-                    <th className="text-left py-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 hidden sm:table-cell">Customer</th>
-                    <th className="text-left py-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 hidden md:table-cell">Service</th>
-                    <th className="text-left py-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 hidden md:table-cell">Payment</th>
-                    <th className="text-left py-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 lg:hidden xl:table-cell">Date</th>
-                    <th className="text-right py-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentSales.map((o) => {
-                    const method = o.paymentMethod || (o.orderSource === "walkin" ? "Cash" : "GCash");
-                    return (
-                      <tr key={o.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/70 transition-colors">
-                        <td className="py-2 px-3 font-semibold text-slate-800 whitespace-nowrap">{o.id}</td>
-                        <td className="py-2 px-3 text-slate-600 hidden sm:table-cell truncate max-w-[120px]">{o.customerName || "—"}</td>
-                        <td className="py-2 px-3 text-slate-600 hidden md:table-cell whitespace-nowrap">{deriveService(o)}</td>
-                        <td className="py-2 px-3 text-slate-600 hidden md:table-cell whitespace-nowrap">{method}</td>
-                        <td className="py-2 px-3 text-slate-500 lg:hidden xl:table-cell whitespace-nowrap">{formatRelativeTime(o.createdAt || o.date)}</td>
-                        <td className="py-2 px-3 text-right font-semibold text-slate-900 whitespace-nowrap">{fmt(parseTotal(o))}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </SectionCard>
       </div>
     </div>
   );
@@ -1121,7 +961,7 @@ function ServicesTab({ navigate }: { navigate: ReturnType<typeof useNavigate> })
             </div>
             <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Services</h2>
           </div>
-          <p className="text-sm text-slate-500 mt-1.5">Manage your services and track their performance.</p>
+          <p className="text-sm text-slate-500 mt-1.5">Performance and catalogue for the selected period.</p>
         </div>
         <div className="relative">
           <button
@@ -1192,7 +1032,7 @@ function ServicesTab({ navigate }: { navigate: ReturnType<typeof useNavigate> })
           <div className="flex items-center justify-between px-5 pt-4 pb-3">
             <div>
               <h3 className="text-base font-semibold text-slate-800">Service Performance</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Overview of your services for the selected period.</p>
+              <p className="text-xs text-slate-500 mt-0.5">Orders and revenue per service.</p>
             </div>
           </div>
           <div className="px-5 pb-3">
@@ -1352,7 +1192,6 @@ function ServicesTab({ navigate }: { navigate: ReturnType<typeof useNavigate> })
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 pt-4 pb-3">
           <div>
             <h3 className="text-base font-semibold text-slate-800">Manage Services</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Add, edit, or update your services, pricing, and availability.</p>
           </div>
           <button
             onClick={() => navigate("/admin/pricing")}
@@ -1471,7 +1310,7 @@ export default function AdminDashboard({
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Dashboard</h2>
-            <p className="text-sm text-slate-500 mt-1">Welcome back, {userName || "admin"}! Here's what's happening with Docufy today.</p>
+            <p className="text-sm text-slate-500 mt-1">Welcome back, {userName || "admin"}.</p>
           </div>
           {role === "staff" && overviewDateSelector}
         </div>
@@ -1502,7 +1341,6 @@ export default function AdminDashboard({
         ) : role === "admin" ? (
           <>
             {activeTab === "Overview" && <OverviewTab metrics={metrics} navigate={navigate} items={inventoryItems} dateSelector={overviewDateSelector} />}
-            {activeTab === "Sales" && <SalesTab metrics={metrics} navigate={navigate} />}
             {activeTab === "Services" && <ServicesTab navigate={navigate} />}
           </>
         ) : (

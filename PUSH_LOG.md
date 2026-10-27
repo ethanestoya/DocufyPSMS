@@ -1241,3 +1241,11 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Moved the reviewer lock out of a green banner and into the action footer, so "Only you can verify this order" sits beside the buttons it governs and the colleague/available/processed states share one line.
 - Fixed an open review turning read-only after switching tabs or applications: the five-minute review lock lapsed while the tab was throttled in the background and never renewed again, so Payment Verification and Orders now share one heartbeat that renews every 30 seconds and re-claims the order the moment the reviewer returns (including after sleep), without ever stealing a colleague's live lock.
 - Typecheck and the production build pass.
+
+## October 27, 2026 (9:51 PM PHT) - prans
+- Merged the Sales tab into the Overview: the admin Dashboard now has two tabs instead of three, with the Sales Trend chart and the period comparison moved to the bottom of Overview, so the first screen no longer repeats the same four KPI cards twice.
+- Removed the duplicate sales panels - Today's Sales and Recent Sales - because the trend chart and Recent Transactions already showed the same figures, and dropped the two Sales-only KPI cards (Average Order Value, Sales Growth).
+- Kept the Staff Dashboard exactly as it was: it stays a single page with no tabs and no sales charts.
+- Rewrote the admin copy so screens no longer explain themselves like a tutorial: every confirmation now states the consequence in one sentence instead of asking "Are you sure you want to...", and subtitles that only repeated their own heading were deleted.
+- Shortened the paused-shop banner, the print-while-paused prompt and the awaiting-payment message on Orders, and trimmed the hints on pricing, staff, payment methods, job board, inventory, attendance, landing page, legal, notifications, sign-out and clock-in.
+- Typecheck and the production build pass.

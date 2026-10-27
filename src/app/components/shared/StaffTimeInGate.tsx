@@ -253,7 +253,7 @@ export default function StaffTimeInGate({ children }: StaffTimeInGateProps) {
             doTimeIn();
           }}
           title="Clock In Again?"
-          description="Your time in and time out are already done for today. Clock in again anyway? This will be recorded as exceeded time for today and will show up in your logs and the admin monitoring view."
+          description="Today's shift is already complete. This starts an extra session, recorded as exceeded time."
           confirmLabel="Yes, Clock In Again"
           cancelLabel="Go Back"
           destructive={false}

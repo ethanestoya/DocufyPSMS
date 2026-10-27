@@ -353,7 +353,7 @@ export default function LegalManagement() {
         open={showSaveConfirm}
         onOpenChange={setShowSaveConfirm}
         title="Save changes?"
-        description="This applies your current edits to the Terms & Conditions and Privacy Policy shown across the system."
+        description="Publish these edits everywhere the policies appear."
         confirmLabel="Save Changes"
         onConfirm={handleSave}
       />
@@ -362,7 +362,7 @@ export default function LegalManagement() {
         open={showResetConfirm}
         onOpenChange={setShowResetConfirm}
         title="Reset Terms & Privacy content?"
-        description="This restores the default Terms & Conditions and Privacy Policy text. This action cannot be undone."
+        description="The default Terms and Privacy text returns. This cannot be undone."
         confirmLabel="Reset Content"
         onConfirm={handleReset}
         requirePhrase

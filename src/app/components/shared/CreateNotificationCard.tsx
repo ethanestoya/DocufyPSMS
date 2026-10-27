@@ -178,7 +178,7 @@ export default function CreateNotificationCard() {
             setShowSendConfirm(false);
           }}
           title={`Send ${ANNOUNCEMENT_PRIORITY_LABELS[priority]} announcement?`}
-          description={`This will broadcast "${title}" to customers. It will appear in the Notifications panel for each customer and cannot be unsent once delivered.`}
+          description={`"${title}" goes to every customer and cannot be recalled.`}
           confirmLabel={`Send ${ANNOUNCEMENT_PRIORITY_LABELS[priority]} Announcement`}
           cancelLabel="Go Back"
           destructive={false}

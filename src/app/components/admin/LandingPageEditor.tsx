@@ -334,7 +334,7 @@ export default function LandingPageEditor() {
             <div id="logo" className="scroll-mt-28">
               <EditorCard
                 title="Logo"
-                subtitle="The Docufy logo shown across the whole system — sidebar, headers, landing page, login, and footer."
+                subtitle="Shown in the sidebar, header, landing page and login."
               >
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-lg border border-slate-100 p-4">
                   <div className="w-16 h-16 shrink-0 rounded-full border border-slate-200 bg-white p-1 shadow-sm flex items-center justify-center">
@@ -389,7 +389,7 @@ export default function LandingPageEditor() {
             <div id="auth" className="scroll-mt-28">
               <EditorCard
                 title="Login & Registration"
-                subtitle="The photo background shown on the Log in and Create account pages."
+                subtitle="Photo behind the sign-in form."
               >
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-lg border border-slate-100 p-4">
                   <div className="w-28 h-16 shrink-0 rounded-lg border border-slate-200 bg-[#1c1f26] overflow-hidden flex items-center justify-center">
@@ -464,7 +464,6 @@ export default function LandingPageEditor() {
             <div id="hero" className="scroll-mt-28">
               <EditorCard
                 title="Top Section"
-                subtitle="Edit the main content visitors see when they open the landing page."
               >
                 <Field
                   label="Main Title"
@@ -490,7 +489,7 @@ export default function LandingPageEditor() {
             <div id="features" className="scroll-mt-28">
               <EditorCard
                 title="Features"
-                subtitle="Add the short features you want visitors to see."
+                subtitle="Highlights under Get Started."
               >
                 {(
                   [
@@ -532,7 +531,7 @@ export default function LandingPageEditor() {
             <div id="services" className="scroll-mt-28">
               <EditorCard
                 title="Services & Prices"
-                subtitle="Update the printing services and prices shown on the landing page."
+                subtitle="Prices are set in Pricing Management."
               >
                 {content.serviceCards.map((card, index) => (
                   <div key={index} className="rounded-lg border border-slate-100 p-4 space-y-3">
@@ -594,7 +593,6 @@ export default function LandingPageEditor() {
             <div id="shop-info" className="scroll-mt-28">
               <EditorCard
                 title="Shop Information"
-                subtitle="Update your shop hours and location."
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -784,7 +782,6 @@ export default function LandingPageEditor() {
             <div id="about" className="scroll-mt-28">
               <EditorCard
                 title="About Docufy PSMS"
-                subtitle="Write a short description about the Printing Services Management System."
               >
                 <Field
                   label="Title"
@@ -822,7 +819,7 @@ export default function LandingPageEditor() {
         open={showResetConfirm}
         onOpenChange={setShowResetConfirm}
         title="Reset landing page content?"
-        description="This restores the default text on the public landing page. This action cannot be undone."
+        description="Default text returns to the public landing page. This cannot be undone."
         confirmLabel="Reset Content"
         onConfirm={handleReset}
         requirePhrase
@@ -833,7 +830,7 @@ export default function LandingPageEditor() {
         open={showSaveConfirm}
         onOpenChange={setShowSaveConfirm}
         title="Save changes?"
-        description="This applies your current edits to the public landing page."
+        description="Publish these edits to the public landing page."
         confirmLabel="Save Changes"
         onConfirm={handleSave}
       />
@@ -842,7 +839,7 @@ export default function LandingPageEditor() {
         open={showLogoResetConfirm}
         onOpenChange={setShowLogoResetConfirm}
         title="Reset logo?"
-        description="This restores the default Docufy logo across the whole system. This cannot be undone."
+        description="The default Docufy logo returns everywhere. This cannot be undone."
         confirmLabel="Reset Logo"
         onConfirm={handleLogoReset}
         destructive
@@ -852,7 +849,7 @@ export default function LandingPageEditor() {
         open={showAuthBgResetConfirm}
         onOpenChange={setShowAuthBgResetConfirm}
         title="Reset the login background photo?"
-        description="This restores the default photo on the Log in and Create account pages. Save Changes still needs to be clicked to apply it."
+        description="The default photo returns to the Log in and Create account pages. Save Changes still applies it."
         confirmLabel="Reset Photo"
         onConfirm={handleAuthBgReset}
         destructive

@@ -405,7 +405,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
     if (order.status === "awaitingPayment" && !order.paymentVerified) {
       if (newStatus !== "canceled") {
         setErrorMessage(
-          "This order is still awaiting payment. Verify the payment in Payment Verification - the order will enter the queue automatically once confirmed.",
+          "Awaiting payment. Verify it in Payment Verification and the order queues automatically.",
         );
         return;
       }
@@ -445,10 +445,10 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
   const handleStartFromHere = (order: OrderType) => {
     if (order.status === "awaitingPayment" && !order.paymentVerified) {
       setErrorMessage(
-        "Payment verification is pending for this order - verify it in Payment Verification first; it will enter the queue automatically once confirmed.",
+        "Awaiting payment. Verify it in Payment Verification and the order queues automatically.",
       );
       toast.error(
-        "Payment verification is pending for this order - verify it in Payment Verification first.",
+        "Awaiting payment. Verify it in Payment Verification first.",
       );
       return;
     }
@@ -881,7 +881,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
             <div>
               <p className="text-sm font-semibold text-amber-800">Docufy is currently paused</p>
               <p className="text-xs text-amber-700 mt-0.5">
-                New customer orders are on hold. You can still finish and release jobs already printing, but starting new prints requires override.
+                New orders are on hold. You can still finish jobs already in the queue.
               </p>
             </div>
           </div>
@@ -2007,7 +2007,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
             handleUpdateStatus(target.newStatus, target.order, { bypassPause: true });
           }}
           title="Start Printing While Paused?"
-          description="Docufy is currently paused, so new orders are on hold. You can still manually start this print job — the status form will open right after you confirm."
+          description="New orders are on hold while the shop is paused. This job can still start."
           confirmLabel="Start Printing Anyway"
           cancelLabel="Go Back"
         />

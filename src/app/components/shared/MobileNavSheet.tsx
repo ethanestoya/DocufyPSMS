@@ -446,7 +446,7 @@ export default function MobileNavSheet({ router }: MobileNavSheetProps) {
           onOpenChange={setShowLogoutConfirm}
           onConfirm={confirmLogout}
           title="Sign out of Docufy?"
-          description="You will be returned to the sign-in page. Your session and app data will be preserved, but sign-in will be required to continue."
+          description="You'll need to sign in again to continue."
           confirmLabel="Sign Out"
           cancelLabel="Stay Signed In"
           destructive={false}

@@ -344,8 +344,8 @@ export default function PaymentMethodsManagement() {
             </DialogTitle>
             <DialogDescription>
               {editingId
-                ? "Update the payment method details. Customers see changes immediately."
-                : "Create an online payment method. Customers can pay with it right away."}
+                ? "Customers see changes immediately."
+                : "Available to customers right away."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -511,7 +511,7 @@ export default function PaymentMethodsManagement() {
           title={toggleMethod.active ? "Deactivate Payment Method?" : "Activate Payment Method?"}
           description={
             toggleMethod.active
-              ? `Deactivate "${toggleMethod.name}"? Customers will no longer be able to select it for new payments (existing orders keep their reference).`
+              ? `Deactivate "${toggleMethod.name}"? Customers can no longer choose it. Existing orders keep their reference.`
               : `Activate "${toggleMethod.name}" so customers can pay with it again?`
           }
           confirmLabel={toggleMethod.active ? "Deactivate" : "Activate"}
@@ -529,7 +529,7 @@ export default function PaymentMethodsManagement() {
           loadingText="Removing..."
           closeOnConfirm={false}
           title="Remove Payment Method?"
-          description={`This permanently removes "${deleting.name}" from the system. Existing orders that used it keep their payment reference, but customers can no longer select it. This cannot be undone.`}
+          description={`Remove "${deleting.name}"? Existing orders keep their reference. This cannot be undone.`}
           confirmLabel="Remove"
           cancelLabel="Keep Item"
           destructive

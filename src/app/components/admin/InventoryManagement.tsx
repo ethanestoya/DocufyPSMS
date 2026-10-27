@@ -301,9 +301,6 @@ function InventoryReports() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Inventory Reports</h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Monitor inventory levels, material usage, and stock movements.
-          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {categoryFilter !== "all" && (
@@ -1311,7 +1308,7 @@ export default function InventoryManagement({
           onConfirm={saveItem}
           loadingText="Saving..."
           title="Save Changes?"
-          description={`Are you sure you want to update "${form.name.trim()}"? Its details, stock level (${Math.max(0, Number(form.currentStock) || 0)} ${form.unit}(s)), and reorder level will be overwritten.`}
+          description={`Save "${form.name.trim()}" with ${Math.max(0, Number(form.currentStock) || 0)} ${form.unit}(s) in stock?`}
           confirmLabel="Save Changes"
           cancelLabel="Go Back"
           destructive={false}
@@ -1324,7 +1321,7 @@ export default function InventoryManagement({
           onConfirm={saveItem}
           loadingText="Adding..."
           title="Add Item?"
-          description={`Are you sure you want to add "${form.name.trim()}" to inventory? It will appear in the active inventory immediately with an initial stock of ${Math.max(0, Number(form.currentStock) || 0)} ${form.unit}(s).`}
+          description={`Add "${form.name.trim()}" with ${Math.max(0, Number(form.currentStock) || 0)} ${form.unit}(s) in stock?`}
           confirmLabel="Add Item"
           cancelLabel="Go Back"
           destructive={false}
@@ -1342,9 +1339,7 @@ export default function InventoryManagement({
                   {stockDialog.item.name}
                 </DialogTitle>
                 <DialogDescription>
-                  {stockDialog.type === "in"
-                    ? "Record a restocking action to add quantity."
-                    : "Record usage or sale to deduct quantity."}
+                  {stockDialog.type === "in" ? "Add stock." : "Deduct stock."}
                 </DialogDescription>
               </DialogHeader>
           <div className="mt-4 space-y-4">
@@ -1425,7 +1420,7 @@ export default function InventoryManagement({
           onConfirm={submitStock}
           loadingText="Stocking In..."
           title="Stock In Item?"
-          description={`Are you sure you want to add ${Math.floor(Number(stockQty)) || 0} ${stockDialog.item.unit}(s) to "${stockDialog.item.name}"? The stock level will increase permanently.`}
+          description={`Add ${Math.floor(Number(stockQty)) || 0} ${stockDialog.item.unit}(s) to "${stockDialog.item.name}"?`}
           confirmLabel="Stock In"
           cancelLabel="Go Back"
           destructive={false}
@@ -1438,7 +1433,7 @@ export default function InventoryManagement({
           onConfirm={submitStock}
           loadingText="Stocking Out..."
           title="Stock Out Item?"
-          description={`Are you sure you want to deduct ${Math.floor(Number(stockQty)) || 0} ${stockDialog.item.unit}(s) from "${stockDialog.item.name}"? This reduces available stock (cannot go below 0) and records a usage/sale movement.`}
+          description={`Deduct ${Math.floor(Number(stockQty)) || 0} ${stockDialog.item.unit}(s) from "${stockDialog.item.name}"? This is logged as a stock-out.`}
           confirmLabel="Stock Out"
           cancelLabel="Go Back"
           destructive
@@ -1452,7 +1447,7 @@ export default function InventoryManagement({
           onOpenChange={() => { setConfirmType(null); setArchiveTarget(null); }}
           onConfirm={() => { toggleArchive(archiveTarget); setArchiveTarget(null); }}
           title="Archive Item?"
-          description={`Are you sure you want to archive "${archiveTarget.name}"? It will be hidden from active inventory and no longer used for order deductions, but kept in the Archived view.`}
+          description={`Archive "${archiveTarget.name}"? It leaves active inventory and stops counting toward orders.`}
           confirmLabel="Archive"
           cancelLabel="Keep Item"
           destructive
@@ -1464,7 +1459,7 @@ export default function InventoryManagement({
           onOpenChange={() => { setConfirmType(null); setArchiveTarget(null); }}
           onConfirm={() => { toggleArchive(archiveTarget); setArchiveTarget(null); }}
           title="Restore Item?"
-          description={`Are you sure you want to restore "${archiveTarget.name}" to active inventory? It will be available for order deductions and add-ons again.`}
+          description={`Restore "${archiveTarget.name}" to active inventory?`}
           confirmLabel="Restore"
           cancelLabel="Go Back"
           destructive={false}

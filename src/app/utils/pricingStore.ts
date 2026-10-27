@@ -267,7 +267,7 @@ export const PRICING_ITEMS: PricingItemSpec[] = [
   {
     id: 'cashPickupPaymentWindowSeconds',
     label: 'Cash on Pickup Payment Window',
-    description: 'How long a customer has to pay in cash at the shop before the order is auto-cancelled (set in hours, minutes, and/or seconds; 0 = never expires). PLACEHOLDER — pending client confirmation.',
+    description: 'Time to pay in cash at the shop before the order auto-cancels. 0 = never expires. Pending approval.',
     category: 'Order Rules',
     unit: 'duration',
     editable: true,
@@ -275,7 +275,7 @@ export const PRICING_ITEMS: PricingItemSpec[] = [
   {
     id: 'onlinePaymentVerificationWindowSeconds',
     label: 'Online Payment Verification Window',
-    description: 'How long an online payment must be submitted + verified before the order is auto-cancelled (set in hours, minutes, and/or seconds; 0 = never expires). PLACEHOLDER — pending client confirmation.',
+    description: 'Time to submit and verify an online payment before the order auto-cancels. 0 = never expires. Pending approval.',
     category: 'Order Rules',
     unit: 'duration',
     editable: true,

@@ -115,7 +115,7 @@ function MobileSheet({
           panelRef.current?.focus({ preventScroll: true });
         }}
         aria-describedby={undefined}
-        className="fixed inset-x-0 top-[4vh] bottom-0 z-50 flex max-h-[96vh] w-full max-w-full translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-t-[28px] rounded-b-none border-0 bg-white p-0 shadow-[0_-10px_40px_rgba(15,23,42,0.18)] outline-none data-[state=open]:slide-in-from-bottom-full data-[state=open]:duration-300 data-[state=closed]:slide-out-to-bottom-full data-[state=closed]:duration-200 sm:max-w-full [&>[data-slot=dialog-close]]:hidden md:inset-x-auto md:left-1/2 md:top-1/2 md:bottom-auto md:-translate-x-1/2 md:-translate-y-1/2 md:max-h-[80vh] md:w-[92vw] md:max-w-3xl md:rounded-2xl md:shadow-[0_20px_60px_rgba(15,23,42,0.25)] md:data-[state=open]:zoom-in-95 md:data-[state=open]:slide-in-from-bottom-0 md:data-[state=closed]:zoom-out-95 md:data-[state=closed]:slide-out-to-bottom-0"
+        className="fixed inset-x-0 top-[4vh] bottom-0 z-50 flex max-h-[96vh] w-full max-w-full translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-t-[28px] rounded-b-none border-0 bg-white p-0 shadow-[0_-10px_40px_rgba(15,23,42,0.18)] outline-none data-[state=open]:slide-in-from-bottom-full data-[state=open]:duration-300 data-[state=closed]:slide-out-to-bottom-full data-[state=closed]:duration-200 sm:max-w-full [&>[data-slot=dialog-close]]:hidden"
       >
         <div className="flex flex-shrink-0 justify-center pb-1 pt-2.5">
           <span className="h-1.5 w-10 rounded-full bg-slate-300" aria-hidden="true" />

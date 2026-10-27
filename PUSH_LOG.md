@@ -1272,3 +1272,8 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Converted listed toast notifications to dismissible modal pop-ups (global PopupProvider): AuthCallbackPage, ForgotPassword, ResetPasswordPage, SignUpPage, PublicJobApplication, AuthContext.
 - Added reusable PopupContext/PopupProvider wrapping the app.
 - Typecheck and production build pass.
+
+## 2026-10-27 — Prans
+
+- Converted the sessionManager idle-warning toast to a dismissible modal pop-up with a 'Stay signed in' action button (via global popup bus).
+- Typecheck passes.

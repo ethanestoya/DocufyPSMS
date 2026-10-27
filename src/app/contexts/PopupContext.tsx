@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,29 +12,66 @@ import { CheckCircle2, AlertCircle, Info } from "lucide-react";
 
 type PopupType = "success" | "error" | "info";
 
+interface PopupAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface PopupState {
   message: string;
   type: PopupType;
   title?: string;
+  action?: PopupAction;
 }
 
 interface PopupContextValue {
-  showPopup: (message: string, type?: PopupType, title?: string) => void;
+  showPopup: (message: string, type?: PopupType, title?: string, action?: PopupAction) => void;
+  closePopup: () => void;
 }
 
 const PopupContext = createContext<PopupContextValue | null>(null);
+
+export function triggerGlobalPopup(
+  message: string,
+  type: PopupType = "info",
+  title?: string,
+  action?: PopupAction,
+) {
+  window.dispatchEvent(
+    new CustomEvent("docufy:popup", { detail: { message, type, title, action } }),
+  );
+}
+
+export function closeGlobalPopup() {
+  window.dispatchEvent(new CustomEvent("docufy:popup-close"));
+}
 
 export function PopupProvider({ children }: { children: React.ReactNode }) {
   const [popup, setPopup] = useState<PopupState | null>(null);
 
   const showPopup = useCallback(
-    (message: string, type: PopupType = "info", title?: string) => {
-      setPopup({ message, type, title });
+    (message: string, type: PopupType = "info", title?: string, action?: PopupAction) => {
+      setPopup({ message, type, title, action });
     },
     [],
   );
 
-  const close = () => setPopup(null);
+  const closePopup = useCallback(() => setPopup(null), []);
+
+  // Listen for popups triggered outside React (e.g. sessionManager).
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as PopupState;
+      setPopup(detail);
+    };
+    const closeHandler = () => setPopup(null);
+    window.addEventListener("docufy:popup", handler);
+    window.addEventListener("docufy:popup-close", closeHandler);
+    return () => {
+      window.removeEventListener("docufy:popup", handler);
+      window.removeEventListener("docufy:popup-close", closeHandler);
+    };
+  }, []);
 
   const icon =
     popup?.type === "success" ? (
@@ -54,10 +91,10 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
         : "Notice");
 
   return (
-    <PopupContext.Provider value={{ showPopup }}>
+    <PopupContext.Provider value={{ showPopup, closePopup }}>
       {children}
       {popup && (
-        <Dialog open onOpenChange={() => close()}>
+        <Dialog open onOpenChange={() => closePopup()}>
           <DialogContent className="sm:max-w-sm">
             <DialogHeader>
               <div className="flex justify-center mb-2">{icon}</div>
@@ -66,9 +103,20 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
                 {popup.message}
               </DialogDescription>
             </DialogHeader>
-            <DialogFooter className="sm:justify-center">
+            <DialogFooter className="sm:justify-center gap-2">
+              {popup.action && (
+                <Button
+                  onClick={() => {
+                    popup.action!.onClick();
+                    closePopup();
+                  }}
+                  className="bg-[#1668D9] text-white border-2 border-[#1668D9] hover:bg-[#10316B]"
+                >
+                  {popup.action.label}
+                </Button>
+              )}
               <Button
-                onClick={close}
+                onClick={closePopup}
                 className="bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
               >
                 OK

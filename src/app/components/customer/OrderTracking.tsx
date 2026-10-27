@@ -2036,7 +2036,7 @@ export default function OrderTracking() {
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2 sm:gap-0 sm:justify-between">
             <Button variant="outline" onClick={() => setShowCancelDialog(false)} className="bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-900">
               Keep Order
             </Button>

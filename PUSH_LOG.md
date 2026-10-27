@@ -1266,3 +1266,9 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Auto-filled First Name, Last Name and Email in the customer Job Application form from the logged-in user (still editable).
 - Replaced the fading 'Profile updated successfully.' toast with a dismissible modal dialog on Customer, Staff and Admin profile pages.
 - Typecheck passes.
+
+## 2026-10-27 — Prans
+
+- Converted listed toast notifications to dismissible modal pop-ups (global PopupProvider): AuthCallbackPage, ForgotPassword, ResetPasswordPage, SignUpPage, PublicJobApplication, AuthContext.
+- Added reusable PopupContext/PopupProvider wrapping the app.
+- Typecheck and production build pass.

@@ -47,6 +47,7 @@ import NotificationsPage from './components/shared/NotificationsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import StaffInventory from './components/staff/StaffInventory';
 import { MobileNavProvider } from './contexts/MobileNavContext';
+import { PopupProvider } from './contexts/PopupContext';
 import MobileNavSheet from './components/shared/MobileNavSheet';
 // Module-level side effect: subscribes to the inventory store and emits Low
 // Stock / Out of Stock alerts to the Notifications system on any inventory
@@ -312,14 +313,14 @@ const router = createBrowserRouter([
 
 export default function App() {
   return (
-    <AuthProvider>
-      <MobileNavProvider>
-        <RouterProvider router={router} />
-        {/* Persistent mobile sidebar — lives outside the router tree so it can
-            animate closed while the next page mounts during navigation. */}
-        <MobileNavSheet router={router} />
-        <Toaster richColors position="top-center" />
-      </MobileNavProvider>
-    </AuthProvider>
+    <PopupProvider>
+      <AuthProvider>
+        <MobileNavProvider>
+          <RouterProvider router={router} />
+          <MobileNavSheet router={router} />
+          <Toaster richColors position="top-center" />
+        </MobileNavProvider>
+      </AuthProvider>
+    </PopupProvider>
   );
 }

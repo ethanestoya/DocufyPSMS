@@ -7,7 +7,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { toast } from "sonner";
+import { usePopup } from "../contexts/PopupContext";
 import { Button } from "./ui/button";
 import { Spinner } from "./ui/spinner";
 import { Input } from "./ui/input";
@@ -33,6 +33,7 @@ const FIELD_ORDER = [
 ];
 
 export default function SignUpPage() {
+  const { showPopup } = usePopup();
   const navigate = useNavigate();
   usePageTitle("Create an account");
   const [searchParams] = useSearchParams();
@@ -72,7 +73,7 @@ export default function SignUpPage() {
     const file = event.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      toast.error("Please choose an image smaller than 2MB.");
+      showPopup("Please choose an image smaller than 2MB.", "error");
       return;
     }
     const reader = new FileReader();
@@ -89,7 +90,7 @@ export default function SignUpPage() {
     const result = await signInWithGoogle();
     if (!result.success) {
       setGoogleLoading(false);
-      toast.error("Could not start Google sign-in. Please try again.");
+      showPopup("Could not start Google sign-in. Please try again.", "error");
     }
   };
 

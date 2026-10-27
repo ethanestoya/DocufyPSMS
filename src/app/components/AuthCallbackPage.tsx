@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { Spinner } from "./ui/spinner";
 import { isAllowedEmail, isPolicyTriggerError } from "../utils/authEmailPolicy";
+import { usePopup } from "../contexts/PopupContext";
 
 // Supabase reports an OAuth failure either as query params (PKCE flow) or in
 // the URL hash (implicit flow). The hash carries the useful codes — notably
@@ -24,6 +24,7 @@ export default function AuthCallbackPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, authLoading, emailPolicyBlocked } = useAuth();
+  const { showPopup } = usePopup();
 
   useEffect(() => {
     const hashParams = readHashParams();
@@ -48,7 +49,7 @@ export default function AuthCallbackPage() {
           state: { emailPolicyBlocked: true },
         });
       } else {
-        toast.error(description || "Sign-in was not completed.");
+        showPopup(description || "Sign-in was not completed.", "error");
         navigate("/login", { replace: true });
       }
       return;
@@ -72,7 +73,7 @@ export default function AuthCallbackPage() {
       }
       navigate(`/${user.role}/dashboard`, { replace: true });
     } else {
-      toast.error("Sign-in was not completed. Please try again.");
+      showPopup("Sign-in was not completed. Please try again.", "error");
       navigate("/login", { replace: true });
     }
   }, [user, authLoading, emailPolicyBlocked, navigate, searchParams]);

@@ -1,5 +1,6 @@
 import React, { useState, createContext, useContext, useEffect } from 'react';
 import { toast } from 'sonner';
+import { usePopup } from './PopupContext';
 import { sessionManager } from '../utils/sessionManager';
 import { supabase } from '../../lib/supabaseClient';
 import type { Database } from '../../lib/database.types';
@@ -188,6 +189,7 @@ function readStoredUser(): User | null {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { showPopup } = usePopup();
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [emailPolicyBlocked, setEmailPolicyBlocked] = useState(false);
@@ -318,7 +320,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (user) {
       sessionManager.init(() => {
-        toast.error('Session expired due to inactivity. Please log in again.');
+        showPopup('Session expired due to inactivity. Please log in again.', 'error');
         logout();
       });
     }
@@ -405,10 +407,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     if (error || !result.user) {
-      toast.error(
+      showPopup(
         isPolicyTriggerError(error?.message)
           ? EMAIL_POLICY_MESSAGE
           : error?.message || 'Unable to create account.',
+        'error',
       );
       return false;
     }
@@ -438,10 +441,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       void refreshAllStores();
     }
 
-    toast.success(
+    showPopup(
       result.session
         ? 'Account created successfully.'
         : 'Account created. Check your email to confirm your account.',
+      'success',
     );
     return true;
   };

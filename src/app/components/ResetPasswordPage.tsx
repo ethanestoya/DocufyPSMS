@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { toast } from 'sonner';
+import { usePopup } from '../contexts/PopupContext';
 import { AlertTriangle, ArrowLeft, Link2Off } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLogo } from '../hooks/useLogo';
@@ -25,6 +25,7 @@ export default function ResetPasswordPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const logo = useLogo();
+  const { showPopup } = usePopup();
   const { resetForgottenPassword } = useAuth();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -78,11 +79,11 @@ export default function ResetPasswordPage() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!validatePassword(password).isValid) {
-      toast.error('Password does not meet security requirements.');
+      showPopup('Password does not meet security requirements.', 'error');
       return;
     }
     if (password !== confirmPassword) {
-      toast.error('Passwords do not match.');
+      showPopup('Passwords do not match.', 'error');
       return;
     }
 
@@ -95,11 +96,11 @@ export default function ResetPasswordPage() {
         setLinkError(result.error || 'This reset link is invalid or has expired.');
         setLinkState('invalid');
       } else {
-        toast.error(result.error || 'We could not update your password. Please try a different one.');
+        showPopup(result.error || 'We could not update your password. Please try a different one.', 'error');
       }
       return;
     }
-    toast.success('Password updated successfully.');
+    showPopup('Password updated successfully.', 'success');
     navigate('/login', { replace: true });
   };
 

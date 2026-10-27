@@ -7,11 +7,12 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
-import { toast } from 'sonner';
+import { usePopup } from '../contexts/PopupContext';
 import { useLogo } from "../hooks/useLogo";
 import { jobsStore } from '../utils/jobsStore';
 
 export default function PublicJobApplication() {
+  const { showPopup } = usePopup();
   const navigate = useNavigate();
   const logo = useLogo();
   const { jobId } = useParams();
@@ -46,7 +47,7 @@ export default function PublicJobApplication() {
   const handleSubmit = () => {
     // Validate form
     if (!formData.fullName || !formData.email || !formData.phone) {
-      toast.error('Please fill in all required fields');
+      showPopup('Please fill in all required fields', 'error');
       return;
     }
     

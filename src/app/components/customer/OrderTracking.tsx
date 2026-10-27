@@ -2042,7 +2042,7 @@ export default function OrderTracking() {
             </Button>
             <Button
               onClick={handleCancelOrder}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-red-600 hover:bg-red-700 text-white border-0"
               disabled={!cancellationReason.trim()}
             >
               Confirm Cancellation

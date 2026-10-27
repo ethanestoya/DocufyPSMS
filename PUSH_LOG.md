@@ -1300,3 +1300,13 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Fixed customer Order Tracking showing a raw UUID instead of the friendly order ID (header, Order ID field, Page Color Breakdown).
 - Typecheck and production build pass.
 
+## 2026-10-28 - Prans (12:59 AM PHT)
+
+- Restyled the Order Details dialog on the Orders page to the approved design: the order number and its status sit on one header line, the file is the hero, the payment figure is printed once with a View receipt link and a Show breakdown disclosure, and the footer carries a single primary action whose label follows the order state.
+- Removed the duplicated summary strip, the "you are managing this order" banner, the Close button and backdrop-click dismissal, so the dialog now closes with the X or Esc only.
+- Fixed a verified order still announcing that its payment was pending: the hold reason checkout copies into the order's notes is no longer repeated once the hold no longer applies.
+- Fixed a cancellation reason appearing on orders that were not canceled.
+- Added a card layout to the shared file attachments for the dialog's file tile, print spec and labelled Preview/Download buttons; every existing caller renders exactly as before.
+- Made the shared summary card more compact and moved the Orders status cards to a single row of six, so the stat cards on Dashboard, Inventory, Orders, Payment Verification, Staff, Audit Trail, Payment Methods, Unclaimed Orders and Timesheet share one smaller scale.
+- Typecheck and production build pass.
+

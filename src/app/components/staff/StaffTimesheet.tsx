@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Boxes,
   CalendarDays,
@@ -22,6 +22,7 @@ import Layout from "../Layout";
 import { Button } from "../ui/button";
 import { ConfirmationDialog } from "../ui/confirmation-dialog";
 import { CardSkeleton } from "../ui/card-skeleton";
+import { SummaryCard } from "../ui/summary-card";
 import { useHydrating } from "../../utils/useHydrating";
 import { useAuth } from "../../contexts/AuthContext";
 import {
@@ -390,22 +391,25 @@ export default function StaffTimesheet() {
           <div className={hydrating ? "hidden" : "grid grid-cols-1 @min-[720px]:grid-cols-3 gap-4"}>
             <SummaryCard
               icon={Clock}
-              title="Today"
+              label="Today"
               value={fmtHM(todayTotalMs)}
-              supporting={isOnClock ? "Current session" : "Total today"}
+              subtitle={isOnClock ? "Current session" : "Total today"}
             />
             <SummaryCard
               icon={CalendarDays}
-              title="This Week"
+              label="This Week"
               value={fmtHM(weekTotalMs)}
-              supporting="Total hours"
+              subtitle="Total hours"
             />
             <SummaryCard
               icon={TrendingUp}
-              title="Overtime this week"
+              label="Overtime this week"
               value={fmtHM(weekOvertimeMs)}
-              supporting={weekOvertimeMs > 0 ? "This week's overtime" : "No overtime yet"}
-              overtime
+              subtitle={
+                weekOvertimeMs > 0 ? "This week's overtime" : "No overtime yet"
+              }
+              iconColor="text-amber-600"
+              valueColor="text-amber-600"
             />
           </div>
 
@@ -619,43 +623,5 @@ export default function StaffTimesheet() {
         />
       )}
     </Layout>
-  );
-}
-
-// ── Summary card (Today / This Week / Overtime) ─────────────────────────────
-function SummaryCard({
-  icon: Icon,
-  title,
-  value,
-  supporting,
-  overtime = false,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  value: string;
-  supporting: string;
-  overtime?: boolean;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(16,42,92,0.06)] p-5 flex items-center gap-4">
-      <div
-        className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${
-          overtime ? "bg-amber-50" : "bg-[#EAF2FF]"
-        }`}
-      >
-        <Icon className={`w-5 h-5 ${overtime ? "text-amber-600" : "text-[#1976F3]"}`} />
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs font-semibold text-[#8A94A6]">{title}</p>
-        <p
-          className={`text-xl font-bold tabular-nums leading-tight ${
-            overtime ? "text-amber-600" : "text-[#102A5C]"
-          }`}
-        >
-          {value}
-        </p>
-        <p className="text-[11px] text-[#8A94A6] mt-0.5">{supporting}</p>
-      </div>
-    </div>
   );
 }

@@ -137,11 +137,7 @@ export default function UnclaimedOrderHistory({
             Back to Unclaimed Orders
           </Button>
           <p className="max-w-2xl text-sm text-slate-500">
-            Every order listed here was collected late — a Cash-on-Pickup order
-            that passed its pickup deadline and was only picked up afterwards.
-            Orders still waiting to be collected stay on the Unclaimed Orders
-            page. Counts are derived from real order status history, so they can
-            never drift or be edited.
+            Cash-on-Pickup orders collected after their pickup deadline. Orders still waiting to be collected stay on the Unclaimed Orders page.
           </p>
 
           {!isClosingTimeConfigured(closingTime) && (
@@ -149,8 +145,7 @@ export default function UnclaimedOrderHistory({
               <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
               <span>
                 Unclaimed orders cannot be computed yet — set the shop closing
-                time in Admin → Landing Page → Shop Information. Until then no
-                order can pass a pickup deadline.
+                time in Admin → Landing Page → Shop Information.
               </span>
             </div>
           )}
@@ -159,8 +154,7 @@ export default function UnclaimedOrderHistory({
             <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
               <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-500" />
               <span>
-                Unclaimed-order information is unavailable right now — some order
-                status history could not be read, so this list may be incomplete.
+                Order status history could not be read, so this list may be incomplete.
               </span>
             </div>
           )}
@@ -466,9 +460,7 @@ export default function UnclaimedOrderHistory({
               </div>
 
               <p className="text-xs text-gray-500">
-                This order was recorded as unclaimed because it was not collected
-                by its pickup deadline. It was collected afterwards, so it is
-                kept here as late-pickup history.
+                Not collected by its pickup deadline, then collected afterwards.
               </p>
             </>
           )}

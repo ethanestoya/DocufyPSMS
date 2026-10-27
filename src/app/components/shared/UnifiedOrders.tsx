@@ -1896,8 +1896,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
             </DialogTitle>
             <DialogDescription>
               Record whether any error usage occurred for order{" "}
-              {selectedOrder?.id}. Inventory is deducted based on the expected
-              sheets, and any wasted sheets are tracked separately.
+              {selectedOrder?.id}. Inventory is deducted from the expected sheets; waste is tracked separately.
             </DialogDescription>
           </DialogHeader>
 

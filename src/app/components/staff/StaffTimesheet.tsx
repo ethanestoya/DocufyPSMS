@@ -588,9 +588,8 @@ export default function StaffTimesheet() {
               <div className="flex items-start gap-2.5 rounded-xl bg-[#EEF6FF] px-4 py-3.5">
                 <Info className="h-4 w-4 mt-0.5 shrink-0 text-[#1976F3]" />
                 <p className="text-[13px] leading-relaxed text-[#5C6B84]">
-                  Timesheet is stored on this device. Standard shift: {STANDARD_DAILY_HOURS}h/day ·{" "}
-                  {STANDARD_WEEKLY_HOURS}h/week. Clocking back in after the day is complete is logged as
-                  Exceeded.
+                  Standard shift: {STANDARD_DAILY_HOURS}h/day ·{" "}
+                  {STANDARD_WEEKLY_HOURS}h/week. Extra clock-ins are logged as Exceeded.
                 </p>
               </div>
             </div>
@@ -611,8 +610,8 @@ export default function StaffTimesheet() {
             isOnClock
               ? `End your shift now? Your clock-out time will be recorded at ${fmt12(new Date(internetUtcMs()))}.`
               : curDone
-                ? "Your time in and time out are already done for today. Clock in again anyway? This will be recorded as exceeded time for today and will show up in your logs and the admin monitoring view."
-                : `Start your shift now? Your clock-in time will be recorded at ${fmt12(new Date(internetUtcMs()))} and this session will count toward today's hours.`
+                ? "Time in and out are already done today. Clock in again? It is recorded as exceeded time."
+                : `Start your shift? Clock-in recorded at ${fmt12(new Date(internetUtcMs()))}.`
           }
           confirmLabel={isOnClock ? "Time Out" : curDone ? "Yes, Clock In Again" : "Time In"}
           cancelLabel="Go Back"

@@ -1249,3 +1249,13 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Rewrote the admin copy so screens no longer explain themselves like a tutorial: every confirmation now states the consequence in one sentence instead of asking "Are you sure you want to...", and subtitles that only repeated their own heading were deleted.
 - Shortened the paused-shop banner, the print-while-paused prompt and the awaiting-payment message on Orders, and trimmed the hints on pricing, staff, payment methods, job board, inventory, attendance, landing page, legal, notifications, sign-out and clock-in.
 - Typecheck and the production build pass.
+
+## October 27, 2026 (10:01 pm PHT) - prans
+- Removed tutorial-style paragraphs from the admin and staff screens, leaving each page with only the fact the operator needs at that moment.
+- Shortened the page introductions on Pricing, Payment Methods, Legal, Audit Trail, Unclaimed Order History and Customer Restrictions to one or two short lines.
+- Cut the field hints that explained the product (pickup deadline, hourly rate, pricing matrix, down-payment verification, GCash reference detection, legal section numbering, landing-page photo and logo).
+- Removed the "Are you sure you want to..." preamble from the payment-method edit prompt and shortened the walk-in cancel prompt and its red warning.
+- Dropped the redundant trailing sentences from the "set the shop closing time" notices and the unreadable status-history notices.
+- Made the Shop Status card read "Accepting new orders." / "New orders are on hold." / "Closed as scheduled." instead of repeating "Docufy is currently..." under a badge that already says the state.
+- Trimmed the walk-in and timesheet copy: photocopy price field, photocopy and print-type steps, payment note, both walk-in confirmations, the PDF upload note, the color note, the resume notice, and the timesheet footnote (which also stopped claiming the timesheet is stored only on this device).
+- Typecheck and the production build pass.

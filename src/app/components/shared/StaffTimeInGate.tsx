@@ -154,8 +154,7 @@ export default function StaffTimeInGate({ children }: StaffTimeInGateProps) {
                   Time In to Unlock Staff Functions
                 </h2>
                 <p className="mt-2 text-sm leading-relaxed text-gray-500">
-                  You're not currently clocked in. Please record your time-in to start your
-                  shift and unlock staff actions.
+                  Record your time-in to unlock staff actions.
                 </p>
               </div>
             </div>

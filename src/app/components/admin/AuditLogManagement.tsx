@@ -291,8 +291,7 @@ export default function AuditLogManagement() {
               Audit Trail
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              A permanent record of every change made in Docufy — who acted, what
-              they changed, and when.
+              Every change made in Docufy — who, what and when.
             </p>
           </div>
           <Button

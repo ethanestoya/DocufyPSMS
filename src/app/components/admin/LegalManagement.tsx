@@ -100,8 +100,7 @@ function PolicyCard({
             put each item on its own line starting with <span className="font-medium text-slate-700">"- "</span> (dash + space).
           </p>
           <p className="mt-1">
-            Sections are numbered automatically in order — don't type the
-            number into the title, and use the arrows to reorder them.
+            Numbered automatically. Use the arrows to reorder.
           </p>
         </div>
 
@@ -278,8 +277,7 @@ export default function LegalManagement() {
             <div>
               <h2 className="text-2xl font-bold text-[#10316B]">Terms &amp; Privacy</h2>
               <p className="text-gray-600 mt-1">
-                Edit the Terms &amp; Conditions and Privacy Policy shown on the
-                landing page, sign up, and checkout. Changes apply as soon as you save.
+                Shown on the landing page, sign up and checkout. Changes apply as soon as you save.
               </p>
             </div>
           </div>
@@ -311,7 +309,7 @@ export default function LegalManagement() {
         <div className={hydrating ? "hidden" : "grid grid-cols-1 lg:grid-cols-2 gap-5"}>
           <PolicyCard
             heading="Terms & Conditions"
-            hint="Appears under the 'Terms & Condition' link on the landing page footer, sign up, and checkout."
+            hint="Linked from the landing page footer, sign up and checkout."
             field="termsSections"
             title={content.termsTitle}
             lastUpdated={content.termsLastUpdated}
@@ -325,7 +323,7 @@ export default function LegalManagement() {
           />
           <PolicyCard
             heading="Privacy Policy"
-            hint="Appears under the 'Privacy Policy' link on the landing page footer, sign up, and checkout."
+            hint="Linked from the landing page footer, sign up and checkout."
             field="privacySections"
             title={content.privacyTitle}
             lastUpdated={content.privacyLastUpdated}

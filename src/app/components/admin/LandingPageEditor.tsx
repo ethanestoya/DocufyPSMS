@@ -349,7 +349,7 @@ export default function LandingPageEditor() {
                       {logoStore.hasCustomLogo() ? "Custom logo in use" : "Default logo in use"}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                      Upload a new logo to apply it everywhere instantly. The default logo is always kept and can be restored anytime.
+                      Applies everywhere instantly. The default logo can be restored anytime.
                     </p>
                   </div>
                 </div>
@@ -412,9 +412,7 @@ export default function LandingPageEditor() {
                         : "Default photo in use"}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                      Shown on the Log in and Create account pages. A dark shade
-                      is added over custom photos so the text stays readable.
-                      Changes apply once you click Save Changes.
+                      Shown on the Log in and Create account pages. A dark overlay keeps the text readable.
                     </p>
                   </div>
                 </div>
@@ -649,9 +647,7 @@ export default function LandingPageEditor() {
                     className="mt-1.5 h-9 w-full sm:w-48"
                   />
                   <p className="mt-1.5 text-xs text-slate-500">
-                    Cash-on-Pickup orders not collected by this time on the day they
-                    become ready count as unclaimed. Leave blank to disable unclaimed
-                    tracking — no pickup deadline can be computed without it.
+                    Orders not collected by this time count as unclaimed. Leave blank to disable.
                   </p>
                 </div>
                 <div>
@@ -771,8 +767,7 @@ export default function LandingPageEditor() {
                     <li>Paste that link into the field above, then click <span className="font-medium">Save Changes</span>.</li>
                   </ol>
                   <p className="pt-1 text-slate-500">
-                    The map preview only shows on the live page and the customer
-                    dashboard — clicking Save applies it everywhere at once.
+                    Shows on the live page and customer dashboard after you save.
                   </p>
                 </div>
               </EditorCard>
@@ -849,7 +844,7 @@ export default function LandingPageEditor() {
         open={showAuthBgResetConfirm}
         onOpenChange={setShowAuthBgResetConfirm}
         title="Reset the login background photo?"
-        description="The default photo returns to the Log in and Create account pages. Save Changes still applies it."
+        description="Returns to the Log in and Create account pages."
         confirmLabel="Reset Photo"
         onConfirm={handleAuthBgReset}
         destructive
@@ -862,8 +857,7 @@ export default function LandingPageEditor() {
               <LogIn className="w-5 h-5 text-[#2F6FD6]" /> Login &amp; Registration Preview
             </DialogTitle>
             <DialogDescription>
-              The photo below appears on the darker side of the Log in and
-              Create account pages. Save Changes to apply it.
+              Appears on the Log in and Create account pages.
             </DialogDescription>
           </DialogHeader>
 
@@ -944,8 +938,7 @@ export default function LandingPageEditor() {
               <MapPin className="w-5 h-5 text-[#2F6FD6]" /> Map Preview
             </DialogTitle>
             <DialogDescription>
-              This is how the embed link above appears to visitors. Save
-              Changes to apply it to the landing page and customer Shop Location window.
+              How visitors see the embed. Save Changes to apply it.
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-lg border border-slate-200 overflow-hidden">

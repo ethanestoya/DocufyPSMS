@@ -1614,9 +1614,7 @@ export default function Staff() {
                 </div>
               </div>
               <p className="text-xs text-gray-500 leading-relaxed">
-                The rate is applied to each staff member's total attendance hours
-                to compute their current salary in the attendance detail and
-                salary views.
+                Used to compute each staff member's salary from their attendance hours.
               </p>
             </div>
             <DialogFooter>
@@ -1647,8 +1645,7 @@ export default function Staff() {
           <DialogHeader>
             <DialogTitle className="text-[#10316B]">Add Staff</DialogTitle>
             <DialogDescription>
-              Create a staff account. The staff member can sign in with the
-              email and password you set below.
+              They can sign in with the email and password you set below.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -1900,8 +1897,7 @@ export default function Staff() {
                   </div>
                 ) : (
                   <p className="text-xs text-gray-500">
-                    Active staff clock in as usual — anyone who doesn't clock in
-                    for the day is shown as Absent automatically.
+                    Staff who don't clock in are shown as Absent.
                   </p>
                 )}
               </div>
@@ -2006,8 +2002,7 @@ export default function Staff() {
           <DialogHeader>
             <DialogTitle className="text-[#10316B]">Edit Hourly Rate</DialogTitle>
             <DialogDescription>
-              Set the hourly rate used to compute every staff member's current
-              salary from their attendance hours.
+              Used to compute salary from attendance hours.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-2">

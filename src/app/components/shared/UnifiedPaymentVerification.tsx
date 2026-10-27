@@ -1389,12 +1389,12 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                         Cash down payment — how much was paid at the shop?
                       </p>
                       <p className="mb-3 text-xs text-gray-500">
-                        This order is in the down-payment range. Confirm what
-                        the customer actually paid at the counter. The balance
+                        Confirm what
+                        the customer paid at the counter. The balance
                         ({formatCurrency(
                           selectedPayment.totalAmount -
                             (selectedPayment.downPaymentAmount ?? selectedPayment.totalAmount * 0.5),
-                        )}) is collected on pickup if only the 50% down was paid.
+                        )}) is collected on pickup.
                       </p>
                       <div className="flex flex-wrap gap-2">
                         <button

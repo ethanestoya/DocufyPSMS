@@ -409,10 +409,7 @@ export default function PricingManagement() {
                 Printing Prices
               </h2>
               <p className="text-gray-600 mt-1">
-                Manage the prices customers see and pay. Any change here is
-                applied instantly everywhere in the system — new print
-                requests, walk-in transactions, and the pricing shown on the
-                landing page.
+                Manage the prices customers see and pay. Changes apply everywhere immediately.
               </p>
             </div>
           </div>
@@ -452,8 +449,7 @@ export default function PricingManagement() {
                 </h3>
               </div>
               <p className="text-sm text-gray-500 mb-4 ml-10">
-                Per-page price, split by content type (Text / Text with Image /
-                Image), color option, and paper size.
+                Per-page price by content type, color and paper size.
               </p>
               {CONTENT_TYPES.map((ct) => (
                 <div key={ct} className="mb-5 last:mb-0">

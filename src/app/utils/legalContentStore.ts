@@ -57,40 +57,56 @@ const defaults: LegalContent = {
   termsLastUpdated: "April 27, 2026",
   termsSections: [
     {
-      title: "1. Acceptance of Terms",
-      body: "By accessing and using Docufy PSMS (Print Shop Management System), you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to abide by the above, please do not use this service.",
+      title: "DOCUFY ONLINE PRINTING",
+      body: "Terms & Conditions",
     },
     {
-      title: "2. Use License",
-      body: "Permission is granted to use Docufy PSMS for personal and academic purposes within Palawan State University. This license shall automatically terminate if you violate any of these restrictions and may be terminated by Docufy at any time.",
+      title: "1. ORDER SUBMISSION & CONFIRMATION",
+      body: "Once an order is submitted through the Docufy Online Ordering System, the customer is responsible for ensuring that all uploaded files, printing specifications, quantities, paper types, sizes, and other order details are correct.\nAn order may be reviewed by Docufy before production. Order status may change to Awaiting Payment, In Queue, Printing, Completed, Released, or Canceled depending on the current processing stage.",
     },
     {
-      title: "3. Service Description",
-      body: "Docufy PSMS provides printing services for students and faculty of Palawan State University. Services include document printing, color printing, binding, and related print shop services. We reserve the right to modify, suspend, or discontinue any aspect of the service at any time.",
+      title: "2. ORDER CANCELLATION",
+      body: "Orders may only be cancelled before Docufy has started processing the order.\nOnce an order has been marked as In Queue or Printing, cancellation is no longer allowed because materials, printing time, and resources may have already been allocated to the order.\nOrders that are already printed cannot be cancelled, refunded, or returned due to a change of mind or failure to review the submitted details before ordering.",
     },
     {
-      title: "4. User Accounts",
-      body: "You are responsible for maintaining the confidentiality of your account credentials. You agree to accept responsibility for all activities that occur under your account. You must notify us immediately of any unauthorized use of your account.",
+      title: "3. CUSTOMER RESPONSIBILITY FOR FILES",
+      body: "Customers are responsible for reviewing their files and order details before submitting an order.\nDocufy is not responsible for errors contained in customer-submitted files, including but not limited to:\n- Incorrect content or spelling\n- Wrong file or page\n- Incorrect page size or orientation\n- Missing pages\n- Incorrect quantity\n- Low-resolution or poor-quality files\n- Formatting or layout issues contained in the submitted file\nIf the customer submits an incorrect file and printing has already started, the order may still be charged accordingly.",
     },
     {
-      title: "5. Payment Terms",
-      body: "All payments must be made through the approved payment methods (online payment methods or Cash on Pickup). Prices are subject to change without notice.",
+      title: "4. PAYMENT TERMS",
+      body: "For orders P50.00 and below, Cash on Pickup may be available and the order is queued automatically.\nFor orders from P50.00 to P99.00, a down payment (50% of the total) or full payment may be required before the order is processed.\nFor orders P100.00 and above, full payment is required before the order is processed.\nOrders requiring a down payment or full payment will not be processed until the required payment has been confirmed by Docufy.\nThe remaining balance (if any) must be settled upon pickup unless otherwise agreed with Docufy.",
     },
     {
-      title: "6. Content Restrictions",
-      body: "Users may not upload, print, or distribute content that is illegal, offensive, defamatory, or infringes on intellectual property rights. Docufy reserves the right to refuse service for any content deemed inappropriate.",
+      title: "5. UNPAID OR UNCLAIMED ORDERS",
+      body: "Once an order has been printed, the customer is responsible for claiming and paying for the order within the applicable pickup period communicated by Docufy.\nIf a customer fails to claim an order without a valid reason, the order will be considered an Unclaimed Order.\nBecause printed materials are prepared specifically for the customer and may not be resold, Docufy reserves the right to impose the following consequences:\n- First unclaimed order: A warning may be recorded on the customer's account.\n- Second unclaimed order: Cash on Pickup may be temporarily disabled, and the customer may be required to pay a 50% deposit or full payment in advance for future orders.\n- Repeated or intentional unclaimed orders: Docufy may require full payment before processing future orders and may temporarily suspend the customer's online ordering privileges.\nAny outstanding balance from an unclaimed printed order remains payable by the customer.",
     },
     {
-      title: "7. Limitation of Liability",
-      body: "Docufy PSMS shall not be liable for any damages arising from the use or inability to use the service, including but not limited to printing errors, delays, or data loss.",
+      title: "6. DOWN PAYMENTS",
+      body: "Down payments are considered a commitment to the order.\nIf a customer cancels an order after production has started, or fails to claim an order after it has been printed, the down payment may be applied toward the costs already incurred for the order and may not be refundable.\nIf the amount of the down payment does not cover the applicable costs of an abandoned order, the customer may still be required to settle the remaining balance.",
     },
     {
-      title: "8. Modifications to Terms",
-      body: "Docufy reserves the right to revise these terms at any time. Continued use of the service following any changes constitutes acceptance of those changes.",
+      title: "7. PICKUP",
+      body: "Customers are responsible for claiming their completed orders within the pickup period communicated by Docufy.\nCustomers may be asked to provide their order number, name, or other account information when claiming an order.\nFor student accounts, Docufy may also request a valid student ID or other identification when necessary for verification.",
     },
     {
-      title: "9. Contact Information",
-      body: "For questions about these Terms and Conditions, please contact us at printwithdocufy@gmail.com or visit our office at Room 4, Palawan State University - Main Campus, TBI Building, Puerto Princesa City, 5300 Palawan.",
+      title: "8. REPRINTS & PRINTING ISSUES",
+      body: "If an error is caused by Docufy's printing process, the customer may report the issue to Docufy for assessment and possible reprinting.\nHowever, reprinting is not automatically provided for errors originating from the customer's submitted file or incorrect order specifications.\nAny concerns regarding an order should be reported as soon as possible after pickup.",
+    },
+    {
+      title: "9. ORDER STATUS & PROCESSING TIME",
+      body: "Order processing times may vary depending on order volume, file complexity, materials, equipment availability, and other operational circumstances.\nAn order being marked as Awaiting Payment does not necessarily mean that printing has already started.\nCustomers should wait for the order to be marked Ready for Pickup (Completed/Released) before proceeding to claim their order.",
+    },
+    {
+      title: "10. RIGHT TO REFUSE OR HOLD AN ORDER",
+      body: "Docufy reserves the right to hold, reject, or request clarification for orders that contain incomplete information, corrupted files, unclear instructions, inappropriate content, or other issues that may prevent proper processing.\nDocufy may also require additional verification for orders that appear suspicious, duplicated, fraudulent, or abusive.",
+    },
+    {
+      title: "11. CUSTOMER ACCOUNT & MISUSE",
+      body: "Customers are expected to provide accurate information when creating and using a Docufy account.\nCreating multiple accounts, placing fake orders, repeatedly submitting orders with no intention of claiming them, or otherwise abusing the online ordering system may result in the restriction or suspension of the customer's account and/or Cash on Pickup privileges.",
+    },
+    {
+      title: "12. AGREEMENT",
+      body: "By checking the box below and placing an order, you acknowledge that:\n- You have reviewed your files and order details before submission.\n- You understand that orders cannot be cancelled once processing or printing has started.\n- You agree to claim and pay for your order.\n- You understand the consequences of unclaimed or unpaid orders.\n- You agree to the payment and account policies stated above.\n\nI have read, understood, and agreed to Docufy's Terms & Conditions.\n\nCash on Pickup orders are considered confirmed orders. Please only select this option if you are sure you can claim your order. Unclaimed or unpaid orders may result in restrictions on your Cash on Pickup privileges and may require advance payment for future orders.",
     },
   ],
   privacyTitle: "Privacy Policy",

@@ -186,6 +186,8 @@ export default function LegalManagement() {
   );
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
+  const [showSavedPopup, setShowSavedPopup] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
   const patch = (partial: Partial<LegalContent>) =>
@@ -248,7 +250,7 @@ export default function LegalManagement() {
       };
       legalContentStore.saveContent(withDates);
       setContent(withDates);
-      toast.success("Terms and policies saved. They are now updated everywhere.");
+      setShowSavedPopup(true);
     } catch {
       toast.error("Could not save your changes to browser storage. Please try again.");
     }
@@ -264,6 +266,12 @@ export default function LegalManagement() {
       setShowResetConfirm(false);
       toast.error("Could not reset the legal content. Please try again.");
     }
+  };
+
+  const handleClearAll = () => {
+    setContent(prev => ({ ...prev, termsSections: [], privacySections: [] }));
+    setShowClearAllConfirm(false);
+    toast.success("All sections cleared.");
   };
 
   return (
@@ -295,6 +303,13 @@ export default function LegalManagement() {
               onClick={() => setShowResetConfirm(true)}
             >
               <RotateCcw className="w-4 h-4 mr-2" /> Reset
+            </Button>
+            <Button
+              variant="outline"
+              className="h-11 sm:h-10 w-full sm:w-auto border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              onClick={() => setShowClearAllConfirm(true)}
+            >
+              <Trash2 className="w-4 h-4 mr-2" /> Clear All
             </Button>
             <Button
               onClick={() => setShowSaveConfirm(true)}
@@ -365,6 +380,28 @@ export default function LegalManagement() {
         onConfirm={handleReset}
         requirePhrase
         destructive
+      />
+
+      <ConfirmationDialog
+        open={showClearAllConfirm}
+        onOpenChange={setShowClearAllConfirm}
+        title="Clear all sections?"
+        description="All Terms and Privacy sections will be removed. This cannot be undone."
+        confirmLabel="Clear All"
+        onConfirm={handleClearAll}
+        requirePhrase
+        destructive
+      />
+
+      <ConfirmationDialog
+        open={showSavedPopup}
+        onOpenChange={setShowSavedPopup}
+        title="Saved"
+        description="Terms & Conditions, and Privacy policies have been saved and updated everywhere."
+        confirmLabel="OK"
+        onConfirm={() => setShowSavedPopup(false)}
+        success
+        hideCancel
       />
 
       <LegalPolicyDialog

@@ -1310,3 +1310,12 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Made the shared summary card more compact and moved the Orders status cards to a single row of six, so the stat cards on Dashboard, Inventory, Orders, Payment Verification, Staff, Audit Trail, Payment Methods, Unclaimed Orders and Timesheet share one smaller scale.
 - Typecheck and production build pass.
 
+
+## 2026-10-28 - Prans (03:18 AM PHT)
+
+- Added show-password reveal toggles to AdminProfile, StaffProfile, CustomerProfile, and ResetPasswordPage (previously only LoginPage, SignUpPage, and admin Staff registration had them).
+- Added a Clear All button (with confirmation) to the Terms & Privacy admin page, and a success popup replacing the top toast.
+- Updated the default Terms & Conditions content in legalContentStore to the finalized legal text (corrected order statuses and payment thresholds).
+- Removed the Draft banner from the Terms & Privacy dialog; fixed Terms/Privacy tab hover colors.
+- Typecheck and production build pass.
+

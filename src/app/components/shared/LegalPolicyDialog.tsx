@@ -49,12 +49,6 @@ export default function LegalPolicyDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="p-3 rounded-lg bg-amber-50 border border-amber-300 text-xs text-amber-800">
-          <strong>Draft — for review only.</strong> These policies are a
-          placeholder pending client approval and are not yet finalized legal
-          text.
-        </div>
-
         <div className="flex gap-2">
           <Button
             variant={isTerms ? "default" : "outline"}
@@ -63,7 +57,7 @@ export default function LegalPolicyDialog({
             className={
               isTerms
                 ? "bg-[#1668D9] text-white"
-                : "border-blue-200 text-[#1668D9] hover:bg-[#F2F7FF]"
+                : "border-blue-200 text-[#1668D9] hover:bg-[#1668D9] hover:text-white"
             }
           >
             <FileText className="w-4 h-4 mr-1" /> Terms & Conditions
@@ -74,7 +68,7 @@ export default function LegalPolicyDialog({
             onClick={() => setTab("privacy")}
             className={
               isTerms
-                ? "border-blue-200 text-[#1668D9] hover:bg-[#F2F7FF]"
+                ? "border-blue-200 text-[#1668D9] hover:bg-[#1668D9] hover:text-white"
                 : "bg-[#1668D9] text-white"
             }
           >

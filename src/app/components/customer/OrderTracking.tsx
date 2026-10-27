@@ -115,7 +115,7 @@ function MobileSheet({
           panelRef.current?.focus({ preventScroll: true });
         }}
         aria-describedby={undefined}
-        className="fixed inset-x-0 bottom-0 left-0 top-auto z-50 flex max-h-[90vh] w-full max-w-full translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-t-[28px] rounded-b-none border-0 bg-white p-0 shadow-[0_-10px_40px_rgba(15,23,42,0.18)] outline-none data-[state=open]:slide-in-from-bottom-full data-[state=open]:duration-300 data-[state=closed]:slide-out-to-bottom-full data-[state=closed]:duration-200 sm:max-w-full [&>[data-slot=dialog-close]]:hidden"
+        className="fixed inset-x-0 bottom-0 left-0 top-auto z-50 flex max-h-[95vh] w-full max-w-full translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-t-[28px] rounded-b-none border-0 bg-white p-0 shadow-[0_-10px_40px_rgba(15,23,42,0.18)] outline-none data-[state=open]:slide-in-from-bottom-full data-[state=open]:duration-300 data-[state=closed]:slide-out-to-bottom-full data-[state=closed]:duration-200 sm:max-w-full [&>[data-slot=dialog-close]]:hidden"
       >
         <div className="flex flex-shrink-0 justify-center pb-1 pt-2.5">
           <span className="h-1.5 w-10 rounded-full bg-slate-300" aria-hidden="true" />

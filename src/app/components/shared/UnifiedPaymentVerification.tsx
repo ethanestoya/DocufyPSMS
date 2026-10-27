@@ -11,12 +11,11 @@ import {
   Banknote,
   Check,
   X,
-  QrCode,
   Lock,
   Unlock,
-  UserCheck,
   ChevronLeft,
   ChevronRight,
+  ArrowUpRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import Layout from "../Layout";
@@ -58,9 +57,9 @@ import {
   getLock,
   claimLock,
   releaseLock,
-  stillHoldsLock,
   verifyLockOnServer,
   subscribeToLocks,
+  holdLockWhileOpen,
 } from "../../utils/orderLocks";
 import { useAuth } from "../../contexts/AuthContext";
 import { PaymentDeadlineCountdown } from "./PaymentDeadlineCountdown";
@@ -362,6 +361,13 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
   // HEARTBEAT: while our details dialog is open on an actionable row, keep
   // renewing OUR lock so it persists for as long as we keep viewing — it never
   // vanishes mid-review. A dead tab stops beating and expires on its own.
+  //
+  // The renewal used to be conditional on `stillHoldsLock()`, so the FIRST time
+  // the hold lapsed (a tab backgrounded or frozen past the TTL) the beat went
+  // quiet for good and the reviewer's own dialog turned read-only on return.
+  // `holdLockWhileOpen` renews unconditionally and re-asserts the hold when the
+  // tab/window is looked at again, which is safe because claim never steals a
+  // live lock from someone else.
   useEffect(() => {
     if (
       !selectedPayment ||
@@ -370,14 +376,14 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
     ) {
       return;
     }
-    const beat = () => {
-      if (stillHoldsLock(selectedPayment.orderId, myName)) {
-        claimLock(selectedPayment.orderId, myName);
-      }
-    };
-    const iv = setInterval(beat, 30000);
-    return () => clearInterval(iv);
-  }, [selectedPayment?.id, selectedPayment?.status, showDialog, myName]);
+    return holdLockWhileOpen(selectedPayment.orderId, myName);
+  }, [
+    selectedPayment?.id,
+    selectedPayment?.orderId,
+    selectedPayment?.status,
+    showDialog,
+    myName,
+  ]);
 
   // Load payments from dataStore
   useEffect(() => {
@@ -1239,148 +1245,36 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
           }
         }}
       >
-<DialogContent className="sm:max-w-2xl max-h-[92vh] p-0 flex flex-col gap-0 overflow-hidden rounded-xl">
-          <DialogHeader className="px-5 pt-4 pr-10 pb-3 border-b border-gray-200 flex-row items-center justify-between gap-4">
-            <div>
+<DialogContent className="sm:max-w-[520px] max-h-[92vh] p-0 flex flex-col gap-0 overflow-hidden rounded-2xl">
+          <DialogHeader className="flex-row items-center justify-between gap-3 px-5 pt-5 pb-0 pr-12">
+            <div className="flex min-w-0 items-center gap-2">
               <DialogTitle className="text-lg font-semibold text-[#1c1f26]">
                 Payment Details
               </DialogTitle>
-              <DialogDescription className="text-gray-500">
-                Review and verify payment information
-              </DialogDescription>
+              <Badge
+                variant="outline"
+                className="shrink-0 rounded-md border-gray-200 bg-gray-100 px-1.5 py-px font-mono text-xs font-medium text-gray-600"
+              >
+                {selectedPayment?.displayId ?? selectedPayment?.orderId}
+              </Badge>
             </div>
-            <Badge
-              variant="outline"
-              className="text-xs bg-gray-100 text-gray-700 border-gray-200 font-mono"
-            >
-              {selectedPayment?.displayId ?? selectedPayment?.orderId}
-            </Badge>
+            <DialogDescription className="sr-only">
+              Review and verify payment information
+            </DialogDescription>
           </DialogHeader>
 
           {selectedPayment && (
             <>
-              <div className="flex-1 overflow-y-auto px-5 pt-4 pb-6 space-y-4">
-                {/* Session lock banner (demo: two tabs = two PCs) */}
-                {selectedPayment.status === "pending" || selectedPayment.status === "rejected" ? (
-                  iHoldLock ? (
-                    <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg border border-green-200 bg-green-50">
-                      <UserCheck className="w-4 h-4 text-green-600" />
-                      <p className="text-sm font-semibold text-green-700 flex-1 min-w-[160px]">
-                        You are reviewing this order
-                      </p>
-                      <span className="text-[11px] font-medium text-green-600">
-                        Only you can verify it right now
-                      </span>
-                    </div>
-                  ) : lockHolder ? (
-                    <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg border border-amber-300 bg-amber-50">
-                      <Eye className="w-4 h-4 text-amber-600" />
-                      <p className="text-sm font-semibold text-amber-800 flex-1 min-w-[160px]">
-                        {lockHolder} is reviewing this order
-                      </p>
-                      <span className="text-[11px] font-medium text-amber-700">
-                        Verify is locked until they finish
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-gray-50">
-                      <Lock className="w-4 h-4 text-gray-500" />
-                      <p className="text-sm font-semibold text-gray-600 flex-1 min-w-[160px]">
-                        This order is available
-                      </p>
-                      <span className="text-[11px] font-medium text-gray-500">
-                        Claim it by opening the details
-                      </span>
-                    </div>
-                  )
-                ) : (
-                  <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-gray-50">
-                    <Unlock className="w-4 h-4 text-gray-500" />
-                    <p className="text-sm font-semibold text-gray-600 flex-1 min-w-[160px]">
-                      This order is already processed
-                    </p>
-                    <span className="text-[11px] font-medium text-gray-500">
-                      Read-only review
-                    </span>
-                  </div>
-                )}
-
-                {/* Customer */}
-                <div className="flex flex-wrap items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-xl">
+              <div className="flex-1 overflow-y-auto px-5 pt-4 pb-5">
+                {/* Who submitted it, when, and the one status chip */}
+                <div className="flex items-center gap-3">
                   <Avatar name={selectedPayment.customer} />
-                  <div className="flex-1 min-w-[180px]">
-                    <p className="font-bold text-[#1c1f26] text-base">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-base font-semibold text-[#1c1f26]">
                       {selectedPayment.customer}
                     </p>
-                    <p className="text-sm text-gray-500">
-                      Submitted {formatPHDate(selectedPayment.submittedAt, "short")} ·{" "}
-                      {formatPHTime(selectedPayment.submittedAt)}
-                    </p>
-                  </div>
-                  <StatusBadge
-                    status={selectedPayment.status}
-                    lowValueCash={selectedPayment.isLowValueCash}
-                    className="text-sm"
-                  />
-                </div>
-
-                {/* Payment Summary */}
-                <div className="bg-white border-2 border-gray-300 rounded-xl overflow-hidden">
-                  <div className="px-4 py-2.5 border-b border-gray-300 bg-gray-50/50">
-                    <p className="text-xs font-bold text-[#1c1f26] uppercase tracking-wider">
-                      Payment Summary
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-px bg-gray-100">
-                    <div className="bg-white p-3">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                        Order ID
-                      </p>
-                      <p className="font-semibold text-[#1c1f26] font-mono text-sm">
-                        {selectedPayment.displayId ?? selectedPayment.orderId}
-                      </p>
-                    </div>
-                    <div className="bg-white p-3">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                        Payment Type
-                      </p>
-                      <PaymentTypePill kind={selectedPayment.kind} />
-                    </div>
-                    <div className="bg-white p-3">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                        Payment Method
-                      </p>
-                      <p className="font-semibold text-[#1c1f26]">
-                        {selectedPayment.method}
-                      </p>
-                    </div>
-                    <div className="bg-white p-3">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                        Order Total
-                      </p>
-                      <p className="text-base font-semibold text-[#1c1f26]">
-                        ₱{selectedPayment.totalAmount.toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Verification Status */}
-                <div
-                  className={`flex flex-wrap items-center gap-3 p-3 rounded-lg border ${
-                    selectedPayment.status === "verified"
-                      ? "bg-green-50 border-green-200"
-                      : selectedPayment.status === "rejected"
-                        ? "bg-red-50 border-red-200"
-                        : "bg-amber-50 border-amber-200"
-                  }`}
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5" /> Verification Status
-                    </p>
-                    <p className="text-sm font-medium text-gray-700 mt-0.5">
-                      Payment submitted:{" "}
+                    <p className="mt-0.5 text-[13px] text-gray-500">
+                      Submitted{" "}
                       {formatPHDate(selectedPayment.submittedAt, "short")} ·{" "}
                       {formatPHTime(selectedPayment.submittedAt)}
                     </p>
@@ -1390,162 +1284,205 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                     canceled={selectedPayment.canceled}
                     expired={selectedPayment.expired}
                     lowValueCash={selectedPayment.isLowValueCash}
+                    className="shrink-0"
                   />
                 </div>
 
-                {/* Payment Information (online methods only) */}
-                {selectedPayment.method !== "Cash" &&
-                  (() => {
-                    const methodDetails =
-                      paymentMethodsStore.findByName(selectedPayment.method);
-                    return (
-                      <div className="bg-white border-2 border-gray-300 rounded-xl overflow-hidden">
-                        <div className="px-4 py-2.5 border-b border-gray-300 bg-gray-50/50">
-                          <p className="text-xs font-bold text-[#1c1f26] uppercase tracking-wider">
-                            Payment Information
-                          </p>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-gray-100">
-                          <div className="bg-white p-4 flex flex-col items-center justify-center gap-3">
-                            {methodDetails?.qrCode ? (
-                              <img
-                                src={methodDetails.qrCode}
-                                alt={`${selectedPayment.method} QR code`}
-                                className="w-36 h-36 rounded-lg border border-gray-200"
-                              />
-                            ) : (
-                              <div className="w-36 h-36 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
-                                <QrCode className="w-10 h-10 text-gray-300" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="bg-white divide-y divide-gray-100">
-                            <div className="px-4 py-3">
-                              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-0.5">
-                                Account Name
-                              </p>
-                              <p className="font-semibold text-[#1c1f26]">
-                                {methodDetails?.accountName || "—"}
-                              </p>
-                            </div>
-                            <div className="px-4 py-3">
-                              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-0.5">
-                                Payment Number
-                              </p>
-                              <p className="font-semibold text-[#1c1f26]">
-                                {methodDetails?.accountNumber || "—"}
-                              </p>
-                            </div>
-                            <div className="px-4 py-3">
-                              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-0.5">
-                                Payment Method
-                              </p>
-                              <p className="font-semibold text-[#1c1f26]">
-                                {selectedPayment.method}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
+                {/* The amount is the anchor of the screen */}
+                <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
+                      {selectedPayment.method === "Cash"
+                        ? "Amount to collect"
+                        : "Amount paid"}
+                    </p>
+                    <p className="mt-1 flex items-baseline gap-0.5 text-3xl font-bold tabular-nums text-[#1c1f26]">
+                      <span className="text-xl font-semibold text-gray-600">₱</span>
+                      {selectedPayment.totalAmount.toLocaleString()}
+                    </p>
+                  </div>
+                  <PaymentTypePill kind={selectedPayment.kind} />
+                </div>
 
-                {/* Reference Number */}
-                {selectedPayment.reference &&
-                  !selectedPayment.isLowValueCash && (
-                    <div className="bg-white border-2 border-gray-300 rounded-xl overflow-hidden">
-                      <div className="px-4 py-2.5 border-b border-gray-300 bg-gray-50/50 flex items-center justify-between gap-3">
-                        <p className="text-xs font-bold text-[#1c1f26] uppercase tracking-wider">
-                          {selectedPayment.method} Reference Number
-                        </p>
-                        {selectedPayment.proofImageUrl && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setShowProofImage(true)}
-                            className="h-7 border-2 border-[#2F6FD6]/30 text-[#2F6FD6] hover:bg-[#2F6FD6] hover:text-white"
-                          >
-                            <Eye className="w-3.5 h-3.5 mr-1" />
-                            View Proof
-                          </Button>
-                        )}
-                      </div>
-                      <div className="px-4 py-3 bg-white">
-                        <p className="text-sm font-mono font-semibold text-[#10316B]">
-                          {selectedPayment.reference}
-                        </p>
+                {/* Everything else is one quiet label/value list */}
+                <dl className="mt-3 divide-y divide-gray-100">
+                  <div className="flex items-center justify-between gap-4 py-2.5">
+                    <dt className="text-[13px] text-gray-500">Payment method</dt>
+                    <dd className="text-[13px] font-medium text-[#1c1f26]">
+                      {selectedPayment.method}
+                    </dd>
+                  </div>
+
+                  {selectedPayment.method === "Cash"
+                    ? !selectedPayment.isLowValueCash && (
+                        <div className="flex items-center justify-between gap-4 py-2.5">
+                          <dt className="text-[13px] text-gray-500">
+                            Reference number
+                          </dt>
+                          <dd className="text-[13px] text-gray-400">
+                            Not required for cash
+                          </dd>
+                        </div>
+                      )
+                    : selectedPayment.reference && (
+                        <div className="flex items-center justify-between gap-4 py-2.5">
+                          <dt className="text-[13px] text-gray-500">
+                            Reference number
+                          </dt>
+                          <dd className="font-mono text-[13px] font-medium tracking-wide text-[#1c1f26]">
+                            {selectedPayment.reference}
+                          </dd>
+                        </div>
+                      )}
+
+                  {selectedPayment.method !== "Cash" &&
+                    (() => {
+                      const methodDetails =
+                        paymentMethodsStore.findByName(selectedPayment.method);
+                      if (
+                        !methodDetails?.accountName &&
+                        !methodDetails?.accountNumber
+                      ) {
+                        return null;
+                      }
+                      return (
+                        <div className="flex items-start justify-between gap-4 py-2.5">
+                          <dt className="text-[13px] text-gray-500">Paid to</dt>
+                          <dd className="text-right text-[13px] font-medium text-[#1c1f26]">
+                            {methodDetails?.accountName || selectedPayment.method}
+                            {methodDetails?.accountNumber && (
+                              <span className="mt-0.5 block text-xs font-normal text-gray-400">
+                                {methodDetails.accountNumber}
+                              </span>
+                            )}
+                          </dd>
+                        </div>
+                      );
+                    })()}
+
+                  {selectedPayment.proofImageUrl && (
+                    <div className="flex items-center justify-between gap-4 py-2.5">
+                      <dt className="text-[13px] text-gray-500">
+                        Proof of payment
+                      </dt>
+                      <dd>
+                        <button
+                          type="button"
+                          onClick={() => setShowProofImage(true)}
+                          className="inline-flex items-center gap-1 text-[13px] font-medium text-[#2F6FD6] hover:underline"
+                        >
+                          View screenshot
+                          <ArrowUpRight className="h-3.5 w-3.5" />
+                        </button>
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+
+                {/* Cash down-tier: what did the customer actually pay at the shop? */}
+                {selectedPayment.method === "Cash" &&
+                  (selectedPayment.downTier ?? false) &&
+                  (selectedPayment.status === "pending" ||
+                    selectedPayment.status === "rejected") && (
+                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+                      <p className="mb-1 text-sm font-semibold text-[#1c1f26]">
+                        Cash down payment — how much was paid at the shop?
+                      </p>
+                      <p className="mb-3 text-xs text-gray-500">
+                        This order is in the down-payment range. Confirm what
+                        the customer actually paid at the counter. The balance
+                        ({formatCurrency(
+                          selectedPayment.totalAmount -
+                            (selectedPayment.downPaymentAmount ?? selectedPayment.totalAmount * 0.5),
+                        )}) is collected on pickup if only the 50% down was paid.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setVerifyAmountChoice("down")}
+                          className={`flex-1 min-w-[140px] rounded-lg border-2 px-4 py-2.5 text-left transition-all ${
+                            verifyAmountChoice === "down"
+                              ? "border-[#2F6FD6] bg-white"
+                              : "border-gray-200 bg-white/50 hover:border-gray-300"
+                          }`}
+                        >
+                          <p className="text-xs text-gray-500">
+                            Paid 50% Down
+                          </p>
+                          <p className="font-bold text-gray-900">
+                            ₱
+                            {(
+                              selectedPayment.downPaymentAmount ??
+                              selectedPayment.totalAmount * 0.5
+                            ).toLocaleString()}
+                          </p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setVerifyAmountChoice("full")}
+                          className={`flex-1 min-w-[140px] rounded-lg border-2 px-4 py-2.5 text-left transition-all ${
+                            verifyAmountChoice === "full"
+                              ? "border-[#2F6FD6] bg-white"
+                              : "border-gray-200 bg-white/50 hover:border-gray-300"
+                          }`}
+                        >
+                          <p className="text-xs text-gray-500">
+                            Paid Full Amount
+                          </p>
+                          <p className="font-bold text-gray-900">
+                            ₱{selectedPayment.totalAmount.toLocaleString()}
+                          </p>
+                        </button>
                       </div>
                     </div>
                   )}
-
-                  {/* Cash down-tier: what did the customer actually pay at the shop? */}
-                  {selectedPayment.method === "Cash" &&
-                    (selectedPayment.downTier ?? false) &&
-                    (selectedPayment.status === "pending" ||
-                      selectedPayment.status === "rejected") && (
-                      <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4">
-                        <p className="text-sm font-semibold text-[#1c1f26] mb-1">
-                          Cash down payment — how much was paid at the shop?
-                        </p>
-                        <p className="text-xs text-gray-500 mb-3">
-                          This order is in the down-payment range. Confirm what
-                          the customer actually paid at the counter. The balance
-                          ({formatCurrency(
-                            selectedPayment.totalAmount -
-                              (selectedPayment.downPaymentAmount ?? selectedPayment.totalAmount * 0.5),
-                          )}) is collected on pickup if only the 50% down was paid.
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setVerifyAmountChoice("down")}
-                            className={`flex-1 min-w-[140px] rounded-lg border-2 px-4 py-2.5 text-left transition-all ${
-                              verifyAmountChoice === "down"
-                                ? "border-[#2F6FD6] bg-white"
-                                : "border-gray-200 bg-white/50 hover:border-gray-300"
-                            }`}
-                          >
-                            <p className="text-xs text-gray-500">
-                              Paid 50% Down
-                            </p>
-                            <p className="font-bold text-gray-900">
-                              ₱
-                              {(
-                                selectedPayment.downPaymentAmount ??
-                                selectedPayment.totalAmount * 0.5
-                              ).toLocaleString()}
-                            </p>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setVerifyAmountChoice("full")}
-                            className={`flex-1 min-w-[140px] rounded-lg border-2 px-4 py-2.5 text-left transition-all ${
-                              verifyAmountChoice === "full"
-                                ? "border-[#2F6FD6] bg-white"
-                                : "border-gray-200 bg-white/50 hover:border-gray-300"
-                            }`}
-                          >
-                            <p className="text-xs text-gray-500">
-                              Paid Full Amount
-                            </p>
-                            <p className="font-bold text-gray-900">
-                              ₱{selectedPayment.totalAmount.toLocaleString()}
-                            </p>
-                          </button>
-                        </div>
-                      </div>
-                    )}
               </div>
 
-              {/* Sticky action footer */}
-              <div className="flex flex-col-reverse gap-2.5 border-t border-gray-200 bg-white px-5 pt-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:pb-2.5">
+              {/* Sticky action footer: lock state, then the two actions */}
+              <div className="flex flex-col gap-2.5 border-t border-gray-200 bg-white px-5 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:py-3">
+                {(() => {
+                  const actionable =
+                    selectedPayment.status === "pending" ||
+                    selectedPayment.status === "rejected";
+                  if (!actionable) {
+                    return (
+                      <p className="flex items-center gap-1.5 text-xs text-gray-500 sm:mr-auto">
+                        <Unlock className="h-3 w-3" />
+                        Read-only — this order is already processed
+                      </p>
+                    );
+                  }
+                  if (iHoldLock) {
+                    return (
+                      <p className="flex items-center gap-1.5 text-xs text-gray-500 sm:mr-auto">
+                        <Lock className="h-3 w-3" />
+                        Only you can verify this order
+                      </p>
+                    );
+                  }
+                  if (lockHolder) {
+                    return (
+                      <p className="flex items-center gap-1.5 text-xs text-amber-700 sm:mr-auto">
+                        <Eye className="h-3 w-3" />
+                        {lockHolder} is reviewing this order
+                      </p>
+                    );
+                  }
+                  return (
+                    <p className="flex items-center gap-1.5 text-xs text-gray-500 sm:mr-auto">
+                      <Lock className="h-3 w-3" />
+                      This order is available
+                    </p>
+                  );
+                })()}
+
                 {(selectedPayment.status === "pending" ||
                   selectedPayment.status === "rejected") && (
-                  <>
+                  <div className="flex items-center gap-2">
                     {selectedPayment.status === "pending" && (
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="ghost"
                         disabled={!iHoldLock}
                         title={
                           !iHoldLock && lockHolder
@@ -1556,10 +1493,10 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                           setShowDialog(false);
                           setShowRejectDialog(true);
                         }}
-                        className="h-9 w-full bg-white text-red-600 border-2 border-red-300 hover:bg-red-50 hover:text-red-600 hover:border-red-400 hover:-translate-y-0 hover:shadow-none transition-colors disabled:opacity-40 disabled:pointer-events-none sm:h-8 sm:w-auto"
+                        className="h-9 flex-1 rounded-lg text-[13px] font-medium text-red-600 hover:bg-red-50 hover:text-red-600 hover:-translate-y-0 hover:shadow-none sm:flex-none"
                       >
                         <XCircle />
-                        Reject Payment
+                        Reject
                       </Button>
                     )}
                     <Button
@@ -1572,19 +1509,13 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                           : undefined
                       }
                       onClick={() => setPendingVerifyAction("verified")}
-                      className="h-9 w-full bg-[#2F6FD6] text-white hover:bg-[#2557b8] hover:-translate-y-0 hover:shadow-none transition-colors disabled:opacity-40 disabled:pointer-events-none sm:h-8 sm:w-auto"
+                      className="h-9 flex-1 rounded-lg bg-[#2F6FD6] text-[13px] font-medium text-white hover:bg-[#2557b8] hover:-translate-y-0 hover:shadow-none sm:flex-none"
                     >
                       <CheckCircle />
-                      Verify Payment
+                      Verify payment
                     </Button>
-                  </>
+                  </div>
                 )}
-                {selectedPayment.status !== "pending" &&
-                  selectedPayment.status !== "rejected" && (
-                    <p className="ml-auto text-xs font-medium text-gray-500">
-                      Read-only — this order is already processed
-                    </p>
-                  )}
               </div>
             </>
           )}

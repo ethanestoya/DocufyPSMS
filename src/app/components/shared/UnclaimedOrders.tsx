@@ -134,8 +134,7 @@ export default function UnclaimedOrders({
               <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
               <span>
                 Unclaimed orders cannot be computed yet — set the shop closing
-                time in Admin → Landing Page → Shop Information. Until then no
-                order can pass a pickup deadline.
+                time in Admin → Landing Page → Shop Information.
               </span>
             </div>
           )}
@@ -144,9 +143,7 @@ export default function UnclaimedOrders({
             <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
               <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-500" />
               <span>
-                Unclaimed-order information is unavailable right now — some order
-                status history could not be read, so these counts may be
-                incomplete.
+                Order status history could not be read, so these counts may be incomplete.
               </span>
             </div>
           )}

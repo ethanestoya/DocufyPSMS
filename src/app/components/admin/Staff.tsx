@@ -601,7 +601,7 @@ export default function Staff() {
         </div>
 
         {/* Today's attendance — dashboard-style KPI cards; click to filter the directory */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
           {[
             { value: "all", label: "All", count: kpis.total, icon: Users, iconBg: "bg-blue-50", iconColor: "text-[#2F6FD6]", pulse: false },
             { value: "on-time", label: "On Time", count: kpis.onTime, icon: UserCheck, iconBg: "bg-green-50", iconColor: "text-green-600", pulse: false },
@@ -1458,7 +1458,7 @@ export default function Staff() {
                                 <span className="text-[#1677F2]">{formatCurrency(summary.amount)}</span>
                               </p>
                               <p className="mt-0.5 text-xs text-[#54606E] max-w-sm">
-                                Releasing pays this period and starts a new tracking period. Attendance history is kept.
+                                Starts a new period. Attendance history is kept.
                               </p>
                             </div>
                           </div>
@@ -1614,9 +1614,7 @@ export default function Staff() {
                 </div>
               </div>
               <p className="text-xs text-gray-500 leading-relaxed">
-                The rate is applied to each staff member's total attendance hours
-                to compute their current salary in the attendance detail and
-                salary views.
+                Used to compute each staff member's salary from their attendance hours.
               </p>
             </div>
             <DialogFooter>
@@ -1647,8 +1645,7 @@ export default function Staff() {
           <DialogHeader>
             <DialogTitle className="text-[#10316B]">Add Staff</DialogTitle>
             <DialogDescription>
-              Create a staff account. The staff member can sign in with the
-              email and password you set below.
+              They can sign in with the email and password you set below.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -1900,8 +1897,7 @@ export default function Staff() {
                   </div>
                 ) : (
                   <p className="text-xs text-gray-500">
-                    Active staff clock in as usual — anyone who doesn't clock in
-                    for the day is shown as Absent automatically.
+                    Staff who don't clock in are shown as Absent.
                   </p>
                 )}
               </div>
@@ -1976,7 +1972,7 @@ export default function Staff() {
         onOpenChange={setShowAddConfirm}
         onConfirm={handleAddStaff}
         title="Create Staff Account?"
-        description={`This will create a new sign-in account for ${newStaff.fullName.trim() || "this staff member"} (${newStaff.email.trim() || ""}). They will be able to log in with the credentials you set.`}
+        description={`${newStaff.fullName.trim() || "This staff member"} (${newStaff.email.trim() || "no email"}) can sign in with the password you set.`}
         confirmLabel="Create Account"
         cancelLabel="Go Back"
         destructive={false}
@@ -1988,7 +1984,7 @@ export default function Staff() {
         onOpenChange={setShowEditConfirm}
         onConfirm={handleSaveEdit}
         title={`Save Changes${editingStaff ? ` to ${editForm?.name || editingStaff.name}?` : "?"}`}
-        description={`Are you sure you want to save the changes to ${editingStaff?.name || "this staff member"}'s account? Changes to email or role take effect immediately.`}
+        description="Email and role changes apply immediately."
         confirmLabel="Save Changes"
         cancelLabel="Go Back"
         destructive={false}
@@ -2006,8 +2002,7 @@ export default function Staff() {
           <DialogHeader>
             <DialogTitle className="text-[#10316B]">Edit Hourly Rate</DialogTitle>
             <DialogDescription>
-              Set the hourly rate used to compute every staff member's current
-              salary from their attendance hours.
+              Used to compute salary from attendance hours.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-2">
@@ -2073,9 +2068,9 @@ export default function Staff() {
         title="Release Salary?"
         description={
           releasing
-            ? `This will mark the current salary period as paid and reset salary tracking. Attendance records are kept. Staff: ${releasing.name} · Current Salary: ${formatCurrency(
+            ? `Paying ${releasing.name}: ${formatCurrency(
                 salaryStore.getStaffSummary(releasing.email).amount,
-              )}`
+              )}. A new salary period starts after this.`
             : ""
         }
         confirmLabel="Confirm Release"

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { LayoutDashboard, FileText, Briefcase, Package, User, Mail, Phone, ArrowLeft, AlertCircle, Key, Camera, ChevronRight, Lock, LogOut, Pencil } from 'lucide-react';
+import { LayoutDashboard, FileText, Briefcase, Package, User, Mail, Phone, ArrowLeft, AlertCircle, Key, Camera, ChevronRight, Lock, LogOut, Pencil, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '../Layout';
 import { Card } from '../ui/card';
@@ -127,13 +127,17 @@ export default function CustomerProfile() {
   const { user, resetPassword, updateProfile, updateProfileImage, syncProfileDetails, logout } = useAuth();
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   });
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState<{
     firstName: string;
     lastName: string;
@@ -231,7 +235,7 @@ export default function CustomerProfile() {
 
     setIsEditing(false);
     setShowSaveDialog(false);
-    toast.success('Profile updated successfully.');
+    setShowSuccessDialog(true);
   };
 
   const handleChangePassword = async () => {
@@ -552,24 +556,45 @@ export default function CustomerProfile() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="currentPassword">Current Password</Label>
-              <Input
-                id="currentPassword"
-                type="password"
-                value={passwordData.currentPassword}
-                onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                placeholder="Enter current password"
-              />
+              <div className="relative">
+                <Input
+                  id="currentPassword"
+                  type={showCurrentPassword ? "text" : "password"}
+                  value={passwordData.currentPassword}
+                  onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                  placeholder="Enter current password"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  aria-label={showCurrentPassword ? "Hide password" : "Show password"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-600"
+                >
+                  {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="newPassword">New Password</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                value={passwordData.newPassword}
-                onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
-                placeholder="Enter new password (min. 8 characters)"
-                className={passwordData.currentPassword && passwordData.newPassword && passwordData.currentPassword === passwordData.newPassword ? "border-red-500" : ""}
-              />
+              <div className="relative">
+                <Input
+                  id="newPassword"
+                  type={showNewPassword ? "text" : "password"}
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                  placeholder="Enter new password (min. 8 characters)"
+                  className={`pr-10 ${passwordData.currentPassword && passwordData.newPassword && passwordData.currentPassword === passwordData.newPassword ? "border-red-500" : ""}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  aria-label={showNewPassword ? "Hide password" : "Show password"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-600"
+                >
+                  {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
               {passwordData.currentPassword && passwordData.newPassword && passwordData.currentPassword === passwordData.newPassword && (
                 <div className="flex items-center gap-2 text-red-600 text-sm mt-1">
                   <AlertCircle className="w-4 h-4" />
@@ -584,13 +609,24 @@ export default function CustomerProfile() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={passwordData.confirmPassword}
-                onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                placeholder="Re-enter new password"
-              />
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                  placeholder="Re-enter new password"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-600"
+                >
+                  {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
@@ -622,6 +658,26 @@ export default function CustomerProfile() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {showSuccessDialog && (
+        <Dialog open onOpenChange={setShowSuccessDialog}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="text-[#10316B] flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-emerald-500" /> Profile updated
+              </DialogTitle>
+              <DialogDescription>
+                Your profile has been updated successfully.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button onClick={() => setShowSuccessDialog(false)} className="bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white">
+                OK
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {showLogoutConfirm && (
         <ConfirmationDialog

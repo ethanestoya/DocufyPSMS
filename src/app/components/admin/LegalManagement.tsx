@@ -100,8 +100,7 @@ function PolicyCard({
             put each item on its own line starting with <span className="font-medium text-slate-700">"- "</span> (dash + space).
           </p>
           <p className="mt-1">
-            Sections are numbered automatically in order — don't type the
-            number into the title, and use the arrows to reorder them.
+            Numbered automatically. Use the arrows to reorder.
           </p>
         </div>
 
@@ -187,6 +186,8 @@ export default function LegalManagement() {
   );
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
+  const [showSavedPopup, setShowSavedPopup] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
   const patch = (partial: Partial<LegalContent>) =>
@@ -249,7 +250,7 @@ export default function LegalManagement() {
       };
       legalContentStore.saveContent(withDates);
       setContent(withDates);
-      toast.success("Terms and policies saved. They are now updated everywhere.");
+      setShowSavedPopup(true);
     } catch {
       toast.error("Could not save your changes to browser storage. Please try again.");
     }
@@ -267,6 +268,12 @@ export default function LegalManagement() {
     }
   };
 
+  const handleClearAll = () => {
+    setContent(prev => ({ ...prev, termsSections: [], privacySections: [] }));
+    setShowClearAllConfirm(false);
+    toast.success("All sections cleared.");
+  };
+
   return (
     <Layout menuItems={adminMenuItems} title="Terms & Privacy" showBackButton>
       <div className="space-y-5">
@@ -278,8 +285,7 @@ export default function LegalManagement() {
             <div>
               <h2 className="text-2xl font-bold text-[#10316B]">Terms &amp; Privacy</h2>
               <p className="text-gray-600 mt-1">
-                Edit the Terms &amp; Conditions and Privacy Policy shown on the
-                landing page, sign up, and checkout. Changes apply as soon as you save.
+                Shown on the landing page, sign up and checkout. Changes apply as soon as you save.
               </p>
             </div>
           </div>
@@ -299,6 +305,13 @@ export default function LegalManagement() {
               <RotateCcw className="w-4 h-4 mr-2" /> Reset
             </Button>
             <Button
+              variant="outline"
+              className="h-11 sm:h-10 w-full sm:w-auto border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              onClick={() => setShowClearAllConfirm(true)}
+            >
+              <Trash2 className="w-4 h-4 mr-2" /> Clear All
+            </Button>
+            <Button
               onClick={() => setShowSaveConfirm(true)}
               className="h-11 sm:h-10 w-full sm:w-auto bg-[#2F6FD6] text-white hover:bg-[#2557b8]"
             >
@@ -311,7 +324,7 @@ export default function LegalManagement() {
         <div className={hydrating ? "hidden" : "grid grid-cols-1 lg:grid-cols-2 gap-5"}>
           <PolicyCard
             heading="Terms & Conditions"
-            hint="Appears under the 'Terms & Condition' link on the landing page footer, sign up, and checkout."
+            hint="Linked from the landing page footer, sign up and checkout."
             field="termsSections"
             title={content.termsTitle}
             lastUpdated={content.termsLastUpdated}
@@ -325,7 +338,7 @@ export default function LegalManagement() {
           />
           <PolicyCard
             heading="Privacy Policy"
-            hint="Appears under the 'Privacy Policy' link on the landing page footer, sign up, and checkout."
+            hint="Linked from the landing page footer, sign up and checkout."
             field="privacySections"
             title={content.privacyTitle}
             lastUpdated={content.privacyLastUpdated}
@@ -353,7 +366,7 @@ export default function LegalManagement() {
         open={showSaveConfirm}
         onOpenChange={setShowSaveConfirm}
         title="Save changes?"
-        description="This applies your current edits to the Terms & Conditions and Privacy Policy shown across the system."
+        description="Publish these edits everywhere the policies appear."
         confirmLabel="Save Changes"
         onConfirm={handleSave}
       />
@@ -362,11 +375,33 @@ export default function LegalManagement() {
         open={showResetConfirm}
         onOpenChange={setShowResetConfirm}
         title="Reset Terms & Privacy content?"
-        description="This restores the default Terms & Conditions and Privacy Policy text. This action cannot be undone."
+        description="The default Terms and Privacy text returns. This cannot be undone."
         confirmLabel="Reset Content"
         onConfirm={handleReset}
         requirePhrase
         destructive
+      />
+
+      <ConfirmationDialog
+        open={showClearAllConfirm}
+        onOpenChange={setShowClearAllConfirm}
+        title="Clear all sections?"
+        description="All Terms and Privacy sections will be removed. This cannot be undone."
+        confirmLabel="Clear All"
+        onConfirm={handleClearAll}
+        requirePhrase
+        destructive
+      />
+
+      <ConfirmationDialog
+        open={showSavedPopup}
+        onOpenChange={setShowSavedPopup}
+        title="Saved"
+        description="Terms & Conditions, and Privacy policies have been saved and updated everywhere."
+        confirmLabel="OK"
+        onConfirm={() => setShowSavedPopup(false)}
+        success
+        hideCancel
       />
 
       <LegalPolicyDialog

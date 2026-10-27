@@ -409,10 +409,7 @@ export default function PricingManagement() {
                 Printing Prices
               </h2>
               <p className="text-gray-600 mt-1">
-                Manage the prices customers see and pay. Any change here is
-                applied instantly everywhere in the system — new print
-                requests, walk-in transactions, and the pricing shown on the
-                landing page.
+                Manage the prices customers see and pay. Changes apply everywhere immediately.
               </p>
             </div>
           </div>
@@ -452,8 +449,7 @@ export default function PricingManagement() {
                 </h3>
               </div>
               <p className="text-sm text-gray-500 mb-4 ml-10">
-                Per-page price, split by content type (Text / Text with Image /
-                Image), color option, and paper size.
+                Per-page price by content type, color and paper size.
               </p>
               {CONTENT_TYPES.map((ct) => (
                 <div key={ct} className="mb-5 last:mb-0">
@@ -616,8 +612,7 @@ export default function PricingManagement() {
             <h3 className="font-bold text-gray-900">Legacy Per-Page Rates</h3>
           </div>
           <p className="text-sm text-gray-500 mb-4 ml-10">
-            Flat per-page rates and order rules used by the older standard
-            document flow. Kept editable for backward compatibility.
+            Fallback rates for the older document flow.
           </p>
           {CATEGORY_ORDER.map((category) => {
             const items = PRICING_ITEMS.filter((item) => item.category === category);
@@ -682,7 +677,7 @@ export default function PricingManagement() {
             </DialogTitle>
             <DialogDescription>
               {editing?.kind === "photo" && editing.field === "minQty"
-                ? "Set the minimum number of pieces a customer must order for this size. 0 means no minimum."
+                ? "0 means no minimum."
                 : "Set the price in Philippine pesos (₱)."}
             </DialogDescription>
           </DialogHeader>
@@ -731,7 +726,7 @@ export default function PricingManagement() {
           onOpenChange={setShowSaveConfirm}
           onConfirm={handleSave}
           title="Update Price?"
-          description={`Are you sure you want to set ${EditTargetLabel(editing)} to ₱${editValue}? This applies instantly everywhere in the system.`}
+          description={`Set ${EditTargetLabel(editing)} to ₱${editValue}? This applies everywhere immediately.`}
           confirmLabel="Save Changes"
           cancelLabel="Go Back"
           destructive={false}
@@ -799,7 +794,7 @@ export default function PricingManagement() {
           onOpenChange={setShowLegacySaveConfirm}
           onConfirm={handleLegacySave}
           title="Update Legacy Rate?"
-          description={`Are you sure you want to set "${legacyEditing.label}" to ₱${legacyEditValue}? This changes the legacy rate/rule used by the standard document flow.`}
+          description={`Set "${legacyEditing.label}" to ₱${legacyEditValue}? The standard document flow uses this rate.`}
           confirmLabel="Save Changes"
           cancelLabel="Go Back"
           destructive={false}
@@ -912,7 +907,7 @@ export default function PricingManagement() {
           }}
           onConfirm={confirmReset}
           title="Reset Pricing to Defaults?"
-          description="This restores all prices across every service (Plain Paper, Vellum, Sticker, Photo Paper) and the legacy per-page rates to their original values. This applies everywhere immediately and cannot be undone."
+          description="Every service price and legacy rate returns to its default. This cannot be undone."
           confirmLabel="Reset Pricing"
           cancelLabel="Cancel"
           destructive

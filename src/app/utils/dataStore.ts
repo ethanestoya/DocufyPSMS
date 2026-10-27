@@ -715,14 +715,27 @@ class DataStore {
     }
 
     // Re-read the fresh row so order_number + payments stay consistent.
-    const fresh = await fetchOrderById(id);
-    if (fresh) {
-      const app = orderDtoToApp(fresh);
-      this.orders = [app, ...this.orders.filter((o) => o.id !== id)];
-      this.notify();
-      return app;
+    // A failed re-read (e.g. mobile network/RLS) must NOT surface as a
+    // save failure — the write already succeeded above.
+    try {
+      const fresh = await fetchOrderById(id);
+      if (fresh) {
+        const app = orderDtoToApp(fresh);
+        this.orders = [app, ...this.orders.filter((o) => o.id !== id)];
+        this.notify();
+        return app;
+      }
+    } catch (err) {
+      console.warn('[dataStore] post-update re-read failed (write succeeded)', err);
     }
-    return undefined;
+
+    // Fallback: mirror the patched order locally so the UI reflects the change.
+    const fallback = current ? { ...current, ...updates } : undefined;
+    if (fallback) {
+      this.orders = [fallback as Order, ...this.orders.filter((o) => o.id !== id)];
+      this.notify();
+    }
+    return fallback;
   }
 
   updateOrderStatus(id: string, status: Order['status'], holdReason?: string) {

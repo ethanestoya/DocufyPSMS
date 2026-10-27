@@ -7,13 +7,16 @@ import {
   User,
   Search,
   Clock,
+  Check,
   CheckCircle,
+  X,
   XCircle,
   Copy,
   ArrowLeft,
   ChevronDown,
   ChevronUp,
   Printer,
+  Play,
   FileText,
   AlertCircle,
   AlertTriangle,
@@ -71,9 +74,7 @@ import { pricingStore } from "../../utils/pricingStore";
 import { ORDER_STATUS_STYLES, getStatusBadgeClasses } from "../../utils/orderStatusPalette";
 import { inventoryStore } from "../../utils/inventoryStore";
 import { PriorityBadge, StartHereTag } from "../ui/priority-badge";
-import OrderPaymentSummary, {
-  computeOrderPayment,
-} from "./OrderPaymentSummary";
+import { computeOrderPayment } from "./OrderPaymentSummary";
 import {
   getLock,
   claimLock,
@@ -83,6 +84,17 @@ import {
   holdLockWhileOpen,
 } from "../../utils/orderLocks";
 import { useAuth } from "../../contexts/AuthContext";
+
+// How each order status reads inside the Order Details dialog (sentence case,
+// matching the dialog's own typography rather than the table's Title Case).
+const ORDER_STATUS_LABELS: Record<string, string> = {
+  inQueue: "In queue",
+  printing: "Printing",
+  completed: "Completed",
+  released: "Released",
+  canceled: "Canceled",
+  awaitingPayment: "Awaiting payment",
+};
 
 // Fallback estimate when an order has no stored cost breakdown, using the
 // shared centralized pricing so admin/staff estimates stay in lockstep.
@@ -200,6 +212,52 @@ const Avatar = ({ name }: { name: string }) => {
   );
 };
 
+/** A titled group inside the Order Details window (one consistent style). */
+function DetailSection({
+  icon: Icon,
+  title,
+  aside,
+  children,
+}: {
+  icon: React.ElementType;
+  title: string;
+  aside?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-2.5">
+      <div className="flex items-center gap-1.5">
+        <Icon className="h-3.5 w-3.5 shrink-0 text-[#2F6FD6]" />
+        <h3 className="text-[13px] font-semibold text-slate-700">{title}</h3>
+        {aside ? (
+          <span className="ml-auto text-[11px] font-medium text-slate-500">
+            {aside}
+          </span>
+        ) : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** Label over value, used in every detail grid so the type scale matches. */
+function DetailField({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[11.5px] text-slate-500">{label}</p>
+      <p className="mt-0.5 text-[13.5px] font-medium text-slate-900 break-words">
+        {value}
+      </p>
+    </div>
+  );
+}
+
 interface UnifiedOrdersProps {
   menuItems: Array<{
     label: string;
@@ -293,12 +351,88 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
   const lockHolder = selectedLock?.heldBy ?? null;
   const iHoldLock = !!selectedLock && selectedLock.heldBy === myName;
   const canActOnOrder = iHoldLock || isPhotocopyOrder(selectedOrder);
+  // One payment computation for the header summary strip — the same helper the
+  // Payment section renders, so the two can never disagree.
+  const selectedPayment = useMemo(
+    () =>
+      selectedOrder
+        ? computeOrderPayment(
+            selectedOrder,
+            fallbackPrintTotal(
+              selectedOrder.pages,
+              selectedOrder.copies,
+              selectedOrder.type,
+            ),
+          )
+        : null,
+    [selectedOrder],
+  );
   // Orders in these statuses can be acted on, so they get a lock/claim.
   const isActionableStatus = (status: string) =>
     status === "inQueue" ||
     status === "printing" ||
     status === "completed" ||
     status === "awaitingPayment";
+
+  // Receipt figures drive the payment card and its breakdown, so the order total
+  // is printed once (in the card) and only its parts are listed underneath.
+  const receipt = useMemo(
+    () => (selectedOrder ? generateReceiptData(selectedOrder) : null),
+    [selectedOrder],
+  );
+
+  // The files shown as the hero of the dialog. A single-file order falls back to
+  // the order's own print settings when the file carries no spec of its own.
+  const detailFiles = useMemo(() => {
+    if (!selectedOrder) return [];
+    const files = selectedOrder.attachedFiles ?? [];
+    const single = files.length === 1;
+    return files.map((file) => ({
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      url: file.url,
+      storagePath: file.storagePath,
+      pages: file.pageCount ?? (single ? selectedOrder.pages : undefined),
+      paperSize: file.paperSize ?? (single ? selectedOrder.paperSize : undefined),
+      copies: file.copies ?? (single ? selectedOrder.copies : undefined),
+      colorMode: file.colorMode ?? (single ? selectedOrder.colorMode : undefined),
+    }));
+  }, [selectedOrder]);
+
+  // The breakdown is a disclosure, so it starts closed for every order.
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  useEffect(() => {
+    setBreakdownOpen(false);
+  }, [selectedOrder?.id, showDialog]);
+
+  const paymentChipCls =
+    selectedPayment?.status === "Paid"
+      ? "inline-flex items-center rounded-full bg-[#DCFCE7] px-2.5 py-1 text-[12px] font-semibold text-[#14532D]"
+      : selectedPayment?.status === "Partially Paid"
+        ? "inline-flex items-center rounded-full bg-[#FEF3C7] px-2.5 py-1 text-[12px] font-semibold text-[#92400E]"
+        : "inline-flex items-center rounded-full bg-[#FEE2E2] px-2.5 py-1 text-[12px] font-semibold text-[#991B1B]";
+
+  // What the notes section can honestly say: the note recorded on the order,
+  // plus the reason behind the CURRENT state — and each of those only once.
+  const rawNote = selectedOrder?.notes?.trim() ?? "";
+  const holdReason = selectedOrder?.holdReason?.trim() ?? "";
+  const awaitingPayment = selectedOrder?.status === "awaitingPayment";
+  const cancelNote =
+    selectedOrder?.status === "canceled"
+      ? selectedOrder.cancellationReason?.trim() ?? ""
+      : "";
+  // Checkout also stores the hold reason in the order's own notes. Once the
+  // hold no longer applies that copy is stale — repeating it would tell staff a
+  // verified order is still waiting for payment.
+  const customerNote =
+    rawNote && rawNote === holdReason && !awaitingPayment ? "" : rawNote;
+  const systemNotes = [
+    awaitingPayment && holdReason && holdReason !== customerNote
+      ? holdReason
+      : "",
+    cancelNote && cancelNote !== customerNote ? cancelNote : "",
+  ].filter(Boolean);
 
 // HEARTBEAT: while our order details dialog is open on an actionable row,
   // keep renewing OUR lock so it persists for as long as we keep viewing —
@@ -405,7 +539,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
     if (order.status === "awaitingPayment" && !order.paymentVerified) {
       if (newStatus !== "canceled") {
         setErrorMessage(
-          "This order is still awaiting payment. Verify the payment in Payment Verification - the order will enter the queue automatically once confirmed.",
+          "Awaiting payment. Verify it in Payment Verification and the order queues automatically.",
         );
         return;
       }
@@ -445,10 +579,10 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
   const handleStartFromHere = (order: OrderType) => {
     if (order.status === "awaitingPayment" && !order.paymentVerified) {
       setErrorMessage(
-        "Payment verification is pending for this order - verify it in Payment Verification first; it will enter the queue automatically once confirmed.",
+        "Awaiting payment. Verify it in Payment Verification and the order queues automatically.",
       );
       toast.error(
-        "Payment verification is pending for this order - verify it in Payment Verification first.",
+        "Awaiting payment. Verify it in Payment Verification first.",
       );
       return;
     }
@@ -881,14 +1015,14 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
             <div>
               <p className="text-sm font-semibold text-amber-800">Docufy is currently paused</p>
               <p className="text-xs text-amber-700 mt-0.5">
-                New customer orders are on hold. You can still finish and release jobs already printing, but starting new prints requires override.
+                New orders are on hold. You can still finish jobs already in the queue.
               </p>
             </div>
           </div>
         )}
 
-        {/* Summary Cards - 2 Rows */}
-        <div className="grid grid-cols-2 @min-[980px]:grid-cols-3 gap-2 sm:gap-4 mb-6 shrink-0">
+        {/* Summary Cards - one row on wide screens so the queue stays above the fold */}
+        <div className="grid grid-cols-2 @min-[720px]:grid-cols-3 @min-[1120px]:grid-cols-6 gap-2 sm:gap-3 mb-4 shrink-0">
           {([
             ["all", "Active Queue", LayoutGrid, queueOrders.length],
             ["inQueue", "In Queue", Clock, stats.inQueue],
@@ -1256,540 +1390,366 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
           }
         }}
       >
-        <DialogContent className="sm:max-w-6xl max-h-[92vh] p-0 flex flex-col gap-0 overflow-hidden">
-          <DialogHeader className="px-5 pt-4 pr-8 pb-3 border-b border-gray-200 flex-row items-center justify-between gap-4">
-            <div>
-              <DialogTitle className="text-lg font-semibold text-[#1c1f26]">
-                Order Details
-              </DialogTitle>
-              <DialogDescription>
-                Manage and update print job information
-              </DialogDescription>
-            </div>
-            <Badge
-              variant="outline"
-              className="text-xs bg-gray-100 text-gray-700 font-mono border-gray-200"
-            >
-              {selectedOrder?.displayId ?? selectedOrder?.id}
-            </Badge>
-          </DialogHeader>
-
+        <DialogContent
+          className="sm:max-w-[700px] max-h-[calc(100dvh-2rem)] p-0 flex flex-col gap-0 overflow-hidden rounded-[20px] border-[#D5DBE5] [font-family:Inter,ui-sans-serif,system-ui,sans-serif] [&_[data-slot=dialog-close]]:hidden"
+          onInteractOutside={(event) => event.preventDefault()}
+          onOpenAutoFocus={(event) => {
+            // Focus the dialog itself, so opening it announces the order rather
+            // than "Close", and the X starts without a focus ring.
+            event.preventDefault();
+            (event.currentTarget as HTMLElement | null)?.focus();
+          }}
+        >
           {selectedOrder && (
             <>
-              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-                {/* Session lock banner (demo: two tabs = two PCs) */}
-                {isPhotocopyOrder(selectedOrder) ? (
-                  <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg border border-blue-200 bg-blue-50">
-                    <Copy className="w-4 h-4 text-[#2F6FD6]" />
-                    <p className="text-sm font-semibold text-blue-800 flex-1 min-w-[160px]">
-                      Photocopy order — always available
-                    </p>
-                    <span className="text-[11px] font-medium text-blue-600">
-                      No lock required. Anyone can take it anytime.
-                    </span>
+              {/* Header — the order number and its state, stated once */}
+              <DialogHeader className="flex-row items-start justify-between gap-4 space-y-0 px-6 pt-5 pb-4 text-left">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
+                    <DialogTitle className="text-[22px] font-bold leading-none tracking-[-0.01em] text-[#111827]">
+                      {selectedOrder.displayId ?? selectedOrder.id}
+                    </DialogTitle>
+                    <Badge
+                      variant="outline"
+                      className={`gap-1.5 border-transparent text-[12px] font-semibold ${getStatusBadgeClasses(
+                        selectedOrder.status,
+                      )}`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="size-1.5 rounded-full bg-current"
+                      />
+                      {ORDER_STATUS_LABELS[selectedOrder.status] ??
+                        selectedOrder.status}
+                    </Badge>
+                    {lockHolder && !iHoldLock && (
+                      <Badge
+                        variant="outline"
+                        className="gap-1.5 border-[#F5CE8A] bg-[#FFF8EB] text-[12px] font-semibold text-[#8A5007]"
+                      >
+                        <Lock className="size-3" aria-hidden="true" />
+                        Locked by {lockHolder}
+                      </Badge>
+                    )}
                   </div>
-                ) : isActionableStatus(selectedOrder.status) ? (
-                  iHoldLock ? (
-                    <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg border border-green-200 bg-green-50">
-                      <UserCheck className="w-4 h-4 text-green-600" />
-                      <p className="text-sm font-semibold text-green-700 flex-1 min-w-[160px]">
-                        You are managing this order
-                      </p>
-                      <span className="text-[11px] font-medium text-green-600">
-                        Only you can update it right now
+                  <DialogDescription className="mt-2.5 text-[13.5px] leading-relaxed text-[#6B7280]">
+                    {selectedOrder.customerEmail ? (
+                      <span
+                        title={selectedOrder.customerEmail}
+                        className="cursor-help"
+                      >
+                        {selectedOrder.customer}
                       </span>
-                    </div>
-                  ) : lockHolder ? (
-                    <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg border border-amber-300 bg-amber-50">
-                      <Eye className="w-4 h-4 text-amber-600" />
-                      <p className="text-sm font-semibold text-amber-800 flex-1 min-w-[160px]">
-                        {lockHolder} is managing this order
-                      </p>
-                      <span className="text-[11px] font-medium text-amber-700">
-                        Actions are locked until they finish
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-gray-50">
-                      <Lock className="w-4 h-4 text-gray-500" />
-                      <p className="text-sm font-semibold text-gray-600 flex-1 min-w-[160px]">
-                        This order is available
-                      </p>
-                      <span className="text-[11px] font-medium text-gray-500">
-                        Opening the details claims it for you
-                      </span>
-                    </div>
-                  )
-                ) : (
-                  <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-gray-50">
-                    <Unlock className="w-4 h-4 text-gray-500" />
-                    <p className="text-sm font-semibold text-gray-600 flex-1 min-w-[160px]">
-                      This order is already finished
-                    </p>
-                    <span className="text-[11px] font-medium text-gray-500">
-                      Read-only review
-                    </span>
-                  </div>
-                )}
-
-                {/* Customer */}
-                <div className="flex flex-wrap items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-xl">
-                  <Avatar name={selectedOrder.customer} />
-                  <div className="flex-1 min-w-[200px]">
-                    <p className="font-bold text-[#1c1f26] text-base">
-                      {selectedOrder.customer}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Order placed at{" "}
-                      {formatPHTime(selectedOrder.createdAt || selectedOrder.submittedAt)}{" "}
-                      ·{" "}
-                      {formatPHDate(selectedOrder.createdAt || selectedOrder.submittedAt)}
-                    </p>
-                  </div>
-                  <Badge
-                    variant="outline"
-                    className={`text-xs font-medium ${
-                      selectedOrder.orderSource === "online"
-                        ? "bg-white border-2 border-blue-200 text-blue-700"
-                        : "bg-blue-50 text-blue-700 border-blue-200"
-                    }`}
-                  >
+                    ) : (
+                      selectedOrder.customer
+                    )}
+                    {" · "}
                     {selectedOrder.orderSource === "online"
                       ? "Online"
                       : "Walk-in"}
-                  </Badge>
-                </div>
-
-                {/* Print Job Details Section */}
-                <div className="bg-white border-2 border-gray-300 rounded-xl overflow-hidden">
-                  <div className="px-4 py-2.5 border-b border-gray-200 bg-gray-50/50 flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-[#2F6FD6]" />
-                    <h3 className="text-sm font-bold text-[#1c1f26] uppercase tracking-wider">
-                      Print Job Details
-                    </h3>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-px bg-gray-100">
-                    <div className="bg-white p-3">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                        Paper Size
-                      </p>
-                      <p className="font-semibold text-[#1c1f26]">
-                        {selectedOrder.paperSize}
-                      </p>
-                    </div>
-
-                    <div className="bg-white p-3">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                        Total Pages
-                      </p>
-                      <p className="font-semibold text-[#1c1f26]">
-                        {selectedOrder.pages}
-                      </p>
-                    </div>
-
-                    <div className="bg-white p-3">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                        Number of Copies
-                      </p>
-                      <p className="font-semibold text-[#1c1f26]">
-                        {selectedOrder.copies}
-                      </p>
-                    </div>
-
-                    <div className="bg-white p-3">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                        Order Source
-                      </p>
-                      <p className="font-semibold text-[#1c1f26]">
-                        {selectedOrder.orderSource === "online"
-                          ? "Online"
-                          : "Walk-in"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Attached Files */}
-                  {selectedOrder.attachedFiles &&
-                    selectedOrder.attachedFiles.length > 0 && (
-                      <div className="bg-white p-3 border-t border-gray-100">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                          Attached Files
-                        </p>
-                        {/* File actions follow the session lock: when another
-                            staff/admin holds this order, View/Download are
-                            blocked with an explanation instead of opening the
-                            same document from two places. */}
-                        <FileAttachments
-                          files={selectedOrder.attachedFiles}
-                          orderId={selectedOrder.id}
-                          showDownload={true}
-                          showView={true}
-                          lockedBy={canActOnOrder ? null : lockHolder}
-                        />
-                      </div>
+                    {" · "}
+                    {formatPHDate(
+                      selectedOrder.createdAt || selectedOrder.submittedAt,
                     )}
-
-                  {/* Special Instructions */}
-                  {selectedOrder.notes && (
-                    <div className="bg-blue-50 p-3 border-t border-gray-100">
-                      <p className="text-xs font-semibold text-blue-800 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                        <AlertCircle className="w-4 h-4" /> Special Instructions
-                      </p>
-                      <p className="text-sm text-blue-900 leading-relaxed">
-                        {selectedOrder.notes}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Payment Summary Section */}
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                  <div className="px-4 py-2.5 border-b border-gray-200 bg-gray-50/50 flex items-center gap-2">
-                    <CreditCard className="w-4 h-4 text-[#2F6FD6]" />
-                    <h3 className="text-sm font-bold text-[#1c1f26] uppercase tracking-wider">
-                      Payment Summary
-                    </h3>
-                  </div>
-                  <OrderPaymentSummary
-                    order={selectedOrder}
-                    fallbackTotal={fallbackPrintTotal(
-                      selectedOrder.pages,
-                      selectedOrder.copies,
-                      selectedOrder.type,
+                    {", "}
+                    {formatPHTime(
+                      selectedOrder.createdAt || selectedOrder.submittedAt,
                     )}
-                  />
+                  </DialogDescription>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDialog(false)}
+                  aria-label="Close order details"
+                  className="-mr-1 -mt-1 inline-flex size-9 shrink-0 items-center justify-center rounded-[10px] border border-[#D5DBE5] bg-white text-[#4B5563] transition-colors hover:bg-[#F3F4F6] hover:text-[#111827] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8] focus-visible:ring-offset-2"
+                >
+                  <X className="size-4" aria-hidden="true" />
+                </button>
+              </DialogHeader>
 
-                {/* Additional Information Section */}
-                <div className="bg-white border-2 border-gray-300 rounded-xl overflow-hidden">
-                  <div className="px-4 py-2.5 border-b border-gray-200 bg-gray-50/50 flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-[#2F6FD6]" />
-                    <h3 className="text-sm font-bold text-[#1c1f26] uppercase tracking-wider">
-                      Additional Information
-                    </h3>
-                  </div>
+              <div className="h-px bg-[#E5E7EB]" />
 
-                  <div className="grid grid-cols-2 gap-px bg-gray-100">
-                    {/* Status */}
-                    <div className="bg-white p-3">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                        Status
-                      </p>
-                      <Badge
-                        variant="outline"
-                        className={`text-sm font-medium capitalize ${getStatusBadgeClasses(selectedOrder.status)}`}
-                      >
-                        {selectedOrder.status === "inQueue"
-                          ? "In Queue"
-                          : selectedOrder.status === "awaitingPayment"
-                            ? "Awaiting Payment"
-                            : selectedOrder.status}
-                      </Badge>
-                    </div>
-
-                    {/* Payment Status */}
-                    <div className="bg-white p-3">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                        Payment Status
-                      </p>
-                      <Badge
-                        variant="outline"
-                        className={`text-sm font-medium ${
-                          selectedOrder.paymentVerified
-                            ? "bg-blue-50 text-blue-700 border-blue-200"
-                            : "bg-amber-50 text-amber-700 border-amber-200"
-                        }`}
-                      >
-                        {selectedOrder.paymentVerified
-                          ? "Verified"
-                          : "Not Verified"}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  {/* Hold Reason */}
-                  {selectedOrder.holdReason && (
-                    <div className="bg-blue-50 p-3 border-t border-gray-100">
-                      <p className="text-xs font-semibold text-blue-800 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                        <AlertCircle className="w-4 h-4" /> Hold Reason
-                      </p>
-                      <p className="text-sm text-blue-900 leading-relaxed">
-                        {selectedOrder.holdReason}
-                      </p>
-                    </div>
-                  )}
-
-                  {selectedOrder.cancellationReason && (
-                    <div className="bg-red-50 p-3 border-t border-gray-100">
-                      <p className="text-xs font-semibold text-red-800 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                        <AlertCircle className="w-4 h-4" /> Cancellation Reason
-                      </p>
-                      <p className="text-sm text-red-900 leading-relaxed">
-                        {selectedOrder.cancellationReason}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Verify Payment */}
-                  {!selectedOrder.paymentVerified && (
-                    <div className="bg-white p-3 border-t border-gray-100">
-                      <Button
-                        variant="outline"
-                        onClick={() => navigate(`${userRole === "admin" ? "/admin" : "/staff"}/payment-verification?orderId=${encodeURIComponent(selectedOrder.id)}`)}
-                        className="border-2 border-[#1668D9]/30 text-[#1668D9] hover:bg-[#1668D9] hover:text-white font-medium"
-                      >
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        Verify Payment
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Order Receipt — available for every order, any status */}
-                {(() => {
-                  const receipt = generateReceiptData(selectedOrder);
-                  return (
-                    <div className="bg-white border-2 border-gray-300 rounded-xl overflow-hidden">
-                      <div className="px-4 py-2.5 border-b border-gray-200 bg-gray-50/50 flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-[#2F6FD6]" />
-                        <h3 className="text-sm font-bold text-[#1c1f26] uppercase tracking-wider flex items-center gap-2">
-                          Order Receipt
-                          <Badge className="bg-blue-100 text-blue-700 font-mono text-xs">
-                            {receipt.receiptNumber}
-                          </Badge>
-                        </h3>
-                      </div>
-
-                      <div className="p-3">
-                        <div className="grid grid-cols-2 gap-px bg-gray-100 mb-3">
-                          <div className="bg-white p-3">
-                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                              Receipt Date
-                            </p>
-                            <p className="text-sm font-medium text-gray-900">
-                              {receipt.orderDate}
-                            </p>
-                          </div>
-                          <div className="bg-white p-3">
-                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                              Total Amount
-                            </p>
-                            <p className="text-lg font-bold text-[#2F6FD6]">
-                              {formatCurrency(receipt.total)}
-                            </p>
-                          </div>
-                          <div className="bg-white p-3">
-                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                              Payment Method
-                            </p>
-                            <p className="text-sm font-medium text-gray-900">
-                              {receipt.payment.method}
-                            </p>
-                          </div>
-                          <div className="bg-white p-3">
-                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                              Payment Status
-                            </p>
-                            <Badge
-                              className={`text-xs font-medium ${
-                                receipt.payment.status === "paid"
-                                  ? "bg-blue-100 text-blue-700"
-                                  : receipt.payment.status === "unpaid"
-                                    ? "bg-gray-100 text-gray-700"
-                                    : "bg-yellow-100 text-yellow-700"
-                              }`}
-                            >
-                              {receipt.payment.statusLabel}
-                            </Badge>
-                          </div>
+              <div className="flex-1 overflow-y-auto">
+                {/* The file is the hero of this dialog */}
+                <section className="px-6 py-5">
+                  <h3 className="text-[13px] font-semibold text-[#111827]">
+                    {detailFiles.length > 1 ? "Files to print" : "File to print"}
+                  </h3>
+                  <div className="mt-3">
+                    {detailFiles.length > 0 ? (
+                      <FileAttachments
+                        files={detailFiles}
+                        orderId={selectedOrder.id}
+                        showDownload={true}
+                        showView={true}
+                        lockedBy={canActOnOrder ? null : lockHolder}
+                        appearance="card"
+                      />
+                    ) : (
+                      <div className="flex flex-col gap-3 rounded-[14px] border border-[#E5E7EB] px-4 py-3.5 sm:flex-row sm:items-center">
+                        <div
+                          aria-hidden="true"
+                          className="flex size-14 shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white"
+                        >
+                          <Copy className="size-5 text-[#1D4ED8]" />
                         </div>
-
-                        <div className="pt-3 border-t border-gray-200">
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                            Cost Breakdown
+                        <div className="min-w-0">
+                          <p className="text-[15px] font-semibold text-[#111827]">
+                            Photocopy · {selectedOrder.paperSize} paper
                           </p>
-                          <div className="space-y-1 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Printing</span>
-                              <span className="font-medium text-gray-900">
-                                {formatCurrency(receipt.printingCost)}
-                              </span>
-                            </div>
-                            {receipt.addons.length > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Add-ons</span>
-                                <span className="font-medium text-gray-900">
-                                  {formatCurrency(receipt.addonsCost)}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2 mt-3">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowReceipt(true)}
-                            className="w-full border-2 border-[#2F6FD6]/30 text-[#2F6FD6] hover:bg-[#2F6FD6] hover:text-white font-medium"
-                          >
-                            <FileText className="w-4 h-4 mr-2" />
-                            View Receipt
-                          </Button>
+                          <p className="mt-1 text-[13px] text-[#6B7280]">
+                            {selectedOrder.pages}{" "}
+                            {selectedOrder.pages === 1 ? "page" : "pages"} ·{" "}
+                            {selectedOrder.copies}{" "}
+                            {selectedOrder.copies === 1 ? "copy" : "copies"}
+                          </p>
                         </div>
                       </div>
+                    )}
+                  </div>
+                </section>
+
+                {/* Payment — the figure is printed here, once */}
+                <section className="border-t border-[#E5E7EB] px-6 py-5">
+                  <h3 className="text-[13px] font-semibold text-[#111827]">
+                    Payment
+                  </h3>
+                  <div className="mt-3 flex min-h-[72px] flex-wrap items-center gap-x-3 gap-y-2 rounded-[14px] border border-[#E5E7EB] px-4 py-3.5">
+                    <span className={paymentChipCls}>
+                      {selectedPayment?.status ?? "Payment Due"}
+                    </span>
+                    <span className="text-[15px] font-semibold text-[#111827]">
+                      {formatCurrency(selectedPayment?.total ?? 0)}
+                      {selectedOrder.paymentMethod && (
+                        <span className="font-normal text-[#6B7280]">
+                          {" · "}
+                          {selectedOrder.paymentMethod}
+                        </span>
+                      )}
+                    </span>
+                    <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1">
+                      {!selectedOrder.paymentVerified && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            navigate(
+                              `${userRole === "admin" ? "/admin" : "/staff"}/payment-verification?orderId=${encodeURIComponent(
+                                selectedOrder.id,
+                              )}`,
+                            )
+                          }
+                          className="rounded text-[13px] font-medium text-[#4B5563] transition-colors hover:text-[#111827] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8] focus-visible:ring-offset-2"
+                        >
+                          Verify payment
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setShowReceipt(true)}
+                        className="rounded text-[13px] font-medium text-[#1D4ED8] transition-colors hover:text-[#1E40AF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8] focus-visible:ring-offset-2"
+                      >
+                        View receipt
+                      </button>
                     </div>
-                  );
-                })()}
+                  </div>
 
-                {/* Contextual workflow notes */}
-                {selectedOrder.status === "awaitingPayment" &&
-                  !selectedOrder.paymentVerified && (
-                    <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                      Awaiting payment - this order enters the queue
-                      automatically once payment is verified.
-                    </p>
+                  <button
+                    type="button"
+                    onClick={() => setBreakdownOpen((open) => !open)}
+                    aria-expanded={breakdownOpen}
+                    className="mt-3 inline-flex items-center gap-1.5 rounded text-[13px] font-medium text-[#4B5563] transition-colors hover:text-[#111827] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8] focus-visible:ring-offset-2"
+                  >
+                    <Play
+                      aria-hidden="true"
+                      className={`size-3 fill-current transition-transform ${
+                        breakdownOpen ? "rotate-90" : ""
+                      }`}
+                    />
+                    {breakdownOpen ? "Hide breakdown" : "Show breakdown"}
+                  </button>
+
+                  {breakdownOpen && (
+                    <dl className="mt-2 w-full max-w-[210px] space-y-1.5 pl-5 text-[13.5px]">
+                      <div className="flex items-baseline justify-between gap-6">
+                        <dt className="text-[#6B7280]">Printing</dt>
+                        <dd className="font-medium text-[#111827]">
+                          {formatCurrency(receipt?.printingCost ?? 0)}
+                        </dd>
+                      </div>
+                      {receipt && receipt.addons.length > 0 && (
+                        <div className="flex items-baseline justify-between gap-6">
+                          <dt className="text-[#6B7280]">Add-ons</dt>
+                          <dd className="font-medium text-[#111827]">
+                            {formatCurrency(receipt.addonsCost)}
+                          </dd>
+                        </div>
+                      )}
+                      {(selectedPayment?.remaining ?? 0) > 0 && (
+                        <div className="flex items-baseline justify-between gap-6">
+                          <dt className="text-[#6B7280]">Balance</dt>
+                          <dd className="font-semibold text-[#92400E]">
+                            {formatCurrency(selectedPayment?.remaining ?? 0)}
+                          </dd>
+                        </div>
+                      )}
+                    </dl>
                   )}
+                </section>
 
-                {selectedOrder.status === "completed" &&
-                  (() => {
-                    const cashPickupUnpaid =
-                      selectedOrder.paymentMethod === "Cash" &&
-                      !selectedOrder.paymentVerified;
-                    return cashPickupUnpaid ? (
-                      <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                        Cash on Pickup payment not verified yet — release
-                        becomes available once the payment is verified.
-                      </p>
-                    ) : null;
-                  })()}
-
-                {(selectedOrder.status === "released" ||
-                  selectedOrder.status === "canceled" ||
-                  (selectedOrder.status === "awaitingPayment" &&
-                    selectedOrder.paymentVerified)) && (
-                  <p className="text-sm text-gray-500 italic">
-                    {selectedOrder.status === "released"
-                      ? "Order released - no further actions available."
-                      : selectedOrder.status === "canceled"
-                        ? "Order canceled - no further actions available."
-                        : "Payment verified - order is entering the queue automatically."}
+                {/* Customer notes — the section is always present, honestly */}
+                <section className="border-t border-[#E5E7EB] px-6 py-5">
+                  <h3 className="text-[13px] font-semibold text-[#111827]">
+                    Customer notes
+                  </h3>
+                  <p className="mt-2.5 break-words text-[14px] leading-relaxed text-[#4B5563]">
+                    {customerNote || "None"}
                   </p>
-                )}
+                  {systemNotes.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {systemNotes.map((note) => (
+                        <p
+                          key={note}
+                          className={`break-words rounded-[10px] px-3 py-2 text-[13px] leading-relaxed ${
+                            note === cancelNote
+                              ? "bg-[#FEF2F2] text-[#991B1B]"
+                              : "bg-[#F3F4F6] text-[#4B5563]"
+                          }`}
+                        >
+                          {note}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </section>
 
                 {errorMessage && (
-                  <Alert variant="destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                      {errorMessage}
-                    </AlertDescription>
-                  </Alert>
+                  <div className="px-6 pb-5">
+                    <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>{errorMessage}</AlertDescription>
+                    </Alert>
+                  </div>
                 )}
               </div>
 
-              {/* Sticky workflow footer */}
-                            <div className="px-5 py-3 border-t border-gray-200 bg-white flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  {isActionableStatus(selectedOrder.status) &&
-                    !iHoldLock &&
-                    lockHolder && (
-                      <p className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 w-full">
-                        Locked — {lockHolder} is managing this order. Actions are disabled.
-                      </p>
-                    )}
-                  {selectedOrder.status === "inQueue" && (
-                    <>
-                      <Button
-                        data-primary-action
-                        disabled={!canActOnOrder}
-                        title={!canActOnOrder && lockHolder ? `${lockHolder} is managing this order` : undefined}
-                        className="bg-[#2F6FD6] text-white hover:bg-[#2557b8] disabled:opacity-40 disabled:pointer-events-none"
-                        onClick={() => handleUpdateStatus("printing")}
-                      >
-                        <Printer className="w-4 h-4 mr-2" />
-                        Start Printing
-                      </Button>
-                      <Button
-                        variant="outline"
-                        disabled={!canActOnOrder}
-                        title={!canActOnOrder && lockHolder ? `${lockHolder} is managing this order` : undefined}
-                        className="hover:bg-red-50 border-2 border-gray-300 text-gray-700 hover:border-red-300 hover:text-red-600 disabled:opacity-40 disabled:pointer-events-none"
-                        onClick={() => handleUpdateStatus("canceled")}
-                      >
-                        Cancel Order
-                      </Button>
-                    </>
-                  )}
+              {/* Footer — exactly one primary action, labelled by the state */}
+              {(selectedOrder.status === "inQueue" ||
+                selectedOrder.status === "printing" ||
+                selectedOrder.status === "completed" ||
+                (selectedOrder.status === "awaitingPayment" &&
+                  !selectedOrder.paymentVerified)) && (
+                <div className="border-t border-[#E5E7EB] px-6 py-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      {(selectedOrder.status === "inQueue" ||
+                        selectedOrder.status === "awaitingPayment") && (
+                        <Button
+                          variant="outline"
+                          disabled={!canActOnOrder}
+                          title={
+                            !canActOnOrder && lockHolder
+                              ? `${lockHolder} is managing this order`
+                              : undefined
+                          }
+                          onClick={() => handleUpdateStatus("canceled")}
+                          className="w-full border-[#B91C1C] bg-white text-[#B91C1C] hover:border-[#991B1B] hover:bg-[#B91C1C] hover:text-white disabled:pointer-events-none disabled:opacity-40 sm:w-[150px]"
+                        >
+                          Cancel order
+                        </Button>
+                      )}
+                    </div>
 
-                  {selectedOrder.status === "printing" && (
-                    <Button
-                      data-primary-action
-                      disabled={!canActOnOrder}
-                      title={!canActOnOrder && lockHolder ? `${lockHolder} is managing this order` : undefined}
-                      className="bg-[#2F6FD6] text-white hover:bg-[#2557b8] disabled:opacity-40 disabled:pointer-events-none"
-                      onClick={() => handleUpdateStatus("completed")}
-                    >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Mark as Completed
-                    </Button>
-                  )}
-
-                  {selectedOrder.status === "completed" &&
-                    (() => {
-                      // Cash on Pickup orders may only be released once the
-                      // cash payment has been verified by staff/admin (they can
-                      // be printed/completed while payment is still pending).
-                      const cashPickupUnpaid =
-                        selectedOrder.paymentMethod === "Cash" &&
-                        !selectedOrder.paymentVerified;
-                      return (
+                    <div className="flex flex-col gap-1.5 sm:items-end">
+                      {selectedOrder.status === "inQueue" && (
                         <Button
                           data-primary-action
-                          disabled={cashPickupUnpaid || !canActOnOrder}
-                          className={
-                            cashPickupUnpaid || !canActOnOrder
-                              ? "bg-[#2F6FD6] text-white opacity-50 cursor-not-allowed"
-                              : "bg-[#2F6FD6] text-white hover:bg-[#2557b8]"
-                          }
+                          disabled={!canActOnOrder}
                           title={
-                            cashPickupUnpaid
-                              ? "Verify the Cash on Pickup payment before releasing this order."
-                              : !canActOnOrder && lockHolder
-                                ? `${lockHolder} is managing this order`
-                                : undefined
+                            !canActOnOrder && lockHolder
+                              ? `${lockHolder} is managing this order`
+                              : undefined
                           }
-                          onClick={() => handleUpdateStatus("released")}
+                          onClick={() => handleUpdateStatus("printing")}
+                          className="w-full bg-[#1D4ED8] text-white hover:bg-[#1E40AF] disabled:pointer-events-none disabled:opacity-40 sm:w-[200px]"
                         >
-                          <Package className="w-4 h-4 mr-2" />
-                          Release Order
+                          <Printer className="size-4" aria-hidden="true" />
+                          Start printing
                         </Button>
-                      );
-                    })()}
+                      )}
 
-                  {selectedOrder.status === "awaitingPayment" &&
-                    !selectedOrder.paymentVerified && (
-                      <Button
-                        variant="outline"
-                        disabled={!canActOnOrder}
-                        title={!canActOnOrder && lockHolder ? `${lockHolder} is managing this order` : undefined}
-                        className="hover:bg-red-50 border-2 border-gray-300 text-gray-700 hover:border-red-300 hover:text-red-600 disabled:opacity-40 disabled:pointer-events-none"
-                        onClick={() => handleUpdateStatus("canceled")}
-                      >
-                        Cancel Order
-                      </Button>
-                    )}
-                </div>
+                      {selectedOrder.status === "printing" && (
+                        <Button
+                          data-primary-action
+                          disabled={!canActOnOrder}
+                          title={
+                            !canActOnOrder && lockHolder
+                              ? `${lockHolder} is managing this order`
+                              : undefined
+                          }
+                          onClick={() => handleUpdateStatus("completed")}
+                          className="w-full bg-[#1D4ED8] text-white hover:bg-[#1E40AF] disabled:pointer-events-none disabled:opacity-40 sm:w-[200px]"
+                        >
+                          <Check className="size-4" aria-hidden="true" />
+                          Mark as done
+                        </Button>
+                      )}
 
-                <div>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowDialog(false)}
-                  >
-                    Close
-                  </Button>
+                      {selectedOrder.status === "completed" &&
+                        (() => {
+                          // Cash on Pickup may only be released once the cash has
+                          // been verified (it can be printed before that).
+                          const cashPickupUnpaid =
+                            selectedOrder.paymentMethod === "Cash" &&
+                            !selectedOrder.paymentVerified;
+                          return (
+                            <>
+                              <Button
+                                data-primary-action
+                                disabled={cashPickupUnpaid || !canActOnOrder}
+                                onClick={() => handleUpdateStatus("released")}
+                                className="w-full bg-[#1D4ED8] text-white hover:bg-[#1E40AF] disabled:pointer-events-none disabled:opacity-40 sm:w-[200px]"
+                              >
+                                <Package className="size-4" aria-hidden="true" />
+                                Release order
+                              </Button>
+                              {cashPickupUnpaid && (
+                                <p className="text-[12.5px] leading-relaxed text-[#6B7280] sm:text-right">
+                                  Verify the cash payment before releasing this
+                                  order.
+                                </p>
+                              )}
+                            </>
+                          );
+                        })()}
+
+                      {selectedOrder.status === "awaitingPayment" &&
+                        !selectedOrder.paymentVerified && (
+                          <>
+                            <button
+                              type="button"
+                              disabled
+                              className="inline-flex h-10 w-full cursor-not-allowed items-center justify-center gap-2 rounded-[10px] border border-transparent bg-[#E5E7EB] px-4 text-[14px] font-semibold text-[#9CA3AF] sm:w-[200px]"
+                            >
+                              <Printer className="size-4" aria-hidden="true" />
+                              Start printing
+                            </button>
+                            <p className="text-[12.5px] leading-relaxed text-[#6B7280] sm:text-right">
+                              Waiting for{" "}
+                              {selectedOrder.paymentMethod ?? "payment"}{" "}
+                              verification before this order can print.
+                            </p>
+                          </>
+                        )}
+
+                      {!canActOnOrder && lockHolder && (
+                        <p className="text-[12.5px] leading-relaxed text-[#8A5007] sm:text-right">
+                          {lockHolder} is managing this order.
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </>
           )}
         </DialogContent>
@@ -1896,8 +1856,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
             </DialogTitle>
             <DialogDescription>
               Record whether any error usage occurred for order{" "}
-              {selectedOrder?.id}. Inventory is deducted based on the expected
-              sheets, and any wasted sheets are tracked separately.
+              {selectedOrder?.id}. Inventory is deducted from the expected sheets; waste is tracked separately.
             </DialogDescription>
           </DialogHeader>
 
@@ -2007,7 +1966,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
             handleUpdateStatus(target.newStatus, target.order, { bypassPause: true });
           }}
           title="Start Printing While Paused?"
-          description="Docufy is currently paused, so new orders are on hold. You can still manually start this print job — the status form will open right after you confirm."
+          description="New orders are on hold while the shop is paused. This job can still start."
           confirmLabel="Start Printing Anyway"
           cancelLabel="Go Back"
         />

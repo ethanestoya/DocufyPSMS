@@ -18,6 +18,7 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { toast } from "sonner";
+import { usePopup } from "../../contexts/PopupContext";
 import Layout from "../Layout";
 import StaffTimeInGate from "./StaffTimeInGate";
 import { Card } from "../ui/card";
@@ -284,6 +285,7 @@ interface UnifiedPaymentVerificationProps {
 
 export default function UnifiedPaymentVerification({ menuItems, userRole }: UnifiedPaymentVerificationProps) {
   const [searchParams] = useSearchParams();
+  const { showPopup } = usePopup();
   const [payments, setPayments] = useState<PaymentType[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPayment, setSelectedPayment] =
@@ -619,11 +621,12 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
         ),
       );
       setSelectedPayment({ ...selectedPayment, status });
-      toast.success(
-        status === "verified"
-          ? "Payment verified! Order has been added to the queue."
-          : `Payment marked as ${status}`
-      );
+       showPopup(
+         status === "verified"
+           ? "Payment verified! Order has been added to the queue."
+           : `Payment marked as ${status}`,
+         "success"
+       );
 
       // Close dialog after verification
       setShowDialog(false);
@@ -1389,12 +1392,12 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                         Cash down payment — how much was paid at the shop?
                       </p>
                       <p className="mb-3 text-xs text-gray-500">
-                        This order is in the down-payment range. Confirm what
-                        the customer actually paid at the counter. The balance
+                        Confirm what
+                        the customer paid at the counter. The balance
                         ({formatCurrency(
                           selectedPayment.totalAmount -
                             (selectedPayment.downPaymentAmount ?? selectedPayment.totalAmount * 0.5),
-                        )}) is collected on pickup if only the 50% down was paid.
+                        )}) is collected on pickup.
                       </p>
                       <div className="flex flex-wrap gap-2">
                         <button

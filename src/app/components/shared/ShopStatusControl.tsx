@@ -81,7 +81,7 @@ export default function ShopStatusControl() {
                 </Badge>
               </div>
               <p className="text-xs text-slate-500 mt-0.5 truncate">
-                {state.status === "open" && "Docufy is currently accepting orders and processing the queue."}
+                {state.status === "open" && "Accepting new orders."}
                 {state.status === "paused" && (
                   state.reason ? (
                     <>
@@ -89,7 +89,7 @@ export default function ShopStatusControl() {
                       {state.eta && <span> · back around {state.eta}</span>}
                     </>
                   ) : (
-                    "Docufy is temporarily paused. New orders are on hold."
+                    "New orders are on hold."
                   )
                 )}
                 {state.status === "closed-scheduled" && (
@@ -99,7 +99,7 @@ export default function ShopStatusControl() {
                       {state.eta && <span> · back around {state.eta}</span>}
                     </>
                   ) : (
-                    "Docufy is closed as scheduled. New orders are on hold."
+                    "Closed as scheduled. New orders are on hold."
                   )
                 )}
               </p>
@@ -169,7 +169,7 @@ export default function ShopStatusControl() {
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-slate-800">Pause Docufy</DialogTitle>
             <DialogDescription>
-              Let customers know why the shop is paused. New orders will be on hold until you mark the shop open again.
+              Customers see this while the shop is paused.
             </DialogDescription>
           </DialogHeader>
           <div className="mt-2 space-y-4">

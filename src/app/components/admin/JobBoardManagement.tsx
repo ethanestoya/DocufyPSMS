@@ -993,7 +993,7 @@ export default function JobBoardManagement() {
               </div>
             </div>
             <DialogDescription className="text-base">
-              Are you sure you want to create this job posting? It will be visible to all visitors on the job board.
+              Visible to all visitors immediately.
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-2 justify-end">
@@ -1027,7 +1027,7 @@ export default function JobBoardManagement() {
               </div>
             </div>
             <DialogDescription className="text-base">
-              Are you sure you want to update this application's status to "{statusUpdateData.status}"?
+              Set this application to <span className="font-semibold">{statusUpdateData.status}</span>.
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-2 justify-end">
@@ -1060,7 +1060,7 @@ export default function JobBoardManagement() {
               </div>
             </div>
             <DialogDescription className="text-base">
-              Are you sure you want to archive "{jobToArchive?.title}"? This will remove it from active listings but keep it stored for records and future reference. You can restore it later if needed.
+              <span className="font-semibold">{jobToArchive?.title}</span> leaves the job board. It can be restored later.
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-2 justify-end">
@@ -1090,7 +1090,7 @@ export default function JobBoardManagement() {
           onOpenChange={() => setJobToRestore(null)}
           onConfirm={() => { handleUnarchiveJob(jobToRestore); setJobToRestore(null); }}
           title="Restore Job Posting?"
-          description={`Are you sure you want to restore "${jobToRestore?.title}" to the active job board? It will immediately become visible to visitors again.`}
+          description={`Restore "${jobToRestore?.title}" to the job board? Visitors will see it immediately.`}
           confirmLabel="Restore"
           cancelLabel="Go Back"
           destructive={false}

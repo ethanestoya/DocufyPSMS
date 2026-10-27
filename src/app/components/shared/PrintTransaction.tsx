@@ -1572,7 +1572,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                 Resuming your print request
               </p>
               <p className="text-[11px] sm:text-xs text-gray-600 mt-0.5">
-                You left this request at Payment Verification before submitting your reference. Your order has not been finalized yet — continue where you left off.
+                Your order isn't finalized yet — continue where you left off.
               </p>
             </div>
           </div>
@@ -1711,7 +1711,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                     ]}
                   />
                   <p className="text-xs text-slate-500">
-                    Choose "Walk-in Printing" for print jobs and "Photocopy" for photocopies. This is recorded so the transaction history stays accurate.
+                    Recorded for the transaction history.
                   </p>
                 </div>
               </>
@@ -1722,7 +1722,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                 <div className="p-4 bg-blue-50 border-2 border-blue-300 rounded-lg flex items-start gap-3">
                   <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-blue-900">
-                    Photocopy transactions don't need an uploaded file. Set the paper size, number of copies, and color mode below — the price is entered manually on the next step.
+                    No file needed. Set the paper size, copies and color mode; the price is entered on the next step.
                   </p>
                 </div>
 
@@ -1885,10 +1885,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                   <p className="text-xs text-gray-700 text-left">
                     <strong>Preferred Format: PDF</strong>
                     <br />
-                    Docufy will not take responsibility for
-                    any formatting errors or issues with Word
-                    (.docx), Excel (.xlsx), or other
-                    non-PDF files.
+                    Other formats may print with layout shifts.
                   </p>
                 </div>
               </div>
@@ -2011,8 +2008,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                           <div>
                             <h3 className="text-sm font-semibold text-gray-900">Print Type</h3>
                             <p className="mb-3 mt-0.5 text-xs text-gray-500">
-                              Pick what type of printing this file needs. Print settings unlock
-                              once a type is selected.
+                              Print settings unlock once a type is selected.
                             </p>
                             <div className="grid grid-cols-2 gap-2 @min-[720px]:grid-cols-4 @min-[720px]:gap-3">
                               {(["document", "vellum", "sticker", "photo"] as const).map((pt) => {
@@ -2215,7 +2211,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                                 <p className="text-xs text-gray-500">
                                   {fileData.colorMode === "bw"
                                     ? `${formatPrice(matrixRatesFor(fileData).bw)} per page — all pages printed in grayscale`
-                                    : "The document analyzer prices each page by its detected color percentage."}
+                                    : "Each page is priced by its detected color percentage."}
                                 </p>
                                 <button
                                   type="button"
@@ -2557,7 +2553,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                       Manual Price (Staff-Entered)
                     </h3>
                     <p className="text-xs text-gray-500 mb-3">
-                      Enter the price computed by the staff/technician for this photocopy in whole pesos (₱1 minimum). This overrides automatic pricing so the sale is recorded accurately. Leave blank and it defaults to ₱1.
+                      Staff-entered price in whole pesos. Defaults to ₱1.
                     </p>
                     <div className="flex items-center gap-2">
                       <span className="text-lg font-semibold text-gray-900">₱</span>
@@ -2717,7 +2713,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                       Walk-in Payment
                     </h4>
                     <p className="text-sm text-blue-800">
-                      Payment will be collected immediately upon transaction completion. The order will be processed right away and payment is verified automatically.
+                      Payment is collected now and verified automatically.
                     </p>
                   </div>
                 </div>
@@ -3078,11 +3074,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                       </p>
                       {!isGcash && (
                         <p className="text-xs text-gray-500 bg-white border border-gray-200 rounded-lg p-3 mt-2">
-                          <strong>Auto-detection:</strong> the{" "}
-                          reference number is only auto-detected from
-                          the payment screenshot for GCash payments.
-                          For {paymentMethod} you will enter it
-                          manually.
+                          <strong>Auto-detection:</strong> only GCash references are read from the screenshot. For {paymentMethod}, enter it manually.
                         </p>
                       )}
                     </div>
@@ -3566,8 +3558,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                   </div>
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
-                  The document analyzer picks the color tier based on the detected color
-                  percentage. Paper size, copies, and page range are applied to the final total.
+                  Color tier comes from the detected color percentage.
                 </p>
               </>
             );
@@ -3871,7 +3862,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                           ? "You can track your order status from the My Orders page or proceed to payment verification if required."
                           : isLowValueCash
                             ? <>Pay <strong>{formatCurrency(total)}</strong> in cash at the shop when you pick up this order.</>
-                            : <>Please visit the shop and pay <strong>{formatCurrency(total)}</strong> in cash before the payment deadline to confirm this order. The staff will verify your payment and your order will be added to the print queue.</>}
+                            : <>Pay <strong>{formatCurrency(total)}</strong> in cash at the shop before the deadline. Staff verify it and your order enters the queue.</>}
                       </p>
                     </>
                   );
@@ -4039,12 +4030,12 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                 </DialogTitle>
               </div>
               <DialogDescription className="text-base">
-                Are you sure you want to cancel this walk-in transaction? All entered information will be lost.
+                All entered information will be lost.
               </DialogDescription>
             </DialogHeader>
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg mt-2">
               <p className="text-sm text-red-700">
-                <strong>Warning:</strong> This action cannot be undone. Customer details, uploaded files, and all settings will be cleared.
+                <strong>Warning:</strong> This cannot be undone. Customer details, files and settings will be cleared.
               </p>
             </div>
             <DialogFooter className="flex gap-2 sm:gap-0">
@@ -4075,8 +4066,8 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
           onConfirm={() => { handleProceedToQueue(); setShowProceedConfirm(false); }}
           title="Place Walk-in Order?"
           description={isPhotocopy
-            ? `This will create a walk-in photocopy order (${photocopyCopies} ${photocopyCopies === 1 ? "copy" : "copies"}, ${photocopyPaperLabel(photocopyPaperSize)}, ${photocopyColorMode === "bw" ? "Black & White" : "Colored"}), with a staff-entered price of ${formatCurrency(photocopyPrice)}, and send it to the print queue immediately.`
-            : `This will create a walk-in order (${WALKIN_CUSTOMER_TYPE_LABELS[customerType]}) for your ${files.length} file(s), add any selected add-ons, total ${formatCurrency(calculateTotal())}, and send it to the print queue immediately.`}
+            ? `Creates a walk-in photocopy order (${photocopyCopies} ${photocopyCopies === 1 ? "copy" : "copies"}, ${photocopyPaperLabel(photocopyPaperSize)}, ${photocopyColorMode === "bw" ? "Black & White" : "Colored"}) at ${formatCurrency(photocopyPrice)} and sends it to the queue.`
+            : `Creates a walk-in order (${WALKIN_CUSTOMER_TYPE_LABELS[customerType]}) for ${files.length} file(s) totalling ${formatCurrency(calculateTotal())} and sends it to the queue.`}
           confirmLabel="Proceed to In Queue"
           cancelLabel="Go Back"
           destructive={false}

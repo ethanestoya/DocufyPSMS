@@ -115,7 +115,7 @@ function MobileSheet({
           panelRef.current?.focus({ preventScroll: true });
         }}
         aria-describedby={undefined}
-        className="fixed inset-x-0 bottom-0 left-0 top-auto z-50 flex max-h-[90vh] w-full max-w-full translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-t-[28px] rounded-b-none border-0 bg-white p-0 shadow-[0_-10px_40px_rgba(15,23,42,0.18)] outline-none data-[state=open]:slide-in-from-bottom-full data-[state=open]:duration-300 data-[state=closed]:slide-out-to-bottom-full data-[state=closed]:duration-200 sm:max-w-full [&>[data-slot=dialog-close]]:hidden"
+        className="fixed inset-x-0 top-[4vh] bottom-0 z-50 flex max-h-[96vh] w-full max-w-full translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-t-[28px] rounded-b-none border-0 bg-white p-0 shadow-[0_-10px_40px_rgba(15,23,42,0.18)] outline-none data-[state=open]:slide-in-from-bottom-full data-[state=open]:duration-300 data-[state=closed]:slide-out-to-bottom-full data-[state=closed]:duration-200 sm:max-w-full [&>[data-slot=dialog-close]]:hidden"
       >
         <div className="flex flex-shrink-0 justify-center pb-1 pt-2.5">
           <span className="h-1.5 w-10 rounded-full bg-slate-300" aria-hidden="true" />
@@ -281,6 +281,51 @@ export default function OrderTracking() {
       setOrderData(dataStore.getOrderById(orderId || ""));
     });
     return unsubscribe;
+  }, [orderId]);
+
+  // Poll so admin/staff status & payment changes appear live without a manual
+  // refresh (realtime delivery is not reliable for the customer session).
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const refresh = async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        await dataStore.refreshFromBackend();
+      } catch {
+        // keep stale data on failure
+      }
+      const next = dataStore.getOrderById(orderId || "");
+      if (next) setOrderData(next);
+    };
+
+    const start = () => {
+      if (intervalId) return;
+      intervalId = setInterval(refresh, 8000);
+    };
+    const stop = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void refresh();
+        start();
+      } else {
+        stop();
+      }
+    };
+
+    if (document.visibilityState === "visible") start();
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [orderId]);
 
   const currentOrderStatus = orderData?.status || "Awaiting Payment";
@@ -605,7 +650,7 @@ export default function OrderTracking() {
             Phone layout: one status card, an unclaimed/payment notice, the
             pickup panel, then a tappable "Order Details" list whose rows open
             bottom sheets. The stacked desktop cards below only render from md. */}
-        <div className="space-y-4 md:hidden">
+        <div className="space-y-4">
           <button
             type="button"
             onClick={() => navigate("/customer/orders")}
@@ -631,8 +676,34 @@ export default function OrderTracking() {
           {/* Current status + total/payment/placed, in one card. */}
           <section className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
             <div className={`border-l-4 p-4 ${statusStyle.accent}`}>
-              <div className="flex items-start justify-between gap-2">
-                <div className="inline-flex min-w-0 items-center gap-1 rounded-lg border border-slate-200 bg-[#FBFDFF] py-1 pl-2.5 pr-1">
+              {isUnclaimed && (
+                <div className="flex items-start justify-between gap-2">
+                  <span className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full border border-[#F0D9AE] bg-[#FFF6E6] px-2.5 py-1 text-[11px] font-semibold text-[#92610C]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#DC2626]" aria-hidden="true" />
+                    Unclaimed
+                  </span>
+                </div>
+              )}
+
+              <div className="mt-3.5 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span
+                    className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full ${statusStyle.bg}`}
+                  >
+                    {statusIconNode(`h-6 w-6 ${statusStyle.icon}`)}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.09em] text-slate-400">
+                      Current Status
+                    </p>
+                    <p
+                      className={`truncate text-[26px] font-bold leading-tight ${statusStyle.label}`}
+                    >
+                      {currentOrderLabel}
+                    </p>
+                  </div>
+                </div>
+                <div className="inline-flex min-w-0 items-center gap-1 rounded-lg border border-slate-200 bg-[#FBFDFF] py-1 pl-2.5 pr-1 flex-shrink-0">
                   <span className="truncate font-mono text-[11px] font-semibold tracking-tight text-slate-600">
                     {displayOrderId}
                   </span>
@@ -644,30 +715,6 @@ export default function OrderTracking() {
                   >
                     <Copy className="h-3.5 w-3.5" />
                   </button>
-                </div>
-                {isUnclaimed && (
-                  <span className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full border border-[#F0D9AE] bg-[#FFF6E6] px-2.5 py-1 text-[11px] font-semibold text-[#92610C]">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#DC2626]" aria-hidden="true" />
-                    Unclaimed
-                  </span>
-                )}
-              </div>
-
-              <div className="mt-3.5 flex items-center gap-3">
-                <span
-                  className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full ${statusStyle.bg}`}
-                >
-                  {statusIconNode(`h-6 w-6 ${statusStyle.icon}`)}
-                </span>
-                <div className="min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.09em] text-slate-400">
-                    Current Status
-                  </p>
-                  <p
-                    className={`truncate text-[26px] font-bold leading-tight ${statusStyle.label}`}
-                  >
-                    {currentOrderLabel}
-                  </p>
                 </div>
               </div>
 
@@ -1220,7 +1267,7 @@ export default function OrderTracking() {
         </div>
 
         {/* ── DESKTOP / TABLET ─────────────────────────────────────────────── */}
-        <div className="hidden space-y-4 md:block">
+        <div className="hidden">
 
         {/* Mobile back button (under the header) */}
         <button
@@ -1239,7 +1286,7 @@ export default function OrderTracking() {
             Order Tracking
           </h2>
           <p className="text-gray-500 mt-1">
-            Track your print job status - Order {orderId}
+            Track your print job status - Order {displayOrderId}
           </p>
         </div>
 
@@ -1475,7 +1522,7 @@ export default function OrderTracking() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-xs text-gray-600">Order ID</Label>
-                <p className="font-semibold text-gray-900">{orderId}</p>
+                <p className="font-semibold text-gray-900">{displayOrderId}</p>
               </div>
               <div>
                 <Label className="text-xs text-gray-600">Status</Label>
@@ -1878,7 +1925,7 @@ export default function OrderTracking() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-[#2F6FD6]" />
-              Page Color Breakdown - Order {orderId}
+              Page Color Breakdown - Order {displayOrderId}
             </DialogTitle>
             <DialogDescription>
               Detailed color analysis for each page in your document
@@ -1991,13 +2038,13 @@ export default function OrderTracking() {
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2 sm:gap-0 sm:justify-between">
             <Button variant="outline" onClick={() => setShowCancelDialog(false)} className="bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-900">
               Keep Order
             </Button>
             <Button
               onClick={handleCancelOrder}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-red-600 hover:bg-red-700 text-white border-0"
               disabled={!cancellationReason.trim()}
             >
               Confirm Cancellation

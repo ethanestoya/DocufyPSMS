@@ -679,7 +679,7 @@ export default function NotificationsPage() {
             setDeleteTarget(null);
           }}
           title="Delete this notification?"
-          description={`"${deleteTarget.title}" will be permanently removed. All users will no longer see this notification. This action cannot be undone.`}
+          description={`"${deleteTarget.title}" is removed for everyone. This cannot be undone.`}
           confirmLabel="Delete Notification"
           cancelLabel="Keep It"
           requirePhrase

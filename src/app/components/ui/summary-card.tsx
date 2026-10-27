@@ -1,14 +1,22 @@
 import React from "react";
 import type { LucideIcon } from "lucide-react";
+import { cn } from "./utils";
 
 export interface SummaryCardProps {
   label: React.ReactNode;
   value: React.ReactNode;
   icon?: LucideIcon;
+  /**
+   * @deprecated The icon is drawn as a plain glyph now, not inside a filled
+   * chip, so a chip background has no visual effect. Kept so existing call
+   * sites still compile.
+   */
   iconBg?: string;
   iconColor?: string;
   labelColor?: string;
   valueColor?: string;
+  /** Replaces the value typography — for cards whose value is text, not a number. */
+  valueClassName?: string;
   subtitle?: React.ReactNode;
   active?: boolean;
   activeBorder?: string;
@@ -16,48 +24,59 @@ export interface SummaryCardProps {
   highlight?: boolean;
   onClick?: () => void;
   className?: string;
+  /** Extra classes on the icon glyph itself (e.g. `animate-pulse`). */
   chipClassName?: string;
-  /** Optional trailing node (e.g. a chevron hinting the card leads somewhere). */
+  /** Optional node in the top-right corner (e.g. a chevron hinting a destination). */
   trailing?: React.ReactNode;
 }
 
+/**
+ * The system-wide summary card: a white card with the icon on top, the label
+ * beneath it and the figure pinned to the bottom, so a row of cards always
+ * lines its numbers up even when one label wraps to two lines. Sizing is
+ * deliberately tight — a card that only carries a count must not push the
+ * table below it off the first screen.
+ */
 export function SummaryCard({
   label,
   value,
   icon: Icon,
-  iconBg = "bg-blue-50",
   iconColor = "text-[#2F6FD6]",
-  labelColor = "text-slate-600",
+  labelColor = "text-slate-500",
   valueColor = "text-slate-900",
+  valueClassName,
   subtitle,
   active = false,
   activeBorder = "border-[#2F6FD6]",
   activeBg = "bg-[#F2F7FF]",
   highlight = false,
   onClick,
-  className = "",
+  className,
   chipClassName = "",
   trailing,
 }: SummaryCardProps) {
   const clickable = typeof onClick === "function";
   const isActive = active && !highlight;
 
-  const shell = [
-    "p-4 rounded-xl border flex items-center gap-4 flex-row transition-all",
+  const shell = cn(
+    "flex h-full flex-col rounded-[20px] border p-4 transition-all",
     highlight
-      ? "border-[#1668D9] bg-[#1668D9] shadow-none"
+      ? "border-[#1668D9] bg-[#1668D9] shadow-[0_16px_32px_-22px_rgba(22,104,217,0.85)]"
       : isActive
-        ? `${activeBorder} ${activeBg} shadow-[0_1px_2px_rgba(15,23,42,0.04)]`
-        : "border-slate-200/70 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]",
-    clickable && !highlight ? "cursor-pointer hover:border-[#2F6FD6]/40" : "",
+        ? cn(
+            activeBg,
+            activeBorder,
+            "shadow-[0_10px_30px_-18px_rgba(15,23,42,0.45)]",
+          )
+        : "border-slate-200/60 bg-white shadow-[0_10px_30px_-18px_rgba(15,23,42,0.35)]",
+    clickable &&
+      !highlight &&
+      "cursor-pointer hover:-translate-y-0.5 hover:border-[#2F6FD6]/40 hover:shadow-[0_16px_34px_-18px_rgba(15,23,42,0.4)]",
     className,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  );
 
-  const chip = highlight ? "bg-white/20" : iconBg;
   const iconCls = highlight ? "text-white" : iconColor;
-  const labelCls = highlight ? "text-white/90" : labelColor;
+  const labelCls = highlight ? "text-white/85" : labelColor;
   const valueCls = highlight ? "text-white" : valueColor;
 
   return (
@@ -66,25 +85,44 @@ export function SummaryCard({
       role={clickable ? "button" : undefined}
       onClick={clickable ? onClick : undefined}
     >
-      {Icon && (
-        <div
-          className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${chip} ${chipClassName}`}
-        >
-          <Icon className={`w-5 h-5 ${iconCls}`} />
+      {(Icon || trailing !== undefined) && (
+        <div className="flex items-start justify-between gap-3">
+          {Icon ? (
+            <Icon
+              className={cn("h-5 w-5 shrink-0", iconCls, chipClassName)}
+              strokeWidth={1.75}
+            />
+          ) : (
+            <span />
+          )}
+          {trailing !== undefined && <div className="shrink-0">{trailing}</div>}
         </div>
       )}
-      <div className="flex-1 min-w-0">
-        <p className={`text-xs font-medium truncate ${labelCls}`}>{label}</p>
-        <p className={`text-xl sm:text-2xl font-semibold leading-tight mt-1 ${valueCls}`}>
-          {value}
-        </p>
-        {subtitle !== undefined && (
-          <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[11px] text-slate-500 font-medium">
-            {subtitle}
-          </div>
+
+      <p className={cn("mt-3 text-[12.5px] font-medium leading-[1.4]", labelCls)}>
+        {label}
+      </p>
+
+      <p
+        className={cn(
+          "mt-auto pt-1.5 text-[22px] font-bold leading-none tracking-tight",
+          valueCls,
+          valueClassName,
         )}
-      </div>
-      {trailing !== undefined && <div className="shrink-0">{trailing}</div>}
+      >
+        {value}
+      </p>
+
+      {subtitle !== undefined && (
+        <div
+          className={cn(
+            "mt-1.5 flex flex-wrap items-center gap-1.5 text-[11.5px] font-medium",
+            highlight ? "text-white/80" : "text-slate-500",
+          )}
+        >
+          {subtitle}
+        </div>
+      )}
     </div>
   );
 }

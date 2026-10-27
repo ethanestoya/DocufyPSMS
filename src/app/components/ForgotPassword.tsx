@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, Mail, MailCheck, RefreshCw } from 'lucide-react';
-import { toast } from 'sonner';
+import { usePopup } from '../contexts/PopupContext';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -18,6 +18,7 @@ export default function ForgotPassword() {
   usePageTitle('Reset password');
   const navigate = useNavigate();
   const logo = useLogo();
+  const { showPopup } = usePopup();
   const { requestPasswordReset } = useAuth();
   const [email, setEmail] = useState('');
   const [sentTo, setSentTo] = useState('');
@@ -34,9 +35,9 @@ export default function ForgotPassword() {
 
     if (result.success) {
       setSentTo(target);
-      toast.success('Password reset link sent. Check your inbox.');
+      showPopup('Password reset link sent. Check your inbox.', 'success');
     } else {
-      toast.error(result.error || 'We could not send the reset link. Please try again.');
+      showPopup(result.error || 'We could not send the reset link. Please try again.', 'error');
     }
   };
 
@@ -46,9 +47,9 @@ export default function ForgotPassword() {
     setSending(false);
 
     if (result.success) {
-      toast.success('A new reset link is on its way.');
+      showPopup('A new reset link is on its way.', 'success');
     } else {
-      toast.error(result.error || 'We could not resend the reset link. Please try again.');
+      showPopup(result.error || 'We could not resend the reset link. Please try again.', 'error');
     }
   };
 

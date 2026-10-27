@@ -10,7 +10,7 @@ import {
 import { Button } from './button';
 import { Input } from './input';
 import { Label } from './label';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, CheckCircle } from 'lucide-react';
 
 interface ConfirmationDialogProps {
   open: boolean;
@@ -26,7 +26,9 @@ interface ConfirmationDialogProps {
   description: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  hideCancel?: boolean;
   destructive?: boolean;
+  success?: boolean;
   requirePhrase?: boolean;
   confirmationPhrase?: string;
   loading?: boolean;
@@ -48,7 +50,9 @@ export function ConfirmationDialog({
   description,
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
+  hideCancel = false,
   destructive = false,
+  success = false,
   requirePhrase = false,
   confirmationPhrase = "Docufy",
   loading = false,
@@ -135,14 +139,20 @@ export function ConfirmationDialog({
             <div className="flex items-center gap-3 mb-2">
               <div
                 className={`w-10 h-10 rounded-full ring-1 flex items-center justify-center flex-shrink-0 ${
-                  destructive
+                  success
+                    ? "bg-green-50 ring-green-200"
+                    : destructive
                     ? "bg-red-50 ring-red-200"
                     : "bg-[#F2F7FF] ring-[#1668D9]/10"
                 }`}
               >
-                <AlertTriangle
-                  className={`w-5 h-5 ${destructive ? "text-red-500" : "text-[#1668D9]"}`}
-                />
+                {success ? (
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                ) : (
+                  <AlertTriangle
+                    className={`w-5 h-5 ${destructive ? "text-red-500" : "text-[#1668D9]"}`}
+                  />
+                )}
               </div>
               <DialogTitle className="text-xl">{title}</DialogTitle>
             </div>
@@ -182,15 +192,17 @@ export function ConfirmationDialog({
           )}
 
           <DialogFooter className="gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={busy}
-              className="bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200 hover:text-gray-900"
-            >
-              {cancelLabel}
-            </Button>
+            {!hideCancel && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={busy}
+                className="bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200 hover:text-gray-900"
+              >
+                {cancelLabel}
+              </Button>
+            )}
             <Button
               type="submit"
               variant={destructive ? "destructive" : "default"}

@@ -10,11 +10,10 @@
 // Activity now means an intentional input (key, click, scroll, touch, focus).
 // One minute before the sign-out, a persistent toast offers "Stay signed in"
 // which resets the clock.
-import { toast } from 'sonner';
+import { triggerGlobalPopup, closeGlobalPopup } from '../contexts/PopupContext';
 
 const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes
 const WARNING_LEAD = 60 * 1000; // warn 1 minute before sign-out
-const WARNING_TOAST_ID = 'docufy-idle-warning';
 
 class SessionManager {
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -45,23 +44,19 @@ class SessionManager {
       clearTimeout(this.warningId);
       this.warningId = null;
     }
-    toast.dismiss(WARNING_TOAST_ID);
+    closeGlobalPopup();
   }
 
   private resetTimer() {
     this.clearTimers();
 
     this.warningId = setTimeout(() => {
-      toast('Still there?', {
-        id: WARNING_TOAST_ID,
-        description:
-          "You'll be signed out in 1 minute because of inactivity. Any unsaved changes will be lost.",
-        duration: Infinity,
-        action: {
-          label: 'Stay signed in',
-          onClick: () => this.resetTimer(),
-        },
-      });
+      triggerGlobalPopup(
+        "You'll be signed out in 1 minute because of inactivity. Any unsaved changes will be lost.",
+        'info',
+        'Still there?',
+        { label: 'Stay signed in', onClick: () => this.resetTimer() },
+      );
     }, Math.max(INACTIVITY_TIMEOUT - WARNING_LEAD, 0));
 
     this.timeoutId = setTimeout(() => {

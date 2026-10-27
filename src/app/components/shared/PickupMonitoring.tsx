@@ -276,9 +276,7 @@ export default function PickupMonitoring({
             <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
               <span>
-                Pickup deadlines cannot be computed yet — set the shop closing time
-                in Admin → Landing Page → Shop Information to start tracking
-                overdue and unclaimed orders.
+                Pickup deadlines cannot be computed yet — set the shop closing time in Admin → Landing Page → Shop Information.
               </span>
             </div>
           )}
@@ -287,8 +285,7 @@ export default function PickupMonitoring({
             <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
               <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-500" />
               <span>
-                Unclaimed-order information is unavailable right now — some order
-                status history could not be read.
+                Order status history could not be read.
               </span>
             </div>
           )}
@@ -388,8 +385,6 @@ export default function PickupMonitoring({
                           </p>
                           <p className="mt-1 max-w-md text-xs text-gray-500">
                             Orders appear here once they are completed or released.
-                            Overdue and unclaimed orders are tracked automatically
-                            once the shop closing time is configured.
                           </p>
                         </div>
                       </td>

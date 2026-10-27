@@ -186,8 +186,7 @@ export default function PaymentMethodsManagement() {
         {/* Header */}
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
           <p className="text-gray-600 mt-1">
-            Manage the online payment methods customers can use. Any changes
-            here instantly update the customer side.
+            Changes apply to the customer side immediately.
           </p>
           <Button
             className="h-11 sm:h-10 w-full sm:w-auto bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
@@ -344,8 +343,8 @@ export default function PaymentMethodsManagement() {
             </DialogTitle>
             <DialogDescription>
               {editingId
-                ? "Update the payment method details. Customers see changes immediately."
-                : "Create an online payment method. Customers can pay with it right away."}
+                ? "Customers see changes immediately."
+                : "Available to customers right away."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -360,8 +359,7 @@ export default function PaymentMethodsManagement() {
                 className="h-11 bg-white text-sm border-gray-300 focus:border-[#2F6FD6] focus:ring-[#2F6FD6]/20"
               />
               <p className="text-xs text-gray-500">
-                Auto-detection of the reference number only works for GCash.
-                Other methods require the customer to enter the reference manually.
+                Reference auto-detection only works for GCash; other methods are entered manually.
               </p>
             </div>
 
@@ -488,8 +486,8 @@ export default function PaymentMethodsManagement() {
           title={editingId ? "Save Changes?" : "Add Payment Method?"}
           description={
             editingId
-              ? `Are you sure you want to update "${form.name.trim()}"? Its name, account details, and QR code will change immediately for customers.`
-              : `Create payment method "${form.name.trim()}"? It becomes available on the customer payment page immediately.`
+              ? `Its name, account details and QR code change immediately for customers.`
+              : `Available on the customer payment page immediately.`
           }
           confirmLabel={editingId ? "Save Changes" : "Add Payment Method"}
           cancelLabel="Go Back"
@@ -511,7 +509,7 @@ export default function PaymentMethodsManagement() {
           title={toggleMethod.active ? "Deactivate Payment Method?" : "Activate Payment Method?"}
           description={
             toggleMethod.active
-              ? `Deactivate "${toggleMethod.name}"? Customers will no longer be able to select it for new payments (existing orders keep their reference).`
+              ? `Deactivate "${toggleMethod.name}"? Customers can no longer choose it. Existing orders keep their reference.`
               : `Activate "${toggleMethod.name}" so customers can pay with it again?`
           }
           confirmLabel={toggleMethod.active ? "Deactivate" : "Activate"}
@@ -529,7 +527,7 @@ export default function PaymentMethodsManagement() {
           loadingText="Removing..."
           closeOnConfirm={false}
           title="Remove Payment Method?"
-          description={`This permanently removes "${deleting.name}" from the system. Existing orders that used it keep their payment reference, but customers can no longer select it. This cannot be undone.`}
+          description={`Remove "${deleting.name}"? Existing orders keep their reference. This cannot be undone.`}
           confirmLabel="Remove"
           cancelLabel="Keep Item"
           destructive

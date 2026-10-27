@@ -81,9 +81,7 @@ export default function UnclaimedRestrictions({
             Back to Unclaimed Orders
           </Button>
           <p className="max-w-2xl text-sm text-slate-500">
-            A restriction applies automatically from a customer&apos;s second
-            unclaimed order. Restrictions are derived from each customer&apos;s
-            unclaimed-order count and cannot be overridden here.
+            Applies automatically from a customer&apos;s second unclaimed order.
           </p>
 
           <Card className="p-4 border border-slate-100 shadow-sm shrink-0">
@@ -210,8 +208,7 @@ export default function UnclaimedRestrictions({
           </div>
 
           <p className="text-xs text-gray-500">
-            Restrictions are derived automatically from each customer&apos;s
-            unclaimed-order count and cannot be overridden here.
+            Derived automatically from each customer&apos;s unclaimed-order count.
           </p>
         </div>
       </StaffTimeInGate>

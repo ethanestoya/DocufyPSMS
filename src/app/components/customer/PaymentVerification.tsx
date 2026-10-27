@@ -1217,7 +1217,7 @@ onClick={goToNewRequest}
                   type="submit"
                   loading={submitting}
                   loadingText="Submitting..."
-                  className="w-full h-11 sm:flex-1 sm:h-9 bg-[#1668D9] text-white border-2 border-[#1668D9] hover:bg-[#10316B]"
+className="w-full h-11 sm:flex-1 sm:h-9 bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white hover:-translate-y-0.5 hover:shadow-md"
                 >
                   Submit Reference
                 </Button>

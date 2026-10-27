@@ -650,7 +650,7 @@ export default function OrderTracking() {
             Phone layout: one status card, an unclaimed/payment notice, the
             pickup panel, then a tappable "Order Details" list whose rows open
             bottom sheets. The stacked desktop cards below only render from md. */}
-        <div className="space-y-4 md:hidden">
+        <div className="space-y-4">
           <button
             type="button"
             onClick={() => navigate("/customer/orders")}
@@ -1265,7 +1265,7 @@ export default function OrderTracking() {
         </div>
 
         {/* ── DESKTOP / TABLET ─────────────────────────────────────────────── */}
-        <div className="hidden space-y-4 md:block">
+        <div className="hidden">
 
         {/* Mobile back button (under the header) */}
         <button

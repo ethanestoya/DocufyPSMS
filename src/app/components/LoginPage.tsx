@@ -365,8 +365,11 @@ export default function LoginPage() {
               Organization email required
             </DialogTitle>
             <DialogDescription>
-              Only corporate/organization email addresses are allowed. Personal
-              emails (Gmail, Yahoo, Outlook, etc.) cannot be used to sign in.
+              Non-corporate email accounts are not allowed. Use this organization
+              email address:{" "}
+              <span className="font-semibold text-red-600">
+                name@psu.palawan.edu.ph
+              </span>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -385,7 +388,7 @@ export default function LoginPage() {
         open={showGoogleConfirm}
         onOpenChange={setShowGoogleConfirm}
         title="Continue with Google?"
-        description="Only corporate/organization email addresses are allowed. Personal emails (Gmail, Yahoo, Outlook, etc.) cannot be used to sign in."
+        description="Non-corporate email accounts are not allowed. Use this organization email address: name@psu.palawan.edu.ph."
         confirmLabel="Proceed"
         icon={
           <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden="true">

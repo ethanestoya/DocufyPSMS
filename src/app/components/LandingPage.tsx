@@ -451,21 +451,54 @@ export default function LandingPage({
                 <span className="w-2 h-2 bg-[#1668D9] rounded-full animate-pulse"></span>
                 {content.heroSubtitle}
               </div>
-              <h2 className="mb-5 font-bold leading-tight text-[#1c1f26] text-[clamp(2.25rem,7vw,3rem)] lg:text-[clamp(3rem,4.4vw,5rem)]">
-                {content.heroTitle
-                  .split(",")
-                  .map((line) => line.trim())
-                  .filter(Boolean)
-                  .map((line, i) => (
-                    <span
-                      key={i}
-                      className={`block ${
-                        line.includes("#b") ? "text-[#1668D9]" : ""
-                      }`}
-                    >
-                      {line.replace(/#b/gi, "").trim()}
-                    </span>
-                  ))}
+<h2 className="mb-5 font-bold leading-tight text-[#1c1f26] text-[clamp(2.25rem,7vw,3rem)] lg:text-[clamp(3rem,4.4vw,5rem)]">
+                {/* Mobile: "Print, Track" on one line, "Succeed" below */}
+                <span className="lg:hidden">
+                  {content.heroTitle
+                    .split(",")
+                    .map((line) => line.trim())
+                    .filter(Boolean)
+                    .slice(0, -1)
+                    .map((line) => line.replace("#b", "").trim())
+                    .join(", ")}
+                </span>
+                <span
+                  className={`lg:hidden block ${
+                    content.heroTitle
+                      .split(",")
+                      .map((l) => l.trim())
+                      .filter(Boolean)
+                      .slice(-1)[0]
+                      ?.includes("#b")
+                      ? "text-[#1668D9]"
+                      : ""
+                  }`}
+                >
+                  {content.heroTitle
+                    .split(",")
+                    .map((line) => line.trim())
+                    .filter(Boolean)
+                    .slice(-1)[0]
+                    ?.replace("#b", "")
+                    .trim()}
+                </span>
+                {/* Desktop: each part on its own line */}
+                <span className="hidden lg:contents">
+                  {content.heroTitle
+                    .split(",")
+                    .map((line) => line.trim())
+                    .filter(Boolean)
+                    .map((line, i) => (
+                      <span
+                        key={i}
+                        className={`block ${
+                          line.includes("#b") ? "text-[#1668D9]" : ""
+                        }`}
+                      >
+                        {line.replace("#b", "").trim()}
+                      </span>
+                    ))}
+                </span>
               </h2>
               <p className="mb-7 max-w-xl text-gray-600 text-[clamp(1rem,1.46vw,2rem)]">
                 {content.heroDescription}

@@ -278,7 +278,7 @@ export default function LegalManagement() {
           <div className="flex gap-2">
             <Button
               variant="outline"
-              className="h-11 sm:h-10 w-full sm:w-auto bg-white border-2 border-[#2F6FD6]/40 text-[#2F6FD6] hover:bg-[#2F6FD6] hover:text-white hover:-translate-y-0.5 hover:shadow-md"
+              className="h-11 sm:h-10 w-full sm:w-auto bg-[#2F6FD6] text-white hover:bg-[#2557b8]"
               onClick={() => setShowPreview(true)}
             >
               Preview

@@ -459,8 +459,15 @@ export default function LandingPage({
                     .map((line) => line.trim())
                     .filter(Boolean)
                     .slice(0, -1)
-                    .map((line) => line.replace("#b", "").trim())
-                    .join(", ")}
+                    .map((line, i, arr) => (
+                      <span
+                        key={i}
+                        className={line.includes("#b") ? "text-[#1668D9]" : ""}
+                      >
+                        {line.replace("#b", "").trim()}
+                        {i < arr.length - 1 ? ", " : ""}
+                      </span>
+                    ))}
                 </span>
                 <span
                   className={`lg:hidden block ${

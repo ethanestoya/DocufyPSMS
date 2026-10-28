@@ -631,7 +631,7 @@ export default function LandingPage({
               </div>
               <div className="pt-6 mt-7 border-t border-gray-100">
                 <div className="text-[clamp(2.25rem,2.64vw,5rem)] font-bold text-[#1668D9]">
-                  ?{matrix.document.text.bw.a4.toFixed(2)}{" "}
+                  ₱{matrix.document.text.bw.a4.toFixed(2)}{" "}
                   <span className="text-base font-normal text-gray-500">
                     per page
                   </span>
@@ -642,7 +642,7 @@ export default function LandingPage({
             <Card data-services-card="1" className="relative flex w-[85%] shrink-0 snap-center flex-col overflow-hidden rounded-2xl bg-[#1668D9] p-8 text-white shadow-xl transition-all duration-200 hover:scale-105 hover:shadow-2xl md:w-auto">
               <div className="absolute top-0 right-0 w-24 h-24 bg-white opacity-10 rounded-full -translate-y-12 translate-x-12" />
               <div className="absolute bottom-0 left-0 w-16 h-16 bg-white opacity-10 rounded-full translate-y-8 -translate-x-8" />
-              <div className="relative z-10 flex flex-col">
+              <div className="relative z-10 flex flex-1 flex-col">
                 <div className="flex items-start justify-between">
                   <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
                     <Palette className="w-8 h-8 text-white" />
@@ -669,9 +669,9 @@ export default function LandingPage({
                     ))}
                   </dl>
                 </div>
-                <div className="pt-6 mt-7 border-t border-white/15">
-                  <div className="text-[clamp(2.25rem,2.64vw,5rem)] font-bold">
-                    ?{matrix.document.text.full.a4.toFixed(2)}{" "}
+<div className="pt-6 mt-7 border-t border-white/15">
+                  <div className="text-[clamp(2.25rem,2.64vw,5rem)] font-bold text-white">
+                    ₱{matrix.document.text.full.a4.toFixed(2)}{" "}
                     <span className="text-base font-normal text-white/80">
                       per page
                     </span>
@@ -709,7 +709,7 @@ export default function LandingPage({
               </div>
               <div className="pt-6 mt-7 border-t border-gray-100">
                 <div className="text-[clamp(2.25rem,2.64vw,5rem)] font-bold text-[#1668D9]">
-                  ?{Math.min(matrix.vellum.bw.a4, matrix.sticker.bw, matrix.photo["2R"].price).toFixed(2)}{" "}
+                  ₱{Math.min(matrix.vellum.bw.a4, matrix.sticker.bw, matrix.photo["2R"].price).toFixed(2)}{" "}
                   <span className="text-base font-normal text-gray-500">
                     from
                   </span>

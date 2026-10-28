@@ -388,7 +388,15 @@ export default function LoginPage() {
         open={showGoogleConfirm}
         onOpenChange={setShowGoogleConfirm}
         title="Continue with Google?"
-        description="Non-corporate email accounts are not allowed. Use this organization email address: name@psu.palawan.edu.ph."
+        description={
+          <>
+            Non-corporate email accounts are not allowed. Use this organization
+            email address:{" "}
+            <span className="font-semibold text-red-600">
+              name@psu.palawan.edu.ph
+            </span>
+          </>
+        }
         confirmLabel="Proceed"
         icon={
           <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden="true">

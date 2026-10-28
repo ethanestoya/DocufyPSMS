@@ -246,7 +246,7 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="@psu.palawan.edu.ph"
+                  placeholder="name@psu.palawan.edu.ph"
                   className="h-10 bg-[#F2F7FF] border-transparent rounded-xl text-sm"
                   autoComplete="email"
                   required

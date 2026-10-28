@@ -97,7 +97,7 @@ function buildFormData(
     lastName: saved?.lastName || defaultLastName,
     email: user?.email || saved?.email || '',
     phone: saved?.phone ?? user?.phone ?? '',
-    studentId: saved?.studentId || '',
+    studentId: saved?.studentId || user?.studentId || '',
   };
 }
 
@@ -160,6 +160,7 @@ export default function CustomerProfile() {
 
   const displayName = `${formData.firstName} ${formData.lastName}`.trim() || user?.name || 'Customer User';
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('') || 'U';
+  const studentIdValue = formData.studentId || user?.studentId || '';
 
   const handleProfileImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -422,9 +423,10 @@ export default function CustomerProfile() {
                     <Input
                       id="studentId"
                       type="text"
-                      value={formData.studentId}
+                      value={studentIdValue}
+                      readOnly
                       disabled
-                      className="bg-gray-50 text-gray-500"
+                      className="bg-gray-50 text-gray-600 cursor-not-allowed"
                     />
                   </div>
                   <p className="flex items-center gap-1 text-xs text-gray-500">
@@ -461,7 +463,7 @@ export default function CustomerProfile() {
                 <InfoRow icon={<User className="h-4 w-4" />} label="Last Name" value={formData.lastName} />
                 <InfoRow icon={<Mail className="h-4 w-4" />} label="Email Address" value={formData.email} />
                 <InfoRow icon={<Phone className="h-4 w-4" />} label="Contact Number" value={formData.phone} />
-                <InfoRow icon={<FileText className="h-4 w-4" />} label="Student ID" value={formData.studentId} />
+                <InfoRow icon={<FileText className="h-4 w-4" />} label="Student ID" value={studentIdValue || '—'} />
               </div>
             </div>
           </Card>

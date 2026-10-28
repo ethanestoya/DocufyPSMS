@@ -285,14 +285,14 @@ export default function LegalManagement() {
             </Button>
             <Button
               variant="outline"
-              className="h-11 sm:h-10 w-full sm:w-auto border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              className="h-11 sm:h-10 w-full sm:w-auto border-red-600 bg-red-600 text-white hover:bg-red-700 hover:border-red-700"
               onClick={() => setShowResetConfirm(true)}
             >
               <RotateCcw className="w-4 h-4 mr-2" /> Reset
             </Button>
             <Button
               variant="outline"
-              className="h-11 sm:h-10 w-full sm:w-auto border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              className="h-11 sm:h-10 w-full sm:w-auto border-red-600 bg-red-600 text-white hover:bg-red-700 hover:border-red-700"
               onClick={() => setShowClearAllConfirm(true)}
             >
               <Trash2 className="w-4 h-4 mr-2" /> Clear All

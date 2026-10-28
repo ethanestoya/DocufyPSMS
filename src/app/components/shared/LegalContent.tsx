@@ -47,7 +47,7 @@ export function renderLegalBody(body: string): React.ReactNode[] {
         </ul>
       );
     }
-    return <p key={i} className="mb-2 last:mb-0">{lines.join(" ")}</p>;
+    return <p key={i} className="mb-4 last:mb-0">{lines.join(" ")}</p>;
   });
 }
 

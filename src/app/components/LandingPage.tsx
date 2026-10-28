@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import {
   Clock,
@@ -263,7 +263,7 @@ export default function LandingPage({
   ];
 
   return (
-    <div ref={landingRootRef} className="min-h-screen bg-[#F2F7FF] relative overflow-clip">
+    <div ref={landingRootRef} className="min-h-screen bg-[#F2F7FF] relative overflow-clip animate-in fade-in duration-200">
       {/* Decorative Background Elements */}
       <div className="absolute top-0 left-0 w-96 h-96 bg-[#1668D9] rounded-full opacity-5 blur-3xl -translate-x-48 -translate-y-48 pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#10316B] rounded-full opacity-5 blur-3xl translate-x-48 translate-y-48 pointer-events-none" />
@@ -451,21 +451,61 @@ export default function LandingPage({
                 <span className="w-2 h-2 bg-[#1668D9] rounded-full animate-pulse"></span>
                 {content.heroSubtitle}
               </div>
-              <h2 className="mb-5 font-bold leading-tight text-[#1c1f26] text-[clamp(2.25rem,7vw,3rem)] lg:text-[clamp(3rem,4.4vw,5rem)]">
-                {content.heroTitle
-                  .split(",")
-                  .map((line) => line.trim())
-                  .filter(Boolean)
-                  .map((line, i) => (
-                    <span
-                      key={i}
-                      className={`block ${
-                        line.includes("#b") ? "text-[#1668D9]" : ""
-                      }`}
-                    >
-                      {line.replace(/#b/gi, "").trim()}
-                    </span>
-                  ))}
+<h2 className="mb-5 font-bold leading-tight text-[#1c1f26] text-[clamp(2.25rem,7vw,3rem)] lg:text-[clamp(3rem,4.4vw,5rem)]">
+                {/* Mobile: "Print, Track" on one line, "Succeed" below */}
+                <span className="lg:hidden">
+                  {content.heroTitle
+                    .split(",")
+                    .map((line) => line.trim())
+                    .filter(Boolean)
+                    .slice(0, -1)
+                    .map((line, i, arr) => (
+                      <span
+                        key={i}
+                        className={line.includes("#b") ? "text-[#1668D9]" : ""}
+                      >
+                        {line.replace("#b", "").trim()}
+                        {i < arr.length - 1 ? ", " : ""}
+                      </span>
+                    ))}
+                </span>
+                <span
+                  className={`lg:hidden block ${
+                    content.heroTitle
+                      .split(",")
+                      .map((l) => l.trim())
+                      .filter(Boolean)
+                      .slice(-1)[0]
+                      ?.includes("#b")
+                      ? "text-[#1668D9]"
+                      : ""
+                  }`}
+                >
+                  {content.heroTitle
+                    .split(",")
+                    .map((line) => line.trim())
+                    .filter(Boolean)
+                    .slice(-1)[0]
+                    ?.replace("#b", "")
+                    .trim()}
+                </span>
+                {/* Desktop: each part on its own line */}
+                <span className="hidden lg:contents">
+                  {content.heroTitle
+                    .split(",")
+                    .map((line) => line.trim())
+                    .filter(Boolean)
+                    .map((line, i) => (
+                      <span
+                        key={i}
+                        className={`block ${
+                          line.includes("#b") ? "text-[#1668D9]" : ""
+                        }`}
+                      >
+                        {line.replace("#b", "").trim()}
+                      </span>
+                    ))}
+                </span>
               </h2>
               <p className="mb-7 max-w-xl text-gray-600 text-[clamp(1rem,1.46vw,2rem)]">
                 {content.heroDescription}
@@ -602,7 +642,7 @@ export default function LandingPage({
             <Card data-services-card="1" className="relative flex w-[85%] shrink-0 snap-center flex-col overflow-hidden rounded-2xl bg-[#1668D9] p-8 text-white shadow-xl transition-all duration-200 hover:scale-105 hover:shadow-2xl md:w-auto">
               <div className="absolute top-0 right-0 w-24 h-24 bg-white opacity-10 rounded-full -translate-y-12 translate-x-12" />
               <div className="absolute bottom-0 left-0 w-16 h-16 bg-white opacity-10 rounded-full translate-y-8 -translate-x-8" />
-              <div className="relative z-10 flex flex-col">
+              <div className="relative z-10 flex flex-1 flex-col">
                 <div className="flex items-start justify-between">
                   <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
                     <Palette className="w-8 h-8 text-white" />
@@ -629,8 +669,8 @@ export default function LandingPage({
                     ))}
                   </dl>
                 </div>
-                <div className="pt-6 mt-7 border-t border-white/15">
-                  <div className="text-[clamp(2.25rem,2.64vw,5rem)] font-bold">
+<div className="pt-6 mt-7 border-t border-white/15">
+                  <div className="text-[clamp(2.25rem,2.64vw,5rem)] font-bold text-white">
                     ₱{matrix.document.text.full.a4.toFixed(2)}{" "}
                     <span className="text-base font-normal text-white/80">
                       per page

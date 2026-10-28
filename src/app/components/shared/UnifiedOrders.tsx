@@ -1391,7 +1391,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
         }}
       >
         <DialogContent
-          className="sm:max-w-[700px] max-h-[calc(100dvh-2rem)] p-0 flex flex-col gap-0 overflow-hidden rounded-[20px] border-[#D5DBE5] [font-family:Inter,ui-sans-serif,system-ui,sans-serif] [&_[data-slot=dialog-close]]:hidden"
+          className="sm:max-w-[700px] max-h-[calc(100dvh-2rem)] p-0 flex flex-col gap-0 overflow-hidden rounded-2xl [font-family:inherit] [&_[data-slot=dialog-close]]:hidden"
           onInteractOutside={(event) => event.preventDefault()}
           onOpenAutoFocus={(event) => {
             // Focus the dialog itself, so opening it announces the order rather
@@ -1403,12 +1403,11 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
           {selectedOrder && (
             <>
               {/* Header — the order number and its state, stated once */}
-              <DialogHeader className="flex-row items-start justify-between gap-4 space-y-0 px-6 pt-5 pb-4 text-left">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
-                    <DialogTitle className="text-[22px] font-bold leading-none tracking-[-0.01em] text-[#111827]">
-                      {selectedOrder.displayId ?? selectedOrder.id}
-                    </DialogTitle>
+              <DialogHeader className="flex-row items-center justify-between gap-3 space-y-0 px-5 pt-5 pb-0 pr-12 text-left">
+                <div className="min-w-0 flex items-center gap-2">
+                  <DialogTitle className="text-lg font-semibold leading-none text-[#1c1f26]">
+                    {selectedOrder.displayId ?? selectedOrder.id}
+                  </DialogTitle>
                     <Badge
                       variant="outline"
                       className={`gap-1.5 border-transparent text-[12px] font-semibold ${getStatusBadgeClasses(
@@ -1431,7 +1430,6 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                         Locked by {lockHolder}
                       </Badge>
                     )}
-                  </div>
                   <DialogDescription className="mt-2.5 text-[13.5px] leading-relaxed text-[#6B7280]">
                     {selectedOrder.customerEmail ? (
                       <span

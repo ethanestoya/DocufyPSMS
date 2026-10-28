@@ -102,7 +102,7 @@ const LARGE_DOC_CAP = 192; // cheaper cap for very long documents
 const SAT_THRESHOLD = 0.18;
 // A page must reach this % of colored pixels to count as colored (>=); pages
 // with only ~1% (a tiny logo, an underline, antialiased edges) stay B&W.
-const MIN_COLOR_PCT = 2;
+const MIN_COLOR_PCT = 1;
 
 type PixelScan = { colored: number; total: number };
 

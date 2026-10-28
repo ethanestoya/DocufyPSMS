@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import {
   LayoutDashboard,
@@ -143,7 +143,7 @@ export default function JobBoard() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div>
             <p className="text-sm text-gray-500 sm:text-base">
-              Browse opportunities at Docufy PSMS · Room 4, TBI Building, Palawan State University
+              Browse opportunities at Docufy PSMS � Room 4, TBI Building, Palawan State University
             </p>
           </div>
           <div className="flex w-full flex-row gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-2">
@@ -177,7 +177,7 @@ export default function JobBoard() {
           </div>
         </div>
 
-        {/* ── JOB LISTINGS ── */}
+        {/* -- JOB LISTINGS -- */}
         {tab === 'listings' && (
           <>
           {hydrating && <CardSkeleton cards={3} columns={1} label="Loading job listings" />}
@@ -197,7 +197,7 @@ export default function JobBoard() {
                   key={job.id}
                   className={`overflow-hidden border border-gray-100 bg-white shadow-sm transition-shadow hover:shadow-md gap-0`}
                 >
-                  <div className={`p-4 sm:p-6 ${isExpanded ? "pb-2 sm:pb-2" : ""}`}>
+                  <div className="p-4 sm:p-6">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-[#F2F7FF]">
                         <Briefcase className="h-6 w-6 text-[#1668D9]" />
@@ -213,11 +213,11 @@ export default function JobBoard() {
                               </Badge>
                               {job.department && (
                                 <>
-                                  <span className="text-xs text-gray-500">·</span>
+                                  <span className="text-xs text-gray-500">�</span>
                                   <span className="text-xs text-gray-500">{job.department}</span>
                                 </>
                               )}
-                              <span className="text-xs text-gray-500">·</span>
+                              <span className="text-xs text-gray-500">�</span>
                               <span className="text-xs text-gray-500">Posted {job.posted}</span>
                               {application && (
                                 <Badge className={`text-xs border ${STATUS_COLORS[application.status]}`}>
@@ -289,7 +289,7 @@ export default function JobBoard() {
           </>
         )}
 
-        {/* ── MY APPLICATIONS ── */}
+        {/* -- MY APPLICATIONS -- */}
         {tab === 'applications' && (
           <>
           {hydrating && <CardSkeleton cards={2} columns={1} label="Loading your applications" />}
@@ -302,7 +302,7 @@ export default function JobBoard() {
                 <p className="font-semibold text-gray-500 text-lg">No applications yet</p>
                 <p className="text-smm text-gray-500 mt-1">Browse job listings and apply to get started.</p>
                 <Button
-                  className="mt-6 bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
+                  className="mt-6 w-fit mx-auto bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white px-3"
                   onClick={() => setTab('listings')}
                 >
                   Browse Listings
@@ -410,17 +410,17 @@ export default function JobBoard() {
             <div>
               <h3 className="mb-2 font-semibold text-[#10316B]">Why Work With Docufy?</h3>
               <ul className="space-y-1 text-sm text-gray-700">
-                <li>• Flexible schedules perfect for students</li>
-                <li>• Gain valuable work experience in printing & admin</li>
-                <li>• Competitive compensation</li>
-                <li>• Supportive team environment at Palawan State University</li>
+                <li>� Flexible schedules perfect for students</li>
+                <li>� Gain valuable work experience in printing & admin</li>
+                <li>� Competitive compensation</li>
+                <li>� Supportive team environment at Palawan State University</li>
               </ul>
             </div>
           </div>
         </Card>
       </div>
 
-      {/* ── FULL APPLICATION DETAILS MODAL ── */}
+      {/* -- FULL APPLICATION DETAILS MODAL -- */}
       <Dialog open={!!selectedApp} onOpenChange={() => setSelectedApp(null)}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="pb-2">
@@ -615,7 +615,7 @@ export default function JobBoard() {
               </div>
               <DialogTitle className="text-2xl">Application Submitted!</DialogTitle>
               <DialogDescription className="text-base">
-                Your application has been successfully submitted. Our team will review your application and contact you within 3–5 business days.
+                Your application has been successfully submitted. Our team will review your application and contact you within 3�5 business days.
               </DialogDescription>
             </div>
           </DialogHeader>

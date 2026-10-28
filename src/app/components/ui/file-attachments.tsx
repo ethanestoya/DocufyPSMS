@@ -7,6 +7,7 @@ import {
   Presentation,
   File,
   Eye,
+  Loader2,
   Lock,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -181,6 +182,7 @@ export function FileAttachments({
   // A live lock held by someone else blocks the file actions.
   const actionsLocked = !!lockedBy;
   const [lockNoticeOpen, setLockNoticeOpen] = useState(false);
+  const [loadingKey, setLoadingKey] = useState<string | null>(null);
   if (!files || files.length === 0) return null;
 
   // Resolve the read URL for a file: prefers an authenticated signed URL (the
@@ -196,6 +198,8 @@ export function FileAttachments({
   };
 
   const handleDownload = async (file: AttachedFile) => {
+    setLoadingKey(`dl-${file.name}`);
+    try {
     if (file.storagePath) {
       const result = await downloadObjectToBlob(BUCKETS.orderFiles, file.storagePath);
       if (result) {
@@ -224,19 +228,27 @@ export function FileAttachments({
     a.rel = "noopener,noreferrer";
     a.click();
     toast.success(`Downloading ${file.name}…`);
-  };
+  } finally {
+    setLoadingKey(null);
+  }
+};
 
   // Open the document in a new tab using the browser's native PDF viewer (no download).
   const handleView = async (file: AttachedFile) => {
-    const url = await resolveFileUrl(file);
-    if (!url) return;
-    const win = window.open(url, "_blank", "noopener,noreferrer");
-    if (!win) {
-      const a = document.createElement("a");
-      a.href = url;
-      a.target = "_blank";
-      a.rel = "noopener,noreferrer";
-      a.click();
+    setLoadingKey(`view-${file.name}`);
+    try {
+      const url = await resolveFileUrl(file);
+      if (!url) return;
+      const win = window.open(url, "_blank", "noopener,noreferrer");
+      if (!win) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener,noreferrer";
+        a.click();
+      }
+    } finally {
+      setLoadingKey(null);
     }
   };
 
@@ -330,7 +342,11 @@ export function FileAttachments({
                       title={actionsLocked ? lockTitle : `Preview ${file.name}`}
                       className={cardActionCls}
                     >
-                      <Eye className="size-4" aria-hidden="true" />
+                      {loadingKey === `view-${file.name}` ? (
+                        <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <Eye className="size-4" aria-hidden="true" />
+                      )}
                       Preview
                     </button>
                   )}
@@ -348,7 +364,11 @@ export function FileAttachments({
                       }
                       className={cardActionCls}
                     >
-                      <Download className="size-4" aria-hidden="true" />
+                      {loadingKey === `dl-${file.name}` ? (
+                        <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <Download className="size-4" aria-hidden="true" />
+                      )}
                       Download
                     </button>
                   )}
@@ -400,7 +420,11 @@ export function FileAttachments({
                   title={actionsLocked ? lockTitle : `View ${file.name}`}
                   className={labelledActions ? viewLabelCls : actionBtnCls}
                 >
-                  <Eye className="w-3.5 h-3.5" />
+                  {loadingKey === `view-${file.name}` ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Eye className="w-3.5 h-3.5" />
+                  )}
                   {labelledActions && <span>View</span>}
                 </button>
               )}
@@ -412,7 +436,11 @@ export function FileAttachments({
                   title={actionsLocked ? lockTitle : `Download ${file.name}`}
                   className={actionBtnCls}
                 >
-                  <Download className="w-3.5 h-3.5" />
+                  {loadingKey === `dl-${file.name}` ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Download className="w-3.5 h-3.5" />
+                  )}
                 </button>
               )}
             </div>

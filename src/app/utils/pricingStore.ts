@@ -1,4 +1,4 @@
-// Centralized printing-pricing store.
+﻿// Centralized printing-pricing store.
 // Supabase-backed facade: the localStorage mirror below stays as the offline /
 // anonymous fallback, but the DB now drives real cross-device pricing. Every
 // authenticated role can READ pricing (customers price their checkout live);

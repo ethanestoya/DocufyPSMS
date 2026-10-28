@@ -1225,7 +1225,12 @@ export default function Layout({
           }`}
         >
           <div className="p-4 sm:p-5 lg:p-6 max-w-[1440px] mx-auto w-full @container">
-            {children}
+            <div
+              key={location.pathname}
+              className="animate-in fade-in slide-in-from-right-2 duration-200"
+            >
+              {children}
+            </div>
           </div>
         </main>
       </div>

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Formats a number with comma separators
  * @param value - The number to format
  * @param decimals - Number of decimal places (default: 2)

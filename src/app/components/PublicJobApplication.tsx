@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Briefcase, Upload, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from './ui/button';

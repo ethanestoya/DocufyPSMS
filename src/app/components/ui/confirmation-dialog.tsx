@@ -23,7 +23,7 @@ interface ConfirmationDialogProps {
    */
   onConfirm: () => void | Promise<void>;
   title: string;
-  description: string;
+  description: string | React.ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   hideCancel?: boolean;
@@ -32,6 +32,8 @@ interface ConfirmationDialogProps {
   requirePhrase?: boolean;
   confirmationPhrase?: string;
   loading?: boolean;
+  /** Optional icon override for the header chip. */
+  icon?: React.ReactNode;
   /** Label to show on the confirm button while busy. Defaults to confirmLabel. */
   loadingText?: string;
   /**
@@ -58,6 +60,7 @@ export function ConfirmationDialog({
   loading = false,
   loadingText,
   closeOnConfirm = true,
+  icon,
 }: ConfirmationDialogProps) {
   const [inputValue, setInputValue] = useState('');
   const [error, setError] = useState('');
@@ -146,7 +149,9 @@ export function ConfirmationDialog({
                     : "bg-[#F2F7FF] ring-[#1668D9]/10"
                 }`}
               >
-                {success ? (
+                {icon ? (
+                  icon
+                ) : success ? (
                   <CheckCircle className="w-5 h-5 text-green-600" />
                 ) : (
                   <AlertTriangle

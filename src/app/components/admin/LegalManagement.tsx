@@ -87,21 +87,7 @@ function PolicyCard({
               placeholder='e.g. "April 27, 2026"'
               className="mt-1.5"
             />
-            <p className="mt-1 text-xs text-slate-500">
-              Set automatically to today's date when you click Save Changes.
-            </p>
           </div>
-        </div>
-
-        <div className="rounded-lg border border-blue-100 bg-[#F2F7FF] p-3 text-xs text-slate-600">
-          <p className="font-semibold text-[#1668D9]">Writing format</p>
-          <p className="mt-1">
-            Separate paragraphs with a blank line. To make a bulleted list,
-            put each item on its own line starting with <span className="font-medium text-slate-700">"- "</span> (dash + space).
-          </p>
-          <p className="mt-1">
-            Numbered automatically. Use the arrows to reorder.
-          </p>
         </div>
 
         <div className="flex items-center justify-between">
@@ -292,28 +278,28 @@ export default function LegalManagement() {
           <div className="flex gap-2">
             <Button
               variant="outline"
-              className="h-11 sm:h-10 w-full sm:w-auto border-[#2F6FD6]/40 text-[#2F6FD6] hover:bg-[#F2F7FF] hover:text-[#2F6FD6]"
+              className="h-11 sm:h-10 w-full sm:w-auto bg-white border-2 border-[#2F6FD6]/40 text-[#2F6FD6] hover:bg-[#2F6FD6] hover:text-white hover:-translate-y-0.5 hover:shadow-md"
               onClick={() => setShowPreview(true)}
             >
               Preview
             </Button>
             <Button
               variant="outline"
-              className="h-11 sm:h-10 w-full sm:w-auto border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              className="h-11 sm:h-10 w-full sm:w-auto bg-white border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white hover:-translate-y-0.5 hover:shadow-md"
               onClick={() => setShowResetConfirm(true)}
             >
               <RotateCcw className="w-4 h-4 mr-2" /> Reset
             </Button>
             <Button
               variant="outline"
-              className="h-11 sm:h-10 w-full sm:w-auto border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              className="h-11 sm:h-10 w-full sm:w-auto bg-white border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white hover:-translate-y-0.5 hover:shadow-md"
               onClick={() => setShowClearAllConfirm(true)}
             >
               <Trash2 className="w-4 h-4 mr-2" /> Clear All
             </Button>
             <Button
               onClick={() => setShowSaveConfirm(true)}
-              className="h-11 sm:h-10 w-full sm:w-auto bg-[#2F6FD6] text-white hover:bg-[#2557b8]"
+              className="h-11 sm:h-10 w-full sm:w-auto bg-white border-2 border-[#2F6FD6]/40 text-[#2F6FD6] hover:bg-[#2F6FD6] hover:text-white hover:-translate-y-0.5 hover:shadow-md"
             >
               <Save className="w-4 h-4 mr-2" /> Save Changes
             </Button>

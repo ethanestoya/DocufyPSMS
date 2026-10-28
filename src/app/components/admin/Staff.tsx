@@ -1381,7 +1381,7 @@ export default function Staff() {
               <button
                 type="button"
                 onClick={() => setHistoryOpen(true)}
-                className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg border-2 border-blue-400 bg-white px-3 py-2 text-xs font-semibold text-[#14213D] transition-all hover:-translate-y-0.5 hover:border-[#1677F2]/60 hover:bg-[#1677F2]/5 hover:shadow-md"
+                className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg border-2 border-transparent bg-white px-3 py-2 text-xs font-semibold text-[#14213D] transition-all hover:-translate-y-0.5 hover:border-[#1677F2]/60 hover:bg-[#1677F2]/5 hover:shadow-md"
               >
                 <History className="h-4 w-4 text-[#1677F2]" />
                 View All Attendance History

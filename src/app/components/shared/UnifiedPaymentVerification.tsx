@@ -876,6 +876,9 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
             label="Total Verified Today"
             value={`₱${stats.totalVerifiedToday.toLocaleString()}`}
             icon={Banknote}
+            onClick={() =>
+              setStatusFilter((f) => (f === "verified" ? "all" : "verified"))
+            }
           />
         </div>
 

@@ -246,7 +246,7 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@psu.palawan.edu.ph"
+                  placeholder="@psu.palawan.edu.ph"
                   className="h-10 bg-[#F2F7FF] border-transparent rounded-xl text-sm"
                   autoComplete="email"
                   required
@@ -364,7 +364,7 @@ export default function LoginPage() {
             Non-corporate email accounts are not allowed. Use this organization
             email address:{" "}
             <span className="font-semibold text-red-600">
-              name@psu.palawan.edu.ph
+              @psu.palawan.edu.ph
             </span>
           </>
         }
@@ -389,7 +389,7 @@ export default function LoginPage() {
             Non-corporate email accounts are not allowed. Use this organization
             email address:{" "}
             <span className="font-semibold text-red-600">
-              name@psu.palawan.edu.ph
+              @psu.palawan.edu.ph
             </span>
           </>
         }

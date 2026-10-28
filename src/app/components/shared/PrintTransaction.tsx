@@ -458,6 +458,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
   // payment verification page, not in this select-payment-method menu.
 
   const [analyzingFileId, setAnalyzingFileId] = useState<string | null>(null);
+  const [fileToRemove, setFileToRemove] = useState<string | null>(null);
   const [selectedAddons, setSelectedAddons] = useState<{
     [key: string]: number;
   }>({});
@@ -748,7 +749,10 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
   };
 
   const removeFile = (fileId: string) => {
+    const removed = files.find((f) => f.id === fileId);
     setFiles((prev) => prev.filter((f) => f.id !== fileId));
+    if (removed) toast.warning(`Removed ${removed.fileName}`);
+    setFileToRemove(null);
   };
 
   const updateFileOption = (
@@ -1811,11 +1815,13 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                             <p className="text-sm font-medium text-gray-900 truncate">
                               {index + 1}. {fileData.fileName}
                             </p>
-                            <p className="text-sm text-gray-600 mt-1">
-                              {fileData.pageCount}{" "}
-                              {fileData.pageCount === 1 ? "page" : "pages"}{" "}
-                              detected
-                            </p>
+{fileData.colorAnalysis && (
+                               <p className="text-sm text-gray-600 mt-1">
+                                 {fileData.pageCount}{" "}
+                                 {fileData.pageCount === 1 ? "page" : "pages"}{" "}
+                                 detected
+                               </p>
+                             )}
                             {analyzingFileId === fileData.id && (
                               <div className="mt-2 flex items-center gap-2">
                                 <Spinner size="xs" className="text-blue-700" />
@@ -1852,7 +1858,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => removeFile(fileData.id)}
+                            onClick={() => setFileToRemove(fileData.id)}
                             className="text-red-400 hover:bg-red-500 hover:text-white border-2 border-red-200 hover:border-red-500 transition-all"
                             disabled={analyzingFileId === fileData.id}
                           >
@@ -1984,7 +1990,8 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                                 {fileData.fileName}
                               </p>
                               <p className="mt-0.5 text-xs text-gray-500">
-                                {fileData.pageCount} pages detected
+                                {fileData.colorAnalysis &&
+                                  `${fileData.pageCount} page${fileData.pageCount !== 1 ? "s" : ""} detected`}
                               </p>
                             </div>
                           </div>
@@ -2005,7 +2012,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                           )}
 
                           {/* Print Type selection */}
-                          <div>
+                          <div data-print-type={fileData.id}>
                             <h3 className="text-sm font-semibold text-gray-900">Print Type</h3>
                             <p className="mb-3 mt-0.5 text-xs text-gray-500">
                               Print settings unlock once a type is selected.
@@ -2025,13 +2032,31 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                                   <button
                                     type="button"
                                     key={pt}
-                                    onClick={() =>
-                                      updateFileOption(
-                                        fileData.id,
-                                        "printType",
-                                        selected ? "" : pt,
-                                      )
-                                    }
+                                    onClick={() => {
+                                      const next = selected ? "" : pt;
+                                      updateFileOption(fileData.id, "printType", next);
+                                      if (!selected) {
+                                        setTimeout(() => {
+                                          const el = document.querySelector(
+                                            `[data-print-settings="${fileData.id}"]`,
+                                          );
+                                          el?.scrollIntoView({
+                                            behavior: "smooth",
+                                            block: "nearest",
+                                          });
+                                        }, 80);
+                                      } else {
+                                        setTimeout(() => {
+                                          const el = document.querySelector(
+                                            `[data-print-type="${fileData.id}"]`,
+                                          );
+                                          el?.scrollIntoView({
+                                            behavior: "smooth",
+                                            block: "nearest",
+                                          });
+                                        }, 80);
+                                      }
+                                    }}
                                     aria-pressed={selected}
                                     className={`relative flex items-center justify-center rounded-xl border p-3 transition-all duration-150 active:scale-[0.98] ${
                                       selected
@@ -2058,11 +2083,25 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                           </div>
 
                   {fileData.printType ? (
-                    <div className="space-y-5 rounded-xl border border-gray-200 bg-white p-4 sm:space-y-6 sm:p-5">
+                    <div
+                      data-print-settings={fileData.id}
+                      className="space-y-5 rounded-xl border border-gray-200 bg-white p-4 sm:space-y-6 sm:p-5 animate-in fade-in slide-in-from-top-2 duration-300"
+                    >
                       <div className="flex items-center gap-2 border-b border-gray-100 pb-3">
                         <Settings className="h-4 w-4 text-[#2F6FD6]" />
                         <h3 className="text-sm font-semibold text-gray-900">Print Settings</h3>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBreakdownFileId(fileData.id);
+                          setShowColorPricing(true);
+                        }}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-50"
+                      >
+                        <Info className="h-4 w-4 shrink-0 text-[#2F6FD6]" />
+                        See Pricing Breakdown
+                      </button>
                       {fileData.printType === "photo" ? (
                         <div className="space-y-4">
                           {!hasPhotoPaperStock && (
@@ -2213,17 +2252,6 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                                     ? `${formatPrice(matrixRatesFor(fileData).bw)} per page — all pages printed in grayscale`
                                     : "Each page is priced by its detected color percentage."}
                                 </p>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setBreakdownFileId(fileData.id);
-                                    setShowColorPricing(true);
-                                  }}
-                                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-50"
-                                >
-                                  <Info className="h-4 w-4 shrink-0 text-[#2F6FD6]" />
-                                  See Pricing Breakdown
-                                </button>
                               </>
                             )}
                           </div>
@@ -3898,7 +3926,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                     navigate(`/customer/track/${submittedOrderId}`);
                   }
                 }}
-                className="flex-1"
+                className="flex-1 bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
               >
                 {isDownTier && !isOnline
                   ? "Proceed to Down Payment Method"
@@ -3911,7 +3939,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                   setShowSuccessModal(false);
                   navigate("/customer/dashboard");
                 }}
-                className="flex-1 bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
+                className="flex-1 bg-white text-gray-600 border-2 border-gray-200 hover:bg-gray-100 hover:text-gray-700"
               >
                 Go to Dashboard
               </Button>
@@ -4074,6 +4102,18 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
           loading={isSubmittingOrder}
         />
       )}
-    </Layout>
+{/* Remove File Confirmation */}
+      <ConfirmationDialog
+        open={!!fileToRemove}
+        onOpenChange={(open) => { if (!open) setFileToRemove(null); }}
+        onConfirm={() => { if (fileToRemove) removeFile(fileToRemove); }}
+        title="Remove File?"
+        description="Are you sure you want to remove this file?"
+        confirmLabel="Remove"
+        cancelLabel="Keep"
+        destructive
+      />
+
+      </Layout>
   );
 }

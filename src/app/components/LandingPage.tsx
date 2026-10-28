@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import {
   Clock,
@@ -591,7 +591,7 @@ export default function LandingPage({
               </div>
               <div className="pt-6 mt-7 border-t border-gray-100">
                 <div className="text-[clamp(2.25rem,2.64vw,5rem)] font-bold text-[#1668D9]">
-                  ₱{matrix.document.text.bw.a4.toFixed(2)}{" "}
+                  ?{matrix.document.text.bw.a4.toFixed(2)}{" "}
                   <span className="text-base font-normal text-gray-500">
                     per page
                   </span>
@@ -631,7 +631,7 @@ export default function LandingPage({
                 </div>
                 <div className="pt-6 mt-7 border-t border-white/15">
                   <div className="text-[clamp(2.25rem,2.64vw,5rem)] font-bold">
-                    ₱{matrix.document.text.full.a4.toFixed(2)}{" "}
+                    ?{matrix.document.text.full.a4.toFixed(2)}{" "}
                     <span className="text-base font-normal text-white/80">
                       per page
                     </span>
@@ -669,7 +669,7 @@ export default function LandingPage({
               </div>
               <div className="pt-6 mt-7 border-t border-gray-100">
                 <div className="text-[clamp(2.25rem,2.64vw,5rem)] font-bold text-[#1668D9]">
-                  ₱{Math.min(matrix.vellum.bw.a4, matrix.sticker.bw, matrix.photo["2R"].price).toFixed(2)}{" "}
+                  ?{Math.min(matrix.vellum.bw.a4, matrix.sticker.bw, matrix.photo["2R"].price).toFixed(2)}{" "}
                   <span className="text-base font-normal text-gray-500">
                     from
                   </span>

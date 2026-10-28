@@ -1,4 +1,4 @@
-ï»¿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   LayoutDashboard,
@@ -339,7 +339,7 @@ export default function JobApplyForm() {
               </div>
 
               <p className="text-sm text-slate-500 leading-relaxed max-w-xs mx-auto">
-                Our team will review your application within 3â€“5 business days.
+                Our team will review your application within 3–5 business days.
                 We'll contact you using the information provided.
               </p>
 
@@ -571,7 +571,7 @@ export default function JobApplyForm() {
                         <div className={`border-2 border-dashed rounded-lg p-5 text-center transition-all hover:border-[#2F6FD6] hover:bg-blue-50 ${errors.portfolio && touched.has("portfolio") ? "border-red-400" : "border-slate-300"}`}>
                           <Upload className="w-7 h-7 text-slate-400 mx-auto mb-2" />
                           <p className="text-sm font-medium text-slate-600">Tap to upload resume</p>
-                          <p className="text-xs text-slate-400 mt-1">PDF, PNG, or JPG â€” up to 10 MB</p>
+                          <p className="text-xs text-slate-400 mt-1">PDF, PNG, or JPG — up to 10 MB</p>
                         </div>
                         <input
                           type="file"
@@ -600,7 +600,7 @@ export default function JobApplyForm() {
                   onClick={() => setShowTerms(true)}
                   className="w-full text-left text-sm font-medium text-[#2F6FD6] hover:text-[#10316B] transition-colors"
                 >
-                  View Terms and Conditions â†’
+                  View Terms and Conditions ?
                 </button>
                 <div
                   className="flex items-start gap-3 cursor-pointer min-h-[44px] py-1"
@@ -661,7 +661,7 @@ export default function JobApplyForm() {
 
         {/* Info note */}
         <p className="text-xs text-slate-400 text-center px-4">
-          Applications are reviewed within 3â€“5 business days.
+          Applications are reviewed within 3–5 business days.
           We'll contact you using the information provided.
         </p>
       </div>

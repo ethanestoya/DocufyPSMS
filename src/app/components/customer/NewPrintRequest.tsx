@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import PrintTransaction from "../shared/PrintTransaction";
 
 export default function NewPrintRequest() {

@@ -1,4 +1,4 @@
-ï»¿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   useNavigate,
   useParams,
@@ -184,7 +184,7 @@ export default function PaymentVerification() {
   const [referenceNumber, setReferenceNumber] = useState("");
   const [detectedReference, setDetectedReference] = useState("");
   const [amountPaid, setAmountPaid] = useState("");
-  // Down-payment orders: how much the customer pays now â€” Partial pays the 50%
+  // Down-payment orders: how much the customer pays now — Partial pays the 50%
   // down payment, Full pays the whole total up front.
   const [paymentChoice, setPaymentChoice] = useState<"partial" | "full">("partial");
   const [proofFile, setProofFile] = useState<File | null>(null);
@@ -242,7 +242,7 @@ export default function PaymentVerification() {
   // sync so submit/verification use the right figure.
   useEffect(() => {
     if (!displayOrder) return;
-    const total = parseFloat((displayOrder.total || "â‚±0").replace(/[â‚±,]/g, ""));
+    const total = parseFloat((displayOrder.total || "?0").replace(/[?,]/g, ""));
     // Partial only lowers the amount for down-payment tier orders; full tier
     // and online none-tier orders always pay the full total up front.
     const required =
@@ -304,7 +304,7 @@ export default function PaymentVerification() {
       ref = ref.slice(0, 20);
 
       if (ref.length >= 6) {
-        // Suggest, never silently overwrite what the customer already typed â€”
+        // Suggest, never silently overwrite what the customer already typed —
         // OCR mis-reads a digit often enough that replacing a correct reference
         // with a wrong one blocks staff verification (F31).
         if (referenceNumber.trim()) {
@@ -429,7 +429,7 @@ export default function PaymentVerification() {
       // staff/admin see the correct payment type: Partial keeps the 50% down
       // (balance at pickup), Full becomes a regular fully-paid online order.
       const flexTotal = parseFloat(
-        String(displayOrder?.total || "â‚±0").replace(/[â‚±,]/g, "") || "0",
+        String(displayOrder?.total || "?0").replace(/[?,]/g, "") || "0",
       );
       const flexDown = !!displayOrder?.downPaymentRequired;
       const downSync = flexDown
@@ -474,7 +474,7 @@ export default function PaymentVerification() {
         });
 
         // Clear the checkout deadline (the order now waits on staff
-        // verification â€” it must not auto-expire) and persist the down/full
+        // verification — it must not auto-expire) and persist the down/full
         // choice + amount paid on the order row.
         await dataStore.updateOrder(orderId!, {
           paymentDeadline: undefined,
@@ -489,13 +489,13 @@ export default function PaymentVerification() {
       if (existingOrder) {
         notificationStore.addNotification(
           "order",
-          "New Order â€” Payment Verification Pending",
+          "New Order — Payment Verification Pending",
           `New order #${existingOrder.displayId ?? orderId} from the customer is awaiting ${paymentMethod} payment verification. Received reference: ${referenceNumber}.`,
           { clickable: true, relatedOrderId: orderId, recipientRole: "admin" },
         );
         notificationStore.addNotification(
           "order",
-          "New Order â€” Payment Verification Pending",
+          "New Order — Payment Verification Pending",
           `New order #${existingOrder.displayId ?? orderId} from the customer is awaiting ${paymentMethod} payment verification. Received reference: ${referenceNumber}.`,
           { clickable: true, relatedOrderId: orderId, recipientRole: "staff" },
         );
@@ -504,7 +504,7 @@ export default function PaymentVerification() {
       toast.success("Payment details submitted. Awaiting verification by staff.");
     }
 
-    // The submitted order no longer needs its checkout draft â€” clearing it
+    // The submitted order no longer needs its checkout draft — clearing it
     // prevents a later "New Print Request" from being redirected back to
     // this payment verification page.
     clearPrintDraft();
@@ -555,7 +555,7 @@ export default function PaymentVerification() {
     goToNewRequest();
   };
 
-  // A canceled order no longer has a payment to verify â€” show a canceled state
+  // A canceled order no longer has a payment to verify — show a canceled state
   // instead of the payment form so the page never reads as "Awaiting Payment".
   if (order?.status === "Canceled") {
     return (
@@ -913,11 +913,11 @@ onClick={goToNewRequest}
                         {displayOrder?.downPaymentRequired && (
                           <span className="text-gray-500">
                             {" "}
-                            (50% down payment â€”{" "}
+                            (50% down payment —{" "}
                             {formatCurrency(
                               parseFloat(
-                                (displayOrder.total || "â‚±0")
-                                  .replace("â‚±", "")
+                                (displayOrder.total || "?0")
+                                  .replace("?", "")
                                   .replace(",", ""),
                               ) - (displayOrder.downPaymentAmount || 0),
                             )}{" "}
@@ -995,20 +995,20 @@ onClick={goToNewRequest}
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="partial">
-                        Partial Payment â€”{" "}
+                        Partial Payment —{" "}
                         {formatCurrency(
                           displayOrder.downPaymentAmount ||
                             parseFloat(
-                              (displayOrder.total || "â‚±0").replace("â‚±", "").replace(",", ""),
+                              (displayOrder.total || "?0").replace("?", "").replace(",", ""),
                             ) * 0.5,
                         )}{" "}
                         (50% down)
                       </SelectItem>
                       <SelectItem value="full">
-                        Full Payment â€”{" "}
+                        Full Payment —{" "}
                         {formatCurrency(
                           parseFloat(
-                            (displayOrder.total || "â‚±0").replace("â‚±", "").replace(",", ""),
+                            (displayOrder.total || "?0").replace("?", "").replace(",", ""),
                           ) || 0,
                         )}
                       </SelectItem>
@@ -1016,7 +1016,7 @@ onClick={goToNewRequest}
                   </Select>
                   {paymentChoice === "full" ? (
                     <p className="text-sm text-gray-500">
-                      Paying the full amount now â€” no balance due on pickup.
+                      Paying the full amount now — no balance due on pickup.
                     </p>
                   ) : (
                     <p className="text-sm text-gray-500">
@@ -1025,7 +1025,7 @@ onClick={goToNewRequest}
                       balance of{" "}
                       {formatCurrency(
                         parseFloat(
-                          (displayOrder.total || "â‚±0").replace("â‚±", "").replace(",", ""),
+                          (displayOrder.total || "?0").replace("?", "").replace(",", ""),
                         ) - (displayOrder.downPaymentAmount || 0),
                       )}{" "}
                       will be due on pickup.
@@ -1226,12 +1226,12 @@ className="w-full h-11 sm:flex-1 sm:h-9 bg-[#1668D9] text-white border-2 border-
           </Card>
         )}
 
-        {/* Cash on Pickup â€” no online confirmation; order is confirmed at the shop */}
+        {/* Cash on Pickup — no online confirmation; order is confirmed at the shop */}
         {paymentMethod === "cash" && (
           <Card className="p-6 bg-white shadow-sm">
             <p className="text-sm text-gray-700 mb-1">
               You've chosen <strong>Cash on Pickup</strong>. There is nothing to
-              submit online â€” your order is only confirmed when you pay in cash
+              submit online — your order is only confirmed when you pay in cash
               at the shop.
             </p>
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:gap-3">
@@ -1239,7 +1239,7 @@ className="w-full h-11 sm:flex-1 sm:h-9 bg-[#1668D9] text-white border-2 border-
                 type="button"
                 variant="outline"
                 onClick={() => navigate("/customer/dashboard")}
-                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-60 disabled:border-gray-300 disabled:bg-gray-200 disabled:text-gray-500 disabled:hover:bg-gray-200 disabled:hover:text-gray-500 disabled:hover:translate-y-0 disabled:hover:shadow-none [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-white text-slate-700 border-2 border-blue-400 hover:-translate-y-0.5 hover:bg-[#2F6FD6] hover:text-white hover:shadow-md dark:bg-input/30 dark:hover:bg-input/50 h-9 px-4 py-2 has-[>svg]:px-3 flex-1"
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-60 disabled:border-gray-300 disabled:bg-gray-200 disabled:text-gray-500 disabled:hover:bg-gray-200 disabled:hover:text-gray-500 disabled:hover:translate-y-0 disabled:hover:shadow-none [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-white text-slate-700 border-2 border-transparent hover:-translate-y-0.5 hover:bg-[#2F6FD6] hover:text-white hover:shadow-md dark:bg-input/30 dark:hover:bg-input/50 h-9 px-4 py-2 has-[>svg]:px-3 flex-1"
               >
                 Dashboard
               </Button>
@@ -1345,8 +1345,8 @@ className="w-full h-11 sm:flex-1 sm:h-9 bg-[#1668D9] text-white border-2 border-
           title="Submit Payment for Verification?"
           description={
             paymentMethod === "cash"
-              ? "Your Cash on Pickup order cannot be confirmed online â€” visit the shop to pay in cash before the payment deadline. The staff will confirm your payment and queue your order."
-              : `Submit a payment of â‚±${amountPaid || "0.00"} with reference ${referenceNumber.trim() || "number"}${imagePreviewUrl ? " and payment proof" : ""} for ${selectedMethod?.name || "online"} payment for order ${displayOrder?.displayId ?? orderId}? Once submitted, your payment will be queued for admin/staff verification and the order will not print until approved.`
+              ? "Your Cash on Pickup order cannot be confirmed online — visit the shop to pay in cash before the payment deadline. The staff will confirm your payment and queue your order."
+              : `Submit a payment of ?${amountPaid || "0.00"} with reference ${referenceNumber.trim() || "number"}${imagePreviewUrl ? " and payment proof" : ""} for ${selectedMethod?.name || "online"} payment for order ${displayOrder?.displayId ?? orderId}? Once submitted, your payment will be queued for admin/staff verification and the order will not print until approved.`
           }
           confirmLabel={paymentMethod === "cash" ? "Confirm Order" : "Submit Reference"}
           cancelLabel="Go Back"
@@ -1364,7 +1364,7 @@ className="w-full h-11 sm:flex-1 sm:h-9 bg-[#1668D9] text-white border-2 border-
           description={
             order
               ? `Are you sure you want to cancel order #${displayOrder?.displayId ?? orderId}? This will permanently cancel the order and it can no longer be processed.`
-              : `This order has not been submitted yet â€” canceling will just discard the unsent request. It will not be recorded and will not appear in your orders.`
+              : `This order has not been submitted yet — canceling will just discard the unsent request. It will not be recorded and will not appear in your orders.`
           }
           confirmLabel="Cancel Order"
           cancelLabel="Keep Order"
@@ -1381,7 +1381,7 @@ className="w-full h-11 sm:flex-1 sm:h-9 bg-[#1668D9] text-white border-2 border-
           }}
           onConfirm={() => paymentBlocker.proceed()}
           title="Leave payment verification?"
-          description="You haven't finished submitting your payment yet. Leaving now means your entered reference details and proof will be lost â€” you can come back and submit again from My Orders."
+          description="You haven't finished submitting your payment yet. Leaving now means your entered reference details and proof will be lost — you can come back and submit again from My Orders."
           confirmLabel="Leave Page"
           cancelLabel="Stay Here"
           destructive={false}

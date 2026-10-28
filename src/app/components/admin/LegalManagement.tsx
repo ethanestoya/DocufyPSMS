@@ -87,21 +87,7 @@ function PolicyCard({
               placeholder='e.g. "April 27, 2026"'
               className="mt-1.5"
             />
-            <p className="mt-1 text-xs text-slate-500">
-              Set automatically to today's date when you click Save Changes.
-            </p>
           </div>
-        </div>
-
-        <div className="rounded-lg border border-blue-100 bg-[#F2F7FF] p-3 text-xs text-slate-600">
-          <p className="font-semibold text-[#1668D9]">Writing format</p>
-          <p className="mt-1">
-            Separate paragraphs with a blank line. To make a bulleted list,
-            put each item on its own line starting with <span className="font-medium text-slate-700">"- "</span> (dash + space).
-          </p>
-          <p className="mt-1">
-            Numbered automatically. Use the arrows to reorder.
-          </p>
         </div>
 
         <div className="flex items-center justify-between">

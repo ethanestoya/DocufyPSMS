@@ -14,6 +14,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { Button } from "./ui/button";
+import { ConfirmationDialog } from "./ui/confirmation-dialog";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import { Checkbox } from "./ui/checkbox";
@@ -46,6 +47,7 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showGoogleConfirm, setShowGoogleConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [policyDialogOpen, setPolicyDialogOpen] = useState(false);
 
@@ -192,7 +194,7 @@ export default function LoginPage() {
           <Button
             variant="outline"
             className="w-full border-gray-200 text-[#1c1f26] h-10 text-sm mb-4"
-            onClick={handleGoogleSignIn}
+            onClick={() => setShowGoogleConfirm(true)}
             disabled={googleLoading}
           >
             {googleLoading ? (
@@ -382,6 +384,14 @@ export default function LoginPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+<ConfirmationDialog
+        open={showGoogleConfirm}
+        onOpenChange={setShowGoogleConfirm}
+        title="Continue with Google?"
+        description="Only corporate/organization email addresses are allowed. Personal emails (Gmail, Yahoo, Outlook, etc.) cannot be used to sign in."
+        confirmLabel="Proceed"
+        onConfirm={handleGoogleSignIn}
+      />
     </div>
   );
 }

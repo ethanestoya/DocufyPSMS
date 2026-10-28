@@ -117,7 +117,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-[100dvh] flex font-poppins overflow-y-auto">
+    <div className="min-h-[100dvh] flex font-poppins overflow-y-auto animate-in fade-in slide-in-from-right-2 duration-200">
 
       {/* Left Side - Logo & Illustration */}
       <div className="hidden lg:flex lg:w-1/2 relative bg-[#1c1f26] items-center justify-center min-h-screen">

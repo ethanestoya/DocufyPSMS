@@ -263,7 +263,7 @@ export default function LandingPage({
   ];
 
   return (
-    <div ref={landingRootRef} className="min-h-screen bg-[#F2F7FF] relative overflow-clip">
+    <div ref={landingRootRef} className="min-h-screen bg-[#F2F7FF] relative overflow-clip animate-in fade-in slide-in-from-right-2 duration-200">
       {/* Decorative Background Elements */}
       <div className="absolute top-0 left-0 w-96 h-96 bg-[#1668D9] rounded-full opacity-5 blur-3xl -translate-x-48 -translate-y-48 pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#10316B] rounded-full opacity-5 blur-3xl translate-x-48 translate-y-48 pointer-events-none" />

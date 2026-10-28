@@ -181,7 +181,7 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-[100dvh] flex flex-col lg:flex-row font-poppins bg-white lg:h-screen lg:overflow-hidden max-lg:overflow-x-hidden">
+    <div className="min-h-[100dvh] flex flex-col lg:flex-row font-poppins bg-white lg:h-screen lg:overflow-hidden max-lg:overflow-x-hidden animate-in fade-in slide-in-from-right-2 duration-200">
       {/* Left Side - Logo & Illustration (desktop only) */}
       <div className="hidden lg:flex lg:w-1/2 relative bg-[#10316B] items-center justify-center">
         {authBg ? (

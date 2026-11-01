@@ -1380,3 +1380,11 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Typecheck and production build pass; verified live as admin and customer against the dev backend (create posting, archive, apply, set to For Interview).
 
 
+
+## 2026-11-02 - Prans (03:35 AM PHT)
+
+- Added a customer view inside the Order Details window: staff and admin can check who they are serving from the order they already have open, with no new page and no new sidebar item.
+- Contact details: the account's photo, name, email, phone, address and customer-since date; when the saved profile cannot be read the window says so and keeps the order history visible instead of claiming the customer does not exist.
+- Order history at a glance: total orders, how many are still open, total spent with canceled orders excluded, and the date of the last order.
+- Unclaimed and restriction standing: the customer's unclaimed order count, and when Cash on Pickup is blocked the arrangement, who set it, when and why, plus a clear all-good state for accounts with no record.
+- Typecheck and production build pass; the dialog layout and the unavailable-profile state were checked in the browser, while the signed-in path is code-verified only (the demo logins are not present on the dev backend and no admin/staff credentials were available).

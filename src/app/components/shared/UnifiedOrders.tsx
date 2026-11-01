@@ -69,6 +69,7 @@ import { TableSkeleton } from "../ui/table-skeleton";
 import { useHydrating } from "../../utils/useHydrating";
 import { generateReceiptData } from "../../utils/invoiceUtils";
 import { OrderReceiptDialog } from "./OrderReceipt";
+import { CustomerDetailsDialog } from "./CustomerDetailsDialog";
 import { pricingStore } from "../../utils/pricingStore";
 import { ORDER_STATUS_STYLES, getStatusBadgeClasses } from "../../utils/orderStatusPalette";
 import { inventoryStore } from "../../utils/inventoryStore";
@@ -388,6 +389,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
   const [selectedOrder, setSelectedOrder] =
     useState<OrderType | null>(null);
   const [showDialog, setShowDialog] = useState(false);
+  const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
   const [sortColumn, setSortColumn] = useState<string | null>(
     null,
   );
@@ -1490,6 +1492,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
             // Release OUR hold when the order details modal closes. Only frees
             // OUR lock — another reviewer's hold is left untouched.
             if (selectedOrder) releaseLock(selectedOrder.id, myName);
+            setCustomerDialogOpen(false);
             setShowDialog(false);
           } else {
             setShowDialog(true);
@@ -1562,6 +1565,16 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                       selectedOrder.createdAt || selectedOrder.submittedAt,
                     )}
                   </DialogDescription>
+                  {selectedOrder.customerEmail && (
+                    <button
+                      type="button"
+                      onClick={() => setCustomerDialogOpen(true)}
+                      className="mt-1.5 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[13px] font-semibold text-[#1D4ED8] transition-colors hover:bg-[#F2F7FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8]/40"
+                    >
+                      <User className="size-3.5" aria-hidden="true" />
+                      View customer
+                    </button>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -2131,6 +2144,16 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
           open={showReceipt}
           onOpenChange={setShowReceipt}
           data={generateReceiptData(selectedOrder)}
+        />
+      )}
+
+      {/* Customer behind this order — opened from the order header */}
+      {selectedOrder && (
+        <CustomerDetailsDialog
+          open={customerDialogOpen}
+          onOpenChange={setCustomerDialogOpen}
+          customerName={selectedOrder.customer}
+          customerEmail={selectedOrder.customerEmail}
         />
       )}
       </StaffTimeInGate>

@@ -1388,3 +1388,17 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Order history at a glance: total orders, how many are still open, total spent with canceled orders excluded, and the date of the last order.
 - Unclaimed and restriction standing: the customer's unclaimed order count, and when Cash on Pickup is blocked the arrangement, who set it, when and why, plus a clear all-good state for accounts with no record.
 - Typecheck and production build pass; the dialog layout and the unavailable-profile state were checked in the browser, while the signed-in path is code-verified only (the demo logins are not present on the dev backend and no admin/staff credentials were available).
+
+## 2026-11-02 - Prans (04:18 AM PHT)
+
+- Applied the adviser's dashboard cleanup, inventory search and customer recent-files feedback.
+- Removed Recent Transactions from both dashboards: the Orders page already lists the same orders, so the card only repeated rows and took the space the numbers need.
+- Moved Shop Status into a compact presence pill at every width: one green/amber/slate dot with Open / Paused / Closed, the three actions in its menu, and the reason and update time still readable there; the full card is gone.
+- Streamlined Inventory Snapshot: three totals plus up to four items that actually need attention (or one "all healthy" line), since View Inventory already opens the full page.
+- Replaced Sales Comparison and the Daily/Weekly/Monthly toggle with a single date-range button on the Sales Trend card: one filter showing the chosen days, opening the calendar, with the chart's bucket size following the window; the page-level range still drives the KPI cards.
+- Turned the Inventory search into targeted filtering: the search box now looks up item name or brand only, with a Stock status filter (All / In stock / Low stock / Out of stock, each showing its count) and a Category filter beside it, so the list can be narrowed to what needs attention instead of reading every row.
+- Added a Clear chip that appears only while a filter is narrowing the list, and made the empty state say "No items match these filters" with a way to clear them, instead of claiming the storeroom is empty.
+- Gave the customer dashboard a Recent Files section: the files from the customer's print requests are listed newest upload first, even when several came from the same order, so the latest thing they sent is always at the top.
+- Each file row shows the file name, its order number, file type, size and upload time, and the order's current printing status badge, and opens that order's tracking page.
+- Added an honest empty state ("No files uploaded yet") so a customer with no uploads is not shown a blank card.
+- Typecheck and production build pass; chart bucketing verified with sample orders (daily, weekly and monthly windows), the inventory filters verified with the seeded items (status counts 3 / 0 / 2, Out of stock → 2 rows, combined with Paper → the same 2, a search with no match showed the filtered-empty state, and Clear restored all 5), and the recent-files list verified through a temporary dev route with sample orders (upload order 3h → 9h → 30h → 6 days, files from one order split by their own upload time, statuses Printing / Completed / Canceled, plus the empty state).

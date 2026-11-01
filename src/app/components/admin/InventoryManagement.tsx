@@ -9,6 +9,7 @@ import {
   RotateCcw,
   Plus,
   Search,
+  X,
   Inbox,
   FileText,
   LayoutDashboard,
@@ -29,6 +30,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import {
   inventoryStore,
   type InventoryItem,
+  type InventoryStatus,
   type StockMovement,
 } from "../../utils/inventoryStore";
 import { formatNumber } from "../../utils/formatNumber";
@@ -594,6 +596,8 @@ export default function InventoryManagement({
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<InventoryStatus | "all">("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
   // Table pagination
   const PAGE_SIZE = 8;
@@ -651,12 +655,41 @@ export default function InventoryManagement({
 
   const hydrating = useHydrating();
 
+  // Categories come from what is actually on the shelf (archived or active), in
+  // the shop's own order, so the filter never offers an empty option.
+  const categoryOptions = useMemo(() => {
+    const present = new Set(items.map((item) => item.category).filter(Boolean));
+    const known = CATEGORIES.filter((category) => present.has(category));
+    const extra = [...present]
+      .filter((category) => !CATEGORIES.includes(category))
+      .sort((a, b) => a.localeCompare(b));
+    return ["all", ...known, ...extra];
+  }, [items]);
+
+  const statusCounts = useMemo(() => {
+    const counts = { out: 0, low: 0, ok: 0 };
+    for (const item of items) counts[inventoryStore.getInventoryStatus(item)] += 1;
+    return counts;
+  }, [items]);
+
+  const filtersActive =
+    search.trim() !== "" || statusFilter !== "all" || categoryFilter !== "all";
+
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("all");
+    setCategoryFilter("all");
+  };
+
   const filteredItems = items.filter((item) => {
+    if (categoryFilter !== "all" && item.category !== categoryFilter) return false;
+    if (statusFilter !== "all" && inventoryStore.getInventoryStatus(item) !== statusFilter) {
+      return false;
+    }
     const q = search.trim().toLowerCase();
     if (!q) return true;
     return (
       item.name.toLowerCase().includes(q) ||
-      item.category.toLowerCase().includes(q) ||
       (item.brand || "").toLowerCase().includes(q)
     );
   });
@@ -669,10 +702,10 @@ export default function InventoryManagement({
     page * PAGE_SIZE,
   );
 
-  // Jump back to page 1 when the result set changes (search / source toggle)
+  // Jump back to page 1 when the result set changes (search / filters / source)
   useEffect(() => {
     setPage(1);
-  }, [search, showArchived, filteredItems.length]);
+  }, [search, statusFilter, categoryFilter, showArchived, filteredItems.length]);
 
   const openAdd = () => {
     setForm({
@@ -923,15 +956,50 @@ export default function InventoryManagement({
 
         {/* Toolbar */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
-          <div className="group relative w-full sm:max-w-xs">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3] transition-colors group-focus-within:text-[#2F6FD6]" />
-            <Input
-              aria-label="Search inventory items"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search items..."
-              className="pl-10"
+          <div className="flex w-full flex-col gap-2 sm:max-w-3xl sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="group relative w-full sm:min-w-[180px] sm:flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3] transition-colors group-focus-within:text-[#2F6FD6]" />
+              <Input
+                aria-label="Search inventory items by name or brand"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search item or brand..."
+                className="pl-10"
+              />
+            </div>
+            <ZoomSafeDropdown
+              label="Filter by stock status"
+              value={statusFilter}
+              onChange={(v) => setStatusFilter(v as InventoryStatus | "all")}
+              applied={statusFilter !== "all"}
+              className="w-full sm:w-[165px]"
+              options={[
+                { value: "all", label: "All statuses" },
+                { value: "ok", label: `In stock (${statusCounts.ok})` },
+                { value: "low", label: `Low stock (${statusCounts.low})` },
+                { value: "out", label: `Out of stock (${statusCounts.out})` },
+              ]}
             />
+            <ZoomSafeDropdown
+              label="Filter by category"
+              value={categoryFilter}
+              onChange={setCategoryFilter}
+              applied={categoryFilter !== "all"}
+              className="w-full sm:w-[165px]"
+              options={categoryOptions.map((category) => ({
+                value: category,
+                label: category === "all" ? "All categories" : category,
+              }))}
+            />
+            {filtersActive && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] border border-[#D5DCE6] bg-white px-3 text-xs font-semibold text-slate-600 transition-colors hover:border-[#B7C3D4] hover:text-slate-800"
+              >
+                <X className="h-3.5 w-3.5" /> Clear
+              </button>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -972,10 +1040,21 @@ export default function InventoryManagement({
             <div className="p-10 text-center">
               <Boxes className="mx-auto h-10 w-10 text-gray-300" />
               <p className="mt-3 text-sm font-medium text-gray-600">
-                {showArchived
-                  ? "No archived items."
-                  : "No inventory items yet. Add your first item."}
+                {filtersActive
+                  ? "No items match these filters."
+                  : showArchived
+                    ? "No archived items."
+                    : "No inventory items yet. Add your first item."}
               </p>
+              {filtersActive && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="mt-2 text-xs font-semibold text-[#2F6FD6] hover:underline"
+                >
+                  Clear filters
+                </button>
+              )}
             </div>
           ) : (
             <>

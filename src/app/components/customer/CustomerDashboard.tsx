@@ -15,6 +15,7 @@ import {
   Check,
   Lightbulb,
   ChevronDown,
+  Image as ImageIcon,
   X,
 } from "lucide-react";
 import Layout from "../Layout";
@@ -133,6 +134,20 @@ function formatOrderDate(dateStr?: string): string {
   }
 }
 
+function formatUploadDate(dateStr?: string): string {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return `${d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })}, ${d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  })}`;
+}
+
 export default function CustomerDashboard() {
   const hydrating = useHydrating();
   const navigate = useNavigate();
@@ -212,6 +227,24 @@ export default function CustomerDashboard() {
 
   const recentOrders = useMemo(() => {
     return customerOrders.slice(0, 5);
+  }, [customerOrders]);
+
+  // Every uploaded file across the customer's orders, newest upload first.
+  const recentFiles = useMemo(() => {
+    return customerOrders
+      .flatMap((order) =>
+        (order.attachedFiles ?? []).map((file, index) => {
+          const stamp = Date.parse(file.uploadedAt ?? order.date);
+          return {
+            key: `${order.id}:${index}`,
+            file,
+            order,
+            stamp: Number.isNaN(stamp) ? 0 : stamp,
+          };
+        }),
+      )
+      .sort((a, b) => b.stamp - a.stamp)
+      .slice(0, 5);
   }, [customerOrders]);
 
   const inProgressCount = stats.inProgress;
@@ -633,6 +666,80 @@ export default function CustomerDashboard() {
             </Card>
           </div>
         </div>
+
+        {/* Recent Files — newest upload first, with the order's print status */}
+        <Card className="border border-gray-300 sm:border-gray-200 bg-white">
+          <div className="px-4 sm:px-6 py-4 border-b border-gray-300 sm:border-gray-200 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <h2 className="text-base sm:text-lg font-bold text-gray-900">
+                Recent Files
+              </h2>
+              <span className="text-[11px] font-medium text-gray-500">
+                Newest first
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate("/customer/orders")}
+              className="text-xs font-semibold text-[#1668D9] hover:underline transition-colors flex-shrink-0"
+            >
+              View All
+            </button>
+          </div>
+
+          {recentFiles.length === 0 ? (
+            <div className="p-6 text-center">
+              <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center mx-auto mb-2">
+                <FileText className="w-5 h-5 text-gray-400" />
+              </div>
+              <p className="text-sm font-semibold text-gray-600">
+                No files uploaded yet
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Files you upload for a print request will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200">
+              {recentFiles.map(({ key, file, order }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => navigate(`/customer/track/${order.id}`)}
+                  className="w-full text-left px-4 sm:px-6 py-3 hover:bg-gray-50 transition-colors flex items-center gap-3"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                    {file.type === "Image" ? (
+                      <ImageIcon className="w-4 h-4 text-[#1668D9]" />
+                    ) : (
+                      <FileText className="w-4 h-4 text-[#1668D9]" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {file.name}
+                    </p>
+                    <p className="text-[11px] text-gray-500 mt-0.5 truncate">
+                      {order.displayId ?? order.id}
+                      <span className="hidden sm:inline">
+                        {` \u2022 ${file.type}${file.size ? ` \u2022 ${file.size}` : ""}`}
+                      </span>
+                      <span>
+                        {` \u2022 ${formatUploadDate(file.uploadedAt ?? order.date)}`}
+                      </span>
+                    </p>
+                  </div>
+                  <Badge
+                    className={`${getStatusBadgeClasses(getCustomerStatusLabel(order))} font-medium text-[10px] flex-shrink-0`}
+                  >
+                    {getCustomerStatusLabel(order)}
+                  </Badge>
+                  <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                </button>
+              ))}
+            </div>
+          )}
+        </Card>
 
         {/* Shop Information + Quick Tips — previous blue card style */}
         <div className="grid grid-cols-1 @min-[640px]:grid-cols-2 gap-3">

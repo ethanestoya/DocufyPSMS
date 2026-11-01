@@ -7,7 +7,8 @@
 // reaches the backend from any device the order was placed on.
 
 import { subscribeTableChanges } from '../../lib/db/hooks';
-import { isRlsDenied, showDbError } from '../../lib/db/errors';
+import { getErrorDetail, isRlsDenied, showDbError } from '../../lib/db/errors';
+import { toast } from 'sonner';
 import { auditLogStore, type AuditChange } from './auditLogStore';
 import { authReady } from '../../lib/supabaseClient';
 import {
@@ -24,6 +25,10 @@ import type {
 } from '../../lib/db/types';
 
 export type InventoryStatus = 'out' | 'low' | 'ok';
+
+// Why the item is being pushed to the server — only used to word a failed push
+// in the same terms as the action the admin actually took.
+type SyncIntent = 'save' | 'archive' | 'restore';
 
 export type InventoryItem = {
   id: string;
@@ -358,8 +363,11 @@ class InventoryStore {
 
   // DB upsert of the full item snapshot. On success the server's row is
   // adopted (id + defaults) so the store matches realtime. RLS-denied writes
-  // keep the local state silently; other failures toast (keep-local).
-  private async syncItem(item: InventoryItem): Promise<void> {
+  // keep the local state silently. Any other failure keeps the local change too
+  // — the admin already sees the result — but says what actually happened: the
+  // old generic "Something went wrong while saving" read as if the edit itself
+  // had failed, which is the false error reported on archive.
+  private async syncItem(item: InventoryItem, intent: SyncIntent = 'save'): Promise<void> {
     try {
       const saved = await saveInventoryItem({
         id: item.id,
@@ -379,16 +387,41 @@ class InventoryStore {
       this.saveToLocalStorage();
       this.notify();
     } catch (err) {
-      if (!isRlsDenied(err)) showDbError('inventory.update', err);
+      if (isRlsDenied(err)) return;
+      console.error(`[db:inventory.${intent}]`, err);
+      const detail = getErrorDetail(err);
+      const outcome = intent === 'archive' ? 'archived' : intent === 'restore' ? 'restored' : 'saved';
+      // A warning, not an error: the edit did apply here — only the server copy
+      // is behind. Red made a completed action look like a failed one.
+      toast.warning(
+        detail
+          ? `The item was ${outcome} on this device, but the server rejected the change: ${detail}`
+          : `The item was ${outcome} on this device, but the change hasn't reached the server yet.`,
+      );
     }
   }
 
-  // Best-effort DB delete. RLS-denied/not-found deletions degrade silently.
-  private async removeRemote(id: string): Promise<void> {
+  // Server delete. A delete the server refuses leaves the row in place, so the
+  // local removal is undone instead of showing an item as gone that will come
+  // back at the next refresh.
+  private async removeRemote(item: InventoryItem, index: number): Promise<'ok' | 'denied' | 'failed'> {
     try {
-      await removeInventoryItem(id);
+      await removeInventoryItem(item.id);
+      return 'ok';
     } catch (err) {
-      if (!isRlsDenied(err)) showDbError('inventory.delete', err);
+      if (isRlsDenied(err)) return 'denied';
+      console.error('[db:inventory.delete]', err);
+      const detail = getErrorDetail(err);
+      const label = item.name || item.id;
+      toast.error(
+        detail
+          ? `"${label}" wasn't deleted — the server refused: ${detail}`
+          : `"${label}" wasn't deleted — the change couldn't reach the server.`,
+      );
+      this.items = [...this.items.slice(0, index), item, ...this.items.slice(index)];
+      this.saveToLocalStorage();
+      this.notify();
+      return 'failed';
     }
   }
 
@@ -473,7 +506,11 @@ class InventoryStore {
     }
   }
 
-  updateItem(id: string, updates: Partial<InventoryItem>, opts?: { audit?: boolean }): void {
+  updateItem(
+    id: string,
+    updates: Partial<InventoryItem>,
+    opts?: { audit?: boolean; intent?: SyncIntent },
+  ): void {
     this.loadFromLocalStorage();
     const prev = this.items.find(item => item.id === id);
     const merged: InventoryItem = {
@@ -488,37 +525,45 @@ class InventoryStore {
     this.saveToLocalStorage();
     this.notify();
     if (prev) {
-      void this.syncItem(merged);
+      void this.syncItem(merged, opts?.intent);
       if (opts?.audit !== false) this.recordInventoryUpdate(prev, merged);
     }
   }
 
   archiveItem(id: string): void {
-    this.updateItem(id, { archived: true });
+    this.updateItem(id, { archived: true }, { intent: 'archive' });
   }
 
   unarchiveItem(id: string): void {
-    this.updateItem(id, { archived: false });
+    this.updateItem(id, { archived: false }, { intent: 'restore' });
   }
 
   deleteItem(id: string): void {
     this.loadFromLocalStorage();
-    const doomed = this.items.find(item => item.id === id);
+    const index = this.items.findIndex(item => item.id === id);
+    if (index === -1) return;
+    const doomed = this.items[index];
     this.items = this.items.filter(item => item.id !== id);
     this.saveToLocalStorage();
     this.notify();
-    if (doomed) {
-      auditLogStore.record({
-        module: 'Inventory',
-        action: 'Deleted',
-        reference: doomed.name || doomed.id,
-        entityType: 'Inventory',
-        entityId: doomed.id,
-        title: 'Inventory Item Deleted',
-        description: `Deleted the inventory item "${doomed.name || doomed.id}" (${doomed.category}).`,
-      });
-      void this.removeRemote(id);
-    }
+    void this.recordDelete(doomed, index);
+  }
+
+  // Log the deletion only once the server has accepted it (or the role can't
+  // delete at all), so the audit trail never claims a row is gone while the
+  // server still holds it.
+  private async recordDelete(item: InventoryItem, index: number): Promise<void> {
+    const result = await this.removeRemote(item, index);
+    if (result === 'failed') return;
+    auditLogStore.record({
+      module: 'Inventory',
+      action: 'Deleted',
+      reference: item.name || item.id,
+      entityType: 'Inventory',
+      entityId: item.id,
+      title: 'Inventory Item Deleted',
+      description: `Deleted the inventory item "${item.name || item.id}" (${item.category}).`,
+    });
   }
 
   // Stock In (restocking): add quantity

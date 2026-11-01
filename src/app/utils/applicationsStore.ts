@@ -4,10 +4,13 @@
 // getApplicationByJobId / subscribe) is unchanged for consumers. Hydration pulls
 // the caller's RLS-visible rows (customers see only their own applications); the
 // in-memory mirror is retained as the offline/Mock fallback so demo submissions
-// keep working while the backend is unreachable. Mutations apply locally first,
-// then best-effort sync to the DB — kept locally + surfaced on failure, never
-// thrown.
-import { isRlsDenied, showDbError } from '../../lib/db/errors';
+// keep working while the backend is unreachable.
+//
+// Submissions and status changes report whether the row actually landed. An
+// applicant must never be shown a confirmation for an application that the shop
+// never received, so a failed write withdraws the optimistic row instead of
+// leaving a phantom entry in the board.
+import { getErrorMessage, showDbError } from '../../lib/db/errors';
 import { authReady } from '../../lib/supabaseClient';
 import { subscribeTableChanges } from '../../lib/db/hooks';
 import {
@@ -18,6 +21,7 @@ import {
   uploadPortfolio,
 } from '../../lib/db/jobApplicationsRepo';
 import type { JobApplicationDto } from '../../lib/db/types';
+import { formatPHTime, toPHTKey } from './pht';
 
 export type ApplicationType = {
   id: string;
@@ -42,16 +46,23 @@ export type ApplicationType = {
   interviewTime?: string;
   interviewLocation?: string;
   rejectionReason?: string;
+  // Profile photo of the applicant, resolved from `profiles` at read time.
+  applicantProfileImage?: string | null;
+};
+
+export type AddApplicationResult = {
+  application: ApplicationType;
+  saved: boolean;
+  error?: string;
 };
 
 type Subscriber = () => void;
 
 function toApplicationType(dto: JobApplicationDto): ApplicationType {
-  const d = new Date(dto.appliedAt);
-  const dateStr = d.toISOString().split('T')[0];
-  const timeStr = Number.isNaN(d.getTime())
-    ? ''
-    : d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  // PHT everywhere: `applied_at` is a UTC instant, and slicing its ISO string
+  // would file an 11 PM submission under the next day.
+  const dateStr = toPHTKey(dto.appliedAt);
+  const timeStr = dto.appliedAt ? formatPHTime(dto.appliedAt) : '';
   const isFile = Boolean(dto.portfolioStoragePath);
   return {
     id: dto.id,
@@ -75,6 +86,7 @@ function toApplicationType(dto: JobApplicationDto): ApplicationType {
     interviewTime: dto.interviewTime ?? undefined,
     interviewLocation: dto.interviewLocation ?? undefined,
     rejectionReason: dto.rejectionReason ?? undefined,
+    applicantProfileImage: dto.applicantProfileImage ?? null,
   };
 }
 
@@ -192,17 +204,18 @@ class ApplicationsStore {
     return this.applications.find((a) => a.jobId === jobId);
   }
 
-  // Submit an application. The local row is created and returned immediately;
-  // the portfolio is uploaded and the row synced to the DB in the background.
-  // On DB failure the local row is kept and the error is surfaced.
+  // Submit an application. The optimistic row appears immediately so the submit
+  // feels instant, but the portfolio upload and the insert both have to succeed:
+  // if either fails the row is withdrawn and `saved` is false, so the applicant
+  // is told the truth instead of being handed an APP- id for nothing.
   async addApplication(
     app: Omit<ApplicationType, 'id' | 'status' | 'appliedDate' | 'appliedDateTime'> & {
       applicantProfileId?: string | null;
     },
-  ): Promise<ApplicationType> {
+  ): Promise<AddApplicationResult> {
     const now = new Date();
-    const dateStr = now.toISOString().split('T')[0];
-    const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    const dateStr = toPHTKey(now);
+    const timeStr = formatPHTime(now);
 
     const newApp: ApplicationType = {
       ...app,
@@ -251,48 +264,49 @@ class ApplicationsStore {
       mapped.portfolioFileName = app.portfolioFileName;
       this.applications = this.applications.map((a) => (a.id === newApp.id ? mapped : a));
       this.notify();
-      return mapped;
+      return { application: mapped, saved: true };
     } catch (err) {
-      // Keep the local submission; surface the sync failure but only when it's
-      // not a plain RLS rejection we can quietly degrade on.
-      if (!isRlsDenied(err)) {
-        showDbError('applications.create', err);
-      }
-      return newApp;
+      this.applications = this.applications.filter((a) => a.id !== newApp.id);
+      this.notify();
+      console.error('[db:applications.create]', err);
+      return { application: newApp, saved: false, error: getErrorMessage(err) };
     } finally {
       this.busy = false;
     }
   }
 
-  updateStatus(id: string, status: ApplicationType['status']): void {
-    this.updateApplication(id, { status });
-  }
+  // Status / interview / rejection update. Resolves to whether the server took
+  // it; on failure the previous row is put back so the admin's list keeps
+  // matching the database (and the caller can say so instead of toasting
+  // "updated" over a rejected write).
+  async updateApplication(id: string, updates: Partial<ApplicationType>): Promise<boolean> {
+    const previous = this.applications.find((a) => a.id === id);
+    if (!previous) return false;
+    const merged: ApplicationType = { ...previous, ...updates };
 
-  // Local-first status/fields update, then best-effort DB sync.
-  updateApplication(id: string, updates: Partial<ApplicationType>): void {
-    this.applications = this.applications.map((a) =>
-      a.id === id ? { ...a, ...updates } : a
-    );
-    this.notify();
+    const apply = (next: ApplicationType) => {
+      this.applications = this.applications.map((a) => (a.id === id ? next : a));
+      this.notify();
+    };
+    apply(merged);
 
-    void (async () => {
-      this.busy = true;
-      try {
-        await updateApplication(id, {
-          status: updates.status,
-          interviewDate: updates.interviewDate ?? null,
-          interviewTime: updates.interviewTime ?? null,
-          interviewLocation: updates.interviewLocation ?? null,
-          rejectionReason: updates.rejectionReason ?? null,
-        });
-      } catch (err) {
-        if (!isRlsDenied(err)) {
-          showDbError('applications.update', err);
-        }
-      } finally {
-        this.busy = false;
-      }
-    })();
+    this.busy = true;
+    try {
+      await updateApplication(id, {
+        status: merged.status,
+        interviewDate: merged.interviewDate ?? null,
+        interviewTime: merged.interviewTime ?? null,
+        interviewLocation: merged.interviewLocation ?? null,
+        rejectionReason: merged.rejectionReason ?? null,
+      });
+      return true;
+    } catch (err) {
+      apply(previous);
+      showDbError('applications.update', err);
+      return false;
+    } finally {
+      this.busy = false;
+    }
   }
 
   subscribe(fn: Subscriber): () => void {

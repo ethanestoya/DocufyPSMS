@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { isUuid } from './uuid';
 import type {
   InventoryItemDto,
   InventoryItemInsert,
@@ -101,16 +102,46 @@ export async function saveInventoryItem(input: SaveInventoryItemInput): Promise<
     archived: input.archived ?? false,
   };
 
-  const query = input.id
-    ? supabase.from('inventory_items').update(body).eq('id', input.id).select('*').single()
-    : supabase.from('inventory_items').insert(body).select('*').single();
-  const { data, error } = await query;
+  // An id that isn't a uuid belongs to a row that only ever existed in this
+  // browser — the seeded defaults, or an item added while offline. There is
+  // nothing on the server to update, and sending the id to `.eq('id', …)` is
+  // what produced 22P02 ("invalid input syntax for type uuid") on an ordinary
+  // edit. Insert instead and let the server mint the uuid.
+  if (input.id && isUuid(input.id)) {
+    const { data, error } = await supabase
+      .from('inventory_items')
+      .update(body)
+      .eq('id', input.id)
+      .select('*');
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      return toItemDto(data[0] as unknown as InventoryItemRow);
+    }
+
+    // Zero rows means the item was deleted on another device (or never reached
+    // the server). Re-create it under the same uuid so any reference still
+    // points at it; a genuine duplicate comes back as 23505 and is reported as
+    // "that record already exists" rather than as a generic failure.
+    const { data: recreated, error: recreateError } = await supabase
+      .from('inventory_items')
+      .insert({ ...body, id: input.id })
+      .select('*')
+      .single();
+    if (recreateError) throw recreateError;
+    return toItemDto(recreated as unknown as InventoryItemRow);
+  }
+
+  const { data, error } = await supabase.from('inventory_items').insert(body).select('*').single();
   if (error) throw error;
   return toItemDto(data as unknown as InventoryItemRow);
 }
 
 // Permanently remove an inventory item (cascade deletes its movements).
 export async function removeInventoryItem(id: string): Promise<void> {
+  // A browser-only id has no row behind it, so there is nothing to delete and
+  // the uuid filter would fail on the type.
+  if (!isUuid(id)) return;
   const { error } = await supabase.from('inventory_items').delete().eq('id', id);
   if (error) throw error;
 }

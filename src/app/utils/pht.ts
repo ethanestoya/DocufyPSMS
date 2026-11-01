@@ -147,6 +147,17 @@ export const formatPHTime = (
   return `${pad(h)}:${pad(p.m)}${sec}${ampm}`;
 };
 
+// A stored wall-clock time ("10:00" or "10:00:00" from an <input type="time">)
+// is not an instant, so it must not go through timezone conversion. This only
+// rewrites it into the 12-hour form the rest of the app reads in.
+export const formatClockTime = (value: string | null | undefined): string => {
+  const m = /^(\d{1,2}):(\d{2})/.exec((value ?? "").trim());
+  if (!m) return value ?? "";
+  const hour24 = Number(m[1]) % 24;
+  const h = hour24 % 12 || 12;
+  return `${h}:${m[2]}${hour24 < 12 ? " AM" : " PM"}`;
+};
+
 export type PHRange =
   | { year: "numeric"; month: "long"; day: "numeric" }
   | { weekday: "long"; year: "numeric"; month: "long"; day: "numeric" }

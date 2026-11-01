@@ -27,7 +27,7 @@ function readJoinedTitle(row: RowWithJob): string | null {
   return j.title ?? null;
 }
 
-function toDto(row: RowWithJob): JobApplicationDto {
+function toDto(row: RowWithJob, avatar?: string | null): JobApplicationDto {
   return {
     id: row.id,
     jobId: row.job_id,
@@ -53,7 +53,40 @@ function toDto(row: RowWithJob): JobApplicationDto {
     rejectionReason: row.rejection_reason,
     appliedAt: row.applied_at,
     updatedAt: row.updated_at,
+    applicantProfileImage: avatar ?? null,
   };
+}
+
+// `profiles.profile_image_path` holds the public URL for pictures uploaded by
+// this build, but older rows can carry a bare storage path.
+function resolveAvatar(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (/^(https?:\/\/|data:)/i.test(value)) return value;
+  const { data } = supabase.storage.from('profile-images').getPublicUrl(value);
+  return data.publicUrl;
+}
+
+// The applicant's photo lives on `profiles`, which the applications row only
+// references by uuid. PostgREST cannot embed it without knowing the constraint
+// name, so this is a second best-effort read: if it fails (or the caller may not
+// read profiles) the board simply renders initials.
+async function fetchApplicantAvatars(profileIds: string[]): Promise<Map<string, string>> {
+  const ids = Array.from(new Set(profileIds.filter(Boolean)));
+  if (ids.length === 0) return new Map();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, profile_image_path')
+    .in('id', ids);
+  if (error) {
+    console.warn('[db:jobApplications.avatars]', error);
+    return new Map();
+  }
+  const map = new Map<string, string>();
+  for (const row of (data ?? []) as Array<{ id: string; profile_image_path: string | null }>) {
+    const url = resolveAvatar(row.profile_image_path);
+    if (url) map.set(row.id, url);
+  }
+  return map;
 }
 
 // Fetch applications the calling role may see (RLS-filtered), newest first,
@@ -65,7 +98,11 @@ export async function fetchApplications(): Promise<JobApplicationDto[]> {
     .select('*, jobs(title)')
     .order('applied_at', { ascending: false });
   if (error) throw error;
-  return (data ?? []).map((row) => toDto(row as RowWithJob));
+  const rows = (data ?? []) as RowWithJob[];
+  const avatars = await fetchApplicantAvatars(
+    rows.map((row) => row.applicant_profile_id).filter((id): id is string => Boolean(id)),
+  );
+  return rows.map((row) => toDto(row, avatars.get(row.applicant_profile_id ?? '')));
 }
 
 export interface CreateApplicationInput {
@@ -120,16 +157,32 @@ export interface UpdateApplicationInput {
 }
 
 export async function updateApplication(id: string, input: UpdateApplicationInput): Promise<void> {
-  const row: JobApplicationUpdate = {
-    status: input.status,
-    interview_date: input.interviewDate,
-    interview_time: input.interviewTime,
-    interview_location: input.interviewLocation,
-    rejection_reason: input.rejectionReason,
-    portfolio_storage_path: input.portfolioStoragePath,
-  };
-  const { error } = await supabase.from('job_applications').update(row).eq('id', id);
+  // Only the fields the caller actually supplied are written. Building the row
+  // from every key with `?? null` meant moving an application to "Under Review"
+  // also erased its interview slot and any rejection reason.
+  const row: JobApplicationUpdate = {};
+  if (input.status !== undefined) row.status = input.status;
+  if (input.interviewDate !== undefined) row.interview_date = input.interviewDate;
+  if (input.interviewTime !== undefined) row.interview_time = input.interviewTime;
+  if (input.interviewLocation !== undefined) row.interview_location = input.interviewLocation;
+  if (input.rejectionReason !== undefined) row.rejection_reason = input.rejectionReason;
+  if (input.portfolioStoragePath !== undefined) row.portfolio_storage_path = input.portfolioStoragePath;
+  if (Object.keys(row).length === 0) return;
+
+  // `.select('id')` is what makes a rejected write visible: without it an
+  // update that matches no visible row (deleted, or blocked by RLS) returns no
+  // error and the caller would report success.
+  const { data, error } = await supabase
+    .from('job_applications')
+    .update(row)
+    .eq('id', id)
+    .select('id');
   if (error) throw error;
+  if ((data ?? []).length === 0) {
+    const notFound = new Error('No application row was updated') as Error & { code: string };
+    notFound.code = 'PGRST116';
+    throw notFound;
+  }
 }
 
 // Upload the applicant's portfolio file. The bucket is private and its storage

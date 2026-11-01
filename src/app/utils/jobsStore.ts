@@ -5,13 +5,18 @@
 // localStorage mirror + version-based default seeds are RETAINED so the job
 // board still renders demo data when the backend is unreachable or the DB tables
 // aren't set up yet. Hydration from Supabase replaces the mock list when the DB
-// returns rows; every mutation applies locally first, then best-effort syncs to
-// the DB (kept locally + surfaced on failure — never thrown).
-import { fetchJobs, saveJob, setJobStatus } from '../../lib/db/jobsRepo';
+// returns rows.
+//
+// Writes are NOT fire-and-forget: every mutation returns whether the row actually
+// reached the server, and a failed write puts the local mirror back the way it
+// was. A posting the shop believes it archived must not stay visible to
+// applicants just because the request was rejected.
+import { fetchJobs, saveJob, type SaveJobInput } from '../../lib/db/jobsRepo';
 import { authReady } from '../../lib/supabaseClient';
 import type { JobDto } from '../../lib/db/types';
 import { subscribeTableChanges } from '../../lib/db/hooks';
 import { showDbError } from '../../lib/db/errors';
+import { isUuid } from '../../lib/db/uuid';
 import { todayPHTKey } from './pht';
 
 export type JobType = {
@@ -31,6 +36,8 @@ export type JobType = {
   schedule?: string;
 };
 
+export type AddJobResult = { job: JobType; saved: boolean };
+
 type Subscriber = () => void;
 
 function toJobType(dto: JobDto): JobType {
@@ -49,6 +56,24 @@ function toJobType(dto: JobDto): JobType {
     posted: dto.posted,
     salary: dto.salary ?? undefined,
     schedule: dto.schedule ?? undefined,
+  };
+}
+
+function toSaveInput(job: JobType, id?: string): SaveJobInput {
+  return {
+    id,
+    title: job.title,
+    description: job.description,
+    type: job.type,
+    duration: job.duration || null,
+    department: job.department ?? null,
+    location: job.location ?? null,
+    salary: job.salary ?? null,
+    schedule: job.schedule ?? null,
+    requirements: job.requirements ?? [],
+    responsibilities: job.responsibilities ?? [],
+    status: job.status,
+    postedDate: job.postedDate ?? todayPHTKey(),
   };
 }
 
@@ -77,7 +102,7 @@ class JobsStore {
     if (this.initialized) return;
 
     try {
-      const JOBS_VERSION = '1.1'; // Increment this to force jobs reset
+      const JOBS_VERSION = '1.2'; // Increment this to force jobs reset
       const storedVersion = localStorage.getItem('jobsStoreVersion');
       const stored = localStorage.getItem('jobsStore');
 
@@ -88,7 +113,7 @@ class JobsStore {
         this.saveToLocalStorage();
       } else {
         const parsed = JSON.parse(stored);
-        this.jobs = Array.isArray(parsed) ? parsed : [];
+        this.jobs = Array.isArray(parsed) ? parsed.map((j: JobType) => this.withDemoDetails(j)) : [];
       }
     } catch (error) {
       console.error('Failed to load jobs from localStorage:', error);
@@ -97,6 +122,24 @@ class JobsStore {
 
     this.syncNextId();
     this.initialized = true;
+  }
+
+  // A browser that stored the demo postings before rate/schedule/duties existed
+  // would otherwise keep showing the bare card forever. Only the two built-in
+  // demo rows are filled in, and only when the field is still empty, so this can
+  // never overwrite something the shop typed.
+  private withDemoDetails(job: JobType): JobType {
+    const demo = this.getDefaultJobs().find((d) => d.id === job.id);
+    if (!demo) return job;
+    return {
+      ...job,
+      salary: job.salary || demo.salary,
+      schedule: job.schedule || demo.schedule,
+      location: job.location || demo.location,
+      department: job.department || demo.department,
+      responsibilities: job.responsibilities?.length ? job.responsibilities : demo.responsibilities,
+      requirements: job.requirements?.length ? job.requirements : demo.requirements,
+    };
   }
 
   private syncNextId(): void {
@@ -133,7 +176,22 @@ class JobsStore {
         type: 'Part-Time',
         duration: '15-20 hours/week',
         status: 'active',
-        department: 'General',
+        department: 'Print Operations',
+        location: 'Room 4, TBI Building, Palawan State University',
+        salary: '₱80–₱100 per hour',
+        schedule: 'Mon–Fri · 3–4 hour shifts',
+        responsibilities: [
+          'Take print requests at the counter and check each file before printing',
+          'Run and monitor the printers, then check every job for quality',
+          'Prepare binding, lamination and other finishing work',
+          'Record released orders and keep the counter area tidy',
+        ],
+        requirements: [
+          'Currently enrolled at PSU (any course)',
+          'Comfortable opening and checking Word, Excel and PDF files',
+          'Can commit to at least 15 hours a week',
+          'No shop experience needed — we train you',
+        ],
         posted: '2 days ago',
         postedDate: '2026-08-26',
       },
@@ -145,7 +203,22 @@ class JobsStore {
         type: 'Part-Time',
         duration: '10-15 hours/week',
         status: 'active',
-        department: 'General',
+        department: 'Customer Support',
+        location: 'Room 4, TBI Building, Palawan State University',
+        salary: '₱75–₱95 per hour',
+        schedule: 'Mon–Sat · flexible 2–4 hour shifts',
+        responsibilities: [
+          'Re-type and format customer documents before printing',
+          'Fix page layout, margins and spacing on submitted files',
+          'Check encoded work against the original for typos',
+          'Send finished files back to the counter for printing',
+        ],
+        requirements: [
+          'Currently enrolled at PSU (any course)',
+          'Fast and accurate typing',
+          'Working knowledge of Word, Excel and Google Docs',
+          'Can work in short afternoon shifts',
+        ],
         posted: '5 days ago',
         postedDate: '2026-08-23',
       },
@@ -199,10 +272,11 @@ class JobsStore {
     return this.jobs.find(job => job.id === id);
   }
 
-  // Create a job. Applies locally immediately (so the board updates even while
-  // offline), then tries the DB. On success the server-assigned id wins; on
-  // failure the job stays local and a toast surfaces the sync error.
-  async addJob(input: Omit<JobType, 'id' | 'status'> & { id?: string; status?: JobType['status'] }): Promise<JobType> {
+  // Create a posting. The row appears locally at once, then the server decides:
+  // on success its row (with the server uuid) replaces the optimistic one, on
+  // failure the optimistic row is withdrawn so the shop is never shown a posting
+  // that doesn't exist. `saved` tells the caller which happened.
+  async addJob(input: Omit<JobType, 'id' | 'status'> & { id?: string; status?: JobType['status'] }): Promise<AddJobResult> {
     this.loadFromLocalStorage();
     const job: JobType = {
       ...input,
@@ -216,87 +290,56 @@ class JobsStore {
     this.notify();
 
     try {
-      const saved = await saveJob({
-        title: job.title,
-        description: job.description,
-        type: job.type,
-        duration: job.duration || null,
-        department: job.department ?? null,
-        location: job.location ?? null,
-        salary: job.salary ?? null,
-        schedule: job.schedule ?? null,
-        requirements: job.requirements ?? [],
-        responsibilities: job.responsibilities ?? [],
-        status: job.status,
-        postedDate: job.postedDate ?? todayPHTKey(),
-      });
-      // Adopt the DB row (server uuid id) so this instance matches what a
-      // refresh/realtime will return.
+      const saved = await saveJob(toSaveInput(job));
       const mapped = toJobType(saved);
       this.jobs = this.jobs.map(j => (j.id === job.id ? mapped : j));
       this.saveToLocalStorage();
       this.notify();
-      return mapped;
+      return { job: mapped, saved: true };
     } catch (err) {
-      showDbError('jobs.create', err);
-      return job;
-    }
-  }
-
-  // Update a job (fields or lifecycle status). Local-first, then DB sync.
-  async updateJob(id: string, updates: Partial<JobType>): Promise<void> {
-    this.loadFromLocalStorage();
-    const current = this.jobs.find(j => j.id === id);
-    if (!current) return;
-    const merged: JobType = { ...current, ...updates };
-    this.jobs = this.jobs.map(j => (j.id === id ? merged : j));
-    this.saveToLocalStorage();
-    this.notify();
-
-    try {
-      if (updates.status && updates.status !== current.status) {
-        await setJobStatus(id, updates.status);
-        return;
-      }
-      const saved = await saveJob({
-        id: current.id,
-        title: merged.title,
-        description: merged.description,
-        type: merged.type,
-        duration: merged.duration || null,
-        department: merged.department ?? null,
-        location: merged.location ?? null,
-        salary: merged.salary ?? null,
-        schedule: merged.schedule ?? null,
-        requirements: merged.requirements ?? [],
-        responsibilities: merged.responsibilities ?? [],
-        status: merged.status,
-        postedDate: merged.postedDate ?? todayPHTKey(),
-      });
-      const mapped = toJobType(saved);
-      this.jobs = this.jobs.map(j => (j.id === id ? mapped : j));
+      this.jobs = this.jobs.filter(j => j.id !== job.id);
       this.saveToLocalStorage();
       this.notify();
-    } catch (err) {
-      showDbError('jobs.update', err);
+      showDbError('jobs.create', err);
+      return { job, saved: false };
     }
   }
 
-  archiveJob(id: string): void {
-    void this.updateJob(id, { status: 'archived' });
-  }
-
-  unarchiveJob(id: string): void {
-    void this.updateJob(id, { status: 'active' });
-  }
-
-  // Jobs have an archive-only lifecycle (no delete UI). Kept for API parity:
-  // removes from the local list only — rows stay in the DB.
-  deleteJob(id: string): void {
+  // Update any field or the lifecycle status in ONE write. Returns whether the
+  // server accepted it; on failure the row is restored so the board keeps
+  // matching the database.
+  async updateJob(id: string, updates: Partial<JobType>): Promise<boolean> {
     this.loadFromLocalStorage();
-    this.jobs = this.jobs.filter(job => job.id !== id);
-    this.saveToLocalStorage();
-    this.notify();
+    const current = this.jobs.find(j => j.id === id);
+    if (!current) return false;
+    const merged: JobType = { ...current, ...updates };
+
+    const apply = (next: JobType) => {
+      this.jobs = this.jobs.map(j => (j.id === id ? next : j));
+      this.saveToLocalStorage();
+      this.notify();
+    };
+    apply(merged);
+
+    try {
+      // A browser-only id (the demo seeds) has no row to update, so it is
+      // inserted instead and adopts the uuid the server mints.
+      const saved = await saveJob(toSaveInput(merged, isUuid(id) ? id : undefined));
+      apply(toJobType(saved));
+      return true;
+    } catch (err) {
+      apply(current);
+      showDbError('jobs.update', err);
+      return false;
+    }
+  }
+
+  archiveJob(id: string): Promise<boolean> {
+    return this.updateJob(id, { status: 'archived' });
+  }
+
+  unarchiveJob(id: string): Promise<boolean> {
+    return this.updateJob(id, { status: 'active' });
   }
 
   subscribe(callback: Subscriber): () => void {

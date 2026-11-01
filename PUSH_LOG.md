@@ -1363,4 +1363,20 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Landing page: Log In is an outline button, Get Started and View Job Openings are primary; the admin landing page preview inherits automatically.
 - Typecheck and production build pass; verified live on the customer pages and public landing page.
 
+## 2026-11-02 - Prans (03:05 AM PHT)
+
+- Fixed the four save bugs the adviser reported: a save that the server refused now says what went wrong instead of "system error", the profile editor names whether the details or the photo failed, and a refused write that returns no rows is no longer read as success.
+- Fixed attendance saves: an admin time correction that never reached the server used to look saved and then quietly affected salary; it now either syncs (with one silent retry on a dropped connection) or tells the admin once, instead of repeating on every later page.
+- Fixed job and application saves: a posting that failed to save is withdrawn instead of staying on the board, and a failed application no longer hands the applicant an application ID for nothing.
+- Rebuilt the New Job Posting button and its modal: the header button is now a real primary action, one dialog creates and edits a posting, and it captures pay rate, schedule, location, duties and requirements (department was previously hardcoded to "General"), with a "Use shop address" helper and a save that only closes once the write lands.
+- Job Board cards now show what the shop actually entered — pay, schedule, location, hours, duties and requirements — and fall back to the admin-managed shop address instead of a hardcoded one.
+- Unified applicant status colours and added applicant avatars, and interview times now read "10:00 AM" instead of "10:00:00" on the customer card, the customer detail, the admin list and the notification.
+- Rebuilt the apply form: the consent line is a real checkbox, a failed submit explains itself and stays on the form, and the position is read live instead of from a stale copy.
+- Fixed application status edits wiping stored details: moving an application to Under Review no longer clears its interview slot or rejection reason, and an edit that matches no row now fails instead of reporting success.
+- Moved the shop status control into the dashboard header: desktop now gets a compact Open/Paused/Closed pill with the same three actions and the same pause dialog, and the full card only appears on phones, so the Overview no longer spends its first screen on a badge that says "open" almost every day.
+- Made inventory archive and delete honest: an archive the server refuses now says it applied on this device only, a refused delete puts the item back, and the audit entry is written only once the server accepts the delete.
+- Seeded the demo postings with pay, schedule, duties and requirements so a fresh database looks like a real board.
+- Added the before/after and Job Board proposal mockups under `mockups/`.
+- Typecheck and production build pass; verified live as admin and customer against the dev backend (create posting, archive, apply, set to For Interview).
+
 

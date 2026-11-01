@@ -15,7 +15,6 @@ import {
 import Layout from "../Layout";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
-import { Spinner } from "../ui/spinner";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
@@ -70,19 +69,28 @@ export default function JobApplyForm() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { jobId } = useParams();
-  const job = jobsStore.getJobById(jobId || "");
+  // Live posting: jobs hydrate from the backend after mount, so a one-time read
+  // would leave the old title (or "Open Position") on screen.
+  const [job, setJob] = useState(() => jobsStore.getJobById(jobId || ""));
+
+  useEffect(() => {
+    const syncJob = () => setJob(jobsStore.getJobById(jobId || ""));
+    syncJob();
+    return jobsStore.subscribe(syncJob);
+  }, [jobId]);
+
   const jobTitle = job?.title || "Open Position";
 
   const [submitted, setSubmitted] = useState(false);
   const [submittedAppId, setSubmittedAppId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [showTerms, setShowTerms] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     contact: "",
     email: "",
-    position: jobTitle,
     skills: "",
     resumeType: "link" as "link" | "file",
     resumeLink: "",
@@ -122,8 +130,16 @@ export default function JobApplyForm() {
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
           return "Enter a valid email address.";
         return "";
-      case "contact":
-        return !formData.contact.trim() ? fieldErrors.contact : "";
+      case "contact": {
+        // Same rule as sign-up: a PH mobile number, eleven digits, starting 09.
+        // The field already strips everything else as you type, so this only
+        // fires for a number that is too short (or a pasted value that lost
+        // digits on the way in).
+        const digits = formData.contact.replace(/\D/g, "");
+        if (!digits) return fieldErrors.contact;
+        if (!/^09\d{9}$/.test(digits)) return "Enter an 11-digit number starting with 09.";
+        return "";
+      }
       case "skills":
         return !formData.skills.trim() ? fieldErrors.skills : "";
       case "portfolio":
@@ -180,6 +196,7 @@ export default function JobApplyForm() {
       return;
     }
     setErrors({});
+    setSubmitError("");
     setIsSubmitting(true);
 
     try {
@@ -192,13 +209,24 @@ export default function JobApplyForm() {
         name: `${formData.firstName} ${formData.lastName}`,
         email: formData.email,
         contact: formData.contact,
-        position: formData.position,
+        position: jobTitle,
         skills: formData.skills,
         portfolio: formData.resumeType === "link" ? formData.resumeLink : "",
         portfolioType: formData.resumeType,
         portfolioFile: formData.resumeFile,
         portfolioFileName: formData.resumeFile?.name,
       });
+
+      // The row only exists if the upload and the insert both landed. Telling
+      // someone their application was received when it wasn't is the one thing
+      // this screen must never do.
+      if (!result.saved) {
+        setSubmitError(
+          result.error ||
+            "Your application couldn't be sent. Check your connection and try again.",
+        );
+        return;
+      }
 
       const applicantLabel = `${formData.firstName} ${formData.lastName}`.trim();
       notificationStore.addNotification(
@@ -222,7 +250,7 @@ export default function JobApplyForm() {
         },
       );
 
-      setSubmittedAppId(applicationDisplayId(result.id));
+      setSubmittedAppId(applicationDisplayId(result.application.id));
       setSubmitted(true);
     } finally {
       setIsSubmitting(false);
@@ -447,10 +475,19 @@ export default function JobApplyForm() {
                   <Input
                     id="contact"
                     type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
+                    maxLength={11}
                     value={formData.contact}
-                    onChange={(e) => setFormData((p) => ({ ...p, contact: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((p) => ({
+                        ...p,
+                        contact: e.target.value.replace(/\D/g, "").slice(0, 11),
+                      }))
+                    }
                     onBlur={() => handleBlur("contact")}
                     placeholder="09XXXXXXXXX"
+                    aria-invalid={!!(errors.contact && touched.has("contact"))}
                     className={inputClass("contact")}
                   />
                   {fieldError("contact")}
@@ -605,30 +642,27 @@ export default function JobApplyForm() {
                 >
                   View Terms and Conditions ?
                 </button>
-                <div
+                <label
+                  htmlFor="consentAgreed"
                   className="flex items-start gap-3 cursor-pointer min-h-[44px] py-1"
-                  onClick={() => {
-                    setFormData((p) => ({ ...p, consentAgreed: !p.consentAgreed }));
-                    if (!formData.consentAgreed) {
-                      setErrors((prev) => { const n = { ...prev }; delete n.consentAgreed; return n; });
-                    }
-                  }}
                 >
-                  <div className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                    formData.consentAgreed
-                      ? "bg-[#1668D9] border-[#1668D9]"
-                      : errors.consentAgreed && touched.has("consentAgreed")
-                        ? "border-red-400 bg-white"
-                        : "border-slate-300 bg-white"
-                  }`}>
-                    {formData.consentAgreed && <CheckCircle className="w-3 h-3 text-white" />}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-slate-700">
-                      I have read and agree to the Terms & Conditions. <span className="text-red-500">*</span>
-                    </p>
-                  </div>
-                </div>
+                  <input
+                    id="consentAgreed"
+                    type="checkbox"
+                    checked={formData.consentAgreed}
+                    onChange={(e) => {
+                      setFormData((p) => ({ ...p, consentAgreed: e.target.checked }));
+                      if (e.target.checked) {
+                        setErrors((prev) => { const n = { ...prev }; delete n.consentAgreed; return n; });
+                      }
+                    }}
+                    aria-invalid={!!(errors.consentAgreed && touched.has("consentAgreed"))}
+                    className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer accent-[#1668D9]"
+                  />
+                  <span className="flex-1 text-sm text-slate-700">
+                    I have read and agree to the Terms & Conditions. <span className="text-red-500">*</span>
+                  </span>
+                </label>
                 {errors.consentAgreed && touched.has("consentAgreed") && (
                   <p className="text-xs text-red-500 flex items-center gap-1 pl-8">
                     <AlertCircle className="w-3 h-3" /> {errors.consentAgreed}
@@ -639,17 +673,23 @@ export default function JobApplyForm() {
 
             {/* Actions */}
             <div className="border-t border-slate-100 pt-5 space-y-3">
+              {submitError && (
+                <div
+                  role="alert"
+                  className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700"
+                >
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{submitError}</span>
+                </div>
+              )}
               <Button
                 type="submit"
                 variant="primary"
-                disabled={!formData.consentAgreed || isSubmitting}
+                loading={isSubmitting}
+                loadingText="Submitting…"
                 className="w-full h-11"
               >
-                {isSubmitting ? (
-                  <Spinner size="xs" label="Submitting..." />
-                ) : (
-                  "Submit Application"
-                )}
+                Submit Application
               </Button>
               <Button
                 type="button"

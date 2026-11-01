@@ -671,8 +671,11 @@ function OverviewTab({ metrics, navigate, items, role = "admin" }: { metrics: Da
         />
       </div>
 
-      {/* Shop Status Control */}
-      <ShopStatusControl />
+      {/* Shop Status Control — the full card on phones; the header pill above
+          replaces it from md up. */}
+      <div className="md:hidden">
+        <ShopStatusControl />
+      </div>
 
       {/* Sales Trend + Sales Comparison — folded in from the retired Sales tab */}
       {role === "admin" && (
@@ -1303,6 +1306,13 @@ export default function AdminDashboard({
           <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
             {role === "admin" && activeTab === "Overview" && <CreateNotificationCard />}
             {(role === "staff" || activeTab === "Overview") && overviewDateSelector}
+            {/* Desktop keeps the shop state in the header; phones keep the card
+                below the KPIs, where it is easier to read and tap. */}
+            {(role === "staff" || activeTab === "Overview") && (
+              <div className="hidden md:block">
+                <ShopStatusControl variant="pill" />
+              </div>
+            )}
           </div>
         </div>
 

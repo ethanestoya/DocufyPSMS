@@ -37,6 +37,18 @@ function cacheKey(email: string): string {
   return (email || '').trim().toLowerCase();
 }
 
+// Raised when an email matches neither a `profiles` row nor a `staff_records`
+// row. An insert with both ids null is meaningless, so this is a known cause —
+// distinct from a network/RLS failure — and the store words its notice from it.
+export class AttendanceIdentityMissingError extends Error {
+  readonly email: string;
+  constructor(email: string) {
+    super(`No staff record is linked to ${email} yet, so attendance can only be saved on this device.`);
+    this.name = 'AttendanceIdentityMissingError';
+    this.email = email;
+  }
+}
+
 // Resolve an email to its Supabase identity (profile_id = real auth account,
 // staff_id = staff_records directory row). Either can be null; a real auth
 // account may ALSO have a staff_records row, in which case both are returned.
@@ -73,7 +85,10 @@ export async function resolveAttendanceIdentity(email: string): Promise<Attendan
   }
 
   const resolved = { profileId, staffId };
-  identityCache.set(key, resolved);
+  // Only cache a real match. An empty result can be a transient lookup failure
+  // (or a roster row that hasn't been created yet), and caching it would make
+  // every later clock action fail for the rest of the session.
+  if (profileId || staffId) identityCache.set(key, resolved);
   return resolved;
 }
 
@@ -188,6 +203,11 @@ export async function upsertAttendanceRecord(
   input: UpsertAttendanceRecordInput,
 ): Promise<{ id: string; profileId: string | null; staffId: string | null }> {
   const identity = await resolveAttendanceIdentity(input.email);
+  // Without either id the row would identify nobody. Say so instead of letting
+  // the database reject it with a constraint error the user can't act on.
+  if (!identity.profileId && !identity.staffId) {
+    throw new AttendanceIdentityMissingError(input.email);
+  }
   const timeInIso = input.timeIn ? input.timeIn.toISOString() : null;
   const timeOutIso = input.timeOut ? input.timeOut.toISOString() : null;
   const extraSessions = (input.extraSessions ?? [])

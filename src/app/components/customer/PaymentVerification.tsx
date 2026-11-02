@@ -1042,6 +1042,8 @@ export default function PaymentVerification() {
                 <Input
                   id="reference"
                   type="text"
+                  alphaNumericOnly
+                  maxDigits={20}
                   value={referenceNumber}
                   onChange={(e) => {
                     setReferenceNumber(e.target.value);
@@ -1055,6 +1057,7 @@ export default function PaymentVerification() {
                   )}
                   aria-required="true"
                   required
+                  maxLength={20}
                 />
                 <p id="reference-help" className="text-sm text-gray-500">
                   Enter the reference number from your{" "}

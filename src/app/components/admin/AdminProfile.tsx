@@ -104,11 +104,16 @@ export default function AdminProfile() {
   };
 
   const handleSave = async () => {
+    const { normalizeNameForSave, normalizePhoneForSave } = await import('../../utils/inputSanitizers');
+    const sanitizedFirst = normalizeNameForSave(formData.firstName);
+    const sanitizedLast = normalizeNameForSave(formData.lastName);
+    const sanitizedPhone = normalizePhoneForSave(formData.phone);
+    setFormData((prev: any) => ({ ...prev, firstName: sanitizedFirst, lastName: sanitizedLast, phone: sanitizedPhone }));
     const displayName =
-      `${formData.firstName} ${formData.lastName}`.trim() || user?.name || 'Admin User';
+      `${sanitizedFirst} ${sanitizedLast}`.trim() || user?.name || 'Admin User';
     setSaving(true);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...formData, firstName: sanitizedFirst, lastName: sanitizedLast, phone: sanitizedPhone }));
       // The picture is Supabase-ONLY: it must reach storage + the profiles table
       // before it counts. A failed upload never falls back to localStorage — the
       // chosen picture stays in the form so the user can retry, clearly surfaced.
@@ -123,12 +128,12 @@ export default function AdminProfile() {
       // excluded — it is the registered account email and is not editable.
       const patch: Database['public']['Tables']['profiles']['Update'] = {
         full_name: displayName,
-        phone: formData.phone.trim() || null,
+        phone: sanitizedPhone.trim() || null,
       };
       const detailsResult = await syncProfileDetails(patch);
       const detailsError = detailsResult.ok ? null : detailsResult.message;
 
-      updateProfile({ name: displayName });
+      updateProfile({ name: displayName, phone: sanitizedPhone.trim() || undefined });
       setSaving(false);
 
       if (detailsError || pictureError) {
@@ -273,11 +278,14 @@ export default function AdminProfile() {
                   <div>
                     <p className="text-xs text-gray-500">First Name</p>
                     {isEditing ? (
-                      <input
+                      <Input
                         type="text"
+                        lettersOnly
+                        maxDigits={50}
                         value={formData.firstName}
                         onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                        className="text-sm font-medium text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#2F6FD6]"
+                        className="text-sm font-medium text-gray-900 bg-transparent border-0 border-b border-gray-300 rounded-none px-0 h-auto focus-visible:ring-0 focus-visible:border-[#2F6FD6]"
+                        maxLength={50}
                       />
                     ) : (
                       <p className="text-sm font-medium text-gray-900">{formData.firstName}</p>
@@ -290,11 +298,14 @@ export default function AdminProfile() {
                   <div>
                     <p className="text-xs text-gray-500">Last Name</p>
                     {isEditing ? (
-                      <input
+                      <Input
                         type="text"
+                        lettersOnly
+                        maxDigits={50}
                         value={formData.lastName}
                         onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                        className="text-sm font-medium text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#2F6FD6]"
+                        className="text-sm font-medium text-gray-900 bg-transparent border-0 border-b border-gray-300 rounded-none px-0 h-auto focus-visible:ring-0 focus-visible:border-[#2F6FD6]"
+                        maxLength={50}
                       />
                     ) : (
                       <p className="text-sm font-medium text-gray-900">{formData.lastName}</p>
@@ -326,11 +337,15 @@ export default function AdminProfile() {
                   <div>
                     <p className="text-xs text-gray-500">Phone</p>
                     {isEditing ? (
-                      <input
+                      <Input
                         type="tel"
+                        phoneOnly
+                        maxDigits={11}
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="text-sm font-medium text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#2F6FD6]"
+                        className="text-sm font-medium text-gray-900 bg-transparent border-0 border-b border-gray-300 rounded-none px-0 h-auto focus-visible:ring-0 focus-visible:border-[#2F6FD6]"
+                        placeholder="09XXXXXXXXX"
+                        maxLength={11}
                       />
                     ) : (
                       <p className="text-sm font-medium text-gray-900">{formData.phone}</p>

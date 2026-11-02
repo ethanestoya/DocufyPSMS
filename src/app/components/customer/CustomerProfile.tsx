@@ -399,8 +399,12 @@ export default function CustomerProfile() {
                     <Input
                       id="phone"
                       type="tel"
+                      phoneOnly
+                      maxDigits={11}
                       value={formData.phone}
                       onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                      placeholder="09XXXXXXXXX"
+                      maxLength={11}
                     />
                   </div>
                 </div>

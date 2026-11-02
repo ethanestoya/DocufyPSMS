@@ -309,6 +309,8 @@ export default function SignUpPage() {
                 <Input
                   id="firstName"
                   type="text"
+                  lettersOnly
+                  maxDigits={50}
                   value={formData.firstName}
                   onChange={(e) =>
                     handleChange("firstName", e.target.value)
@@ -341,6 +343,8 @@ export default function SignUpPage() {
                 <Input
                   id="lastName"
                   type="text"
+                  lettersOnly
+                  maxDigits={50}
                   value={formData.lastName}
                   onChange={(e) =>
                     handleChange("lastName", e.target.value)
@@ -407,12 +411,11 @@ export default function SignUpPage() {
                 <Input
                   id="contactNumber"
                   type="tel"
+                  phoneOnly
+                  maxDigits={11}
                   value={formData.contactNumber}
                   onChange={(e) =>
-                    handleChange(
-                      "contactNumber",
-                      e.target.value.replace(/\D/g, ""),
-                    )
+                    handleChange("contactNumber", e.target.value)
                   }
                   onBlur={() => handleBlur("contactNumber")}
                   placeholder="09XXXXXXXXX"

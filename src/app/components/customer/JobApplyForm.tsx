@@ -440,56 +440,56 @@ export default function JobApplyForm() {
                   <Label htmlFor="firstName" className="text-sm font-medium text-slate-700 mb-1.5">
                     First Name <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="firstName"
-                    type="text"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData((p) => ({ ...p, firstName: e.target.value }))}
-                    onBlur={() => handleBlur("firstName")}
-                    placeholder="e.g. Maria"
-                    maxLength={50}
-                    className={inputClass("firstName")}
-                  />
+                <Input
+                  id="firstName"
+                  type="text"
+                  lettersOnly
+                  maxDigits={50}
+                  value={formData.firstName}
+                  onChange={(e) => setFormData((p) => ({ ...p, firstName: e.target.value }))}
+                  onBlur={() => handleBlur("firstName")}
+                  placeholder="e.g. Maria"
+                  className={inputClass("firstName")}
+                  maxLength={50}
+                />
                   {fieldError("firstName")}
                 </div>
                 <div>
                   <Label htmlFor="lastName" className="text-sm font-medium text-slate-700 mb-1.5">
                     Last Name <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="lastName"
-                    type="text"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData((p) => ({ ...p, lastName: e.target.value }))}
-                    onBlur={() => handleBlur("lastName")}
-                    placeholder="e.g. Santos"
-                    maxLength={50}
-                    className={inputClass("lastName")}
-                  />
+                <Input
+                  id="lastName"
+                  type="text"
+                  lettersOnly
+                  maxDigits={50}
+                  value={formData.lastName}
+                  onChange={(e) => setFormData((p) => ({ ...p, lastName: e.target.value }))}
+                  onBlur={() => handleBlur("lastName")}
+                  placeholder="e.g. Santos"
+                  className={inputClass("lastName")}
+                  maxLength={50}
+                />
                   {fieldError("lastName")}
                 </div>
                 <div>
                   <Label htmlFor="contact" className="text-sm font-medium text-slate-700 mb-1.5">
                     Contact Number <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="contact"
-                    type="tel"
+                <Input
+                  id="contact"
+                  type="tel"
+                  phoneOnly
+                  maxDigits={11}
                     inputMode="numeric"
                     autoComplete="tel-national"
-                    maxLength={11}
-                    value={formData.contact}
-                    onChange={(e) =>
-                      setFormData((p) => ({
-                        ...p,
-                        contact: e.target.value.replace(/\D/g, "").slice(0, 11),
-                      }))
-                    }
-                    onBlur={() => handleBlur("contact")}
-                    placeholder="09XXXXXXXXX"
-                    aria-invalid={!!(errors.contact && touched.has("contact"))}
-                    className={inputClass("contact")}
-                  />
+                  value={formData.contact}
+                  onChange={(e) => setFormData((p) => ({ ...p, contact: e.target.value }))}
+                  onBlur={() => handleBlur("contact")}
+                  placeholder="09XXXXXXXXX"
+                  className={inputClass("contact")}
+                  maxLength={11}
+                />
                   {fieldError("contact")}
                 </div>
                 <div>

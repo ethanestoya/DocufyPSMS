@@ -429,7 +429,6 @@ export default function MobileNavSheet({ router }: MobileNavSheetProps) {
                 <LifeBuoy className="h-5 w-5 shrink-0" />
                 <div className="min-w-0 flex-1 text-left">
                   <p className="text-xs font-semibold text-white leading-none">Help &amp; Support</p>
-                  <p className="text-[10px] text-blue-100 leading-none mt-1">Guides and contact</p>
                 </div>
               </button>
             )}

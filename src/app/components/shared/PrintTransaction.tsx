@@ -2981,21 +2981,25 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
       key={method.id}
       className={`relative overflow-hidden flex items-center space-x-3 p-4 border-2 rounded-lg transition-all ${
         paymentMethod === method.name
-          ? "border-[#2F6FD6] bg-white cursor-pointer active:scale-[0.98]"
-          : "border-gray-200 hover:border-gray-300 cursor-pointer active:scale-[0.98]"
+          ? "border-[#1668D9] bg-[#EAF2FF] shadow-[0_8px_20px_rgba(22,104,217,0.14)] cursor-pointer active:scale-[0.98]"
+          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-slate-50/60 cursor-pointer active:scale-[0.98]"
       }`}
       onClick={() => setPaymentMethod(method.name)}
     >
-      {paymentMethod === method.name && (
-        <span className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#2F6FD6] rounded-full" />
-      )}
-      <RadioGroupItem value={method.name} id={`pm-${method.id}`} />
+      {/* Bullseye marker: brand ring → white gap → brand core, 22px. */}
+      <RadioGroupItem
+        value={method.name}
+        id={`pm-${method.id}`}
+        className="size-[22px] shrink-0 rounded-full border-2 border-slate-300 bg-white transition-colors data-[state=checked]:border-[#1668D9] [&_svg]:size-[10px] [&_svg]:fill-[#1668D9] [&_svg]:text-[#1668D9]"
+      />
       <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
-        <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-blue-100">
-          <Smartphone className="w-5 h-5 text-[#2F6FD6]" />
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+          paymentMethod === method.name ? "bg-[#1668D9]" : "bg-blue-100"
+        }`}>
+          <Smartphone className={`w-5 h-5 ${paymentMethod === method.name ? "text-white" : "text-[#2F6FD6]"}`} />
         </div>
         <div className="min-w-[8rem] flex-1">
-          <Label htmlFor={`pm-${method.id}`} className="font-semibold cursor-pointer text-gray-900">
+          <Label htmlFor={`pm-${method.id}`} className={`font-semibold cursor-pointer ${paymentMethod === method.name ? "text-[#10316B]" : "text-gray-900"}`}>
             {method.name}
           </Label>
           <p className="text-xs text-gray-500">
@@ -3023,8 +3027,8 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                           cashDisabled
                             ? "border-dashed border-gray-200 bg-gray-50 cursor-not-allowed opacity-70"
                             : paymentMethod === "cash"
-                              ? "border-[#2F6FD6] bg-white cursor-pointer active:scale-[0.98]"
-                              : "border-gray-200 hover:border-gray-300 cursor-pointer active:scale-[0.98]"
+                              ? "border-[#1668D9] bg-[#EAF2FF] shadow-[0_8px_20px_rgba(22,104,217,0.14)] cursor-pointer active:scale-[0.98]"
+                              : "border-gray-200 bg-white hover:border-gray-300 hover:bg-slate-50/60 cursor-pointer active:scale-[0.98]"
                         }`}
                         onClick={
                           cashDisabled
@@ -3033,16 +3037,21 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                         }
                         title={cashDisabled ? cashDisabledReason : undefined}
                       >
-                        {paymentMethod === "cash" && (
-                          <span className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#2F6FD6] rounded-full" />
-                        )}
-                        <RadioGroupItem value="cash" id="cash" disabled={cashDisabled} />
+                        {/* Same bullseye marker as the wallet cards. */}
+                        <RadioGroupItem
+                          value="cash"
+                          id="cash"
+                          disabled={cashDisabled}
+                          className="size-[22px] shrink-0 rounded-full border-2 border-slate-300 bg-white transition-colors data-[state=checked]:border-[#1668D9] [&_svg]:size-[10px] [&_svg]:fill-[#1668D9] [&_svg]:text-[#1668D9]"
+                        />
                         <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
-                          <div className="w-10 h-10 bg-[#73bbff] rounded-lg flex items-center justify-center shrink-0">
-                            <Banknote className="w-5 h-5 text-blue-600" />
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                            paymentMethod === "cash" && !cashDisabled ? "bg-[#1668D9]" : "bg-[#73bbff]"
+                          }`}>
+                            <Banknote className={`w-5 h-5 ${paymentMethod === "cash" && !cashDisabled ? "text-white" : "text-blue-600"}`} />
                           </div>
                           <div className="min-w-[8rem] flex-1">
-                            <Label htmlFor="cash" className={`font-semibold ${cashDisabled ? "text-gray-500 cursor-not-allowed" : "text-gray-900 cursor-pointer"}`}>
+                            <Label htmlFor="cash" className={`font-semibold ${cashDisabled ? "text-gray-500 cursor-not-allowed" : paymentMethod === "cash" ? "text-[#10316B] cursor-pointer" : "text-gray-900 cursor-pointer"}`}>
                               Cash on Pickup
                             </Label>
                             {cashDisabled ? (

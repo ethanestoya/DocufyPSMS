@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { LayoutDashboard, FileText, Briefcase, Package, User, Mail, Phone, ArrowLeft, AlertCircle, Key, Camera, ChevronRight, Lock, LogOut, Pencil, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
+import { AvatarCropDialog } from '../ui/avatar-crop-dialog';
 import Layout from '../Layout';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
@@ -159,18 +160,29 @@ export default function CustomerProfile() {
   const displayName = `${formData.firstName} ${formData.lastName}`.trim() || user?.name || 'Customer User';
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('') || 'U';
 
+  const [cropSource, setCropSource] = useState<string | null>(null);
+
   const handleProfileImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    // Reset first so picking the same file again still opens the editor (after
+    // a cancel, or after a rejected file).
+    event.target.value = '';
     if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please choose an image file.');
+      return;
+    }
     if (file.size > 2 * 1024 * 1024) {
       toast.error('Please choose an image smaller than 2MB.');
       return;
     }
 
+    // Read the file, then let the cropper decide the square. Nothing on the
+    // profile changes unless the user confirms it.
     const reader = new FileReader();
     reader.onload = () => {
       const result = typeof reader.result === 'string' ? reader.result : null;
-      setProfileImage(result);
+      if (result) setCropSource(result);
     };
     reader.readAsDataURL(file);
   };
@@ -661,6 +673,20 @@ export default function CustomerProfile() {
           destructive={false}
         />
       )}
+
+      <AvatarCropDialog
+        open={cropSource !== null}
+        imageSrc={cropSource}
+        onOpenChange={(open) => {
+          if (!open) setCropSource(null);
+        }}
+        onApply={(cropped) => {
+          setProfileImage(cropped);
+          setCropSource(null);
+          toast.success('Photo ready — save to apply it.');
+        }}
+      />
+
     </Layout>
   );
 }

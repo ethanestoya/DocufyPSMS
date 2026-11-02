@@ -946,8 +946,7 @@ export default function Layout({
             <LifeBuoy className="w-5 h-5 shrink-0" />
             {showLabels && (
               <div className="min-w-0 flex-1 text-left">
-                <p className="text-xs font-semibold text-white leading-none">Help &amp; Support</p>
-                <p className="text-[10px] text-blue-100 leading-none mt-1">Guides and contact</p>
+                <p className="text-sm font-semibold text-white leading-none">Help &amp; Support</p>
               </div>
             )}
           </button>
@@ -970,7 +969,7 @@ export default function Layout({
             }`}
           >
             <LogOut className="w-5 h-5 shrink-0" />
-            {showLabels && <span className="text-xs font-semibold leading-none">Sign out</span>}
+            {showLabels && <span className="text-sm font-semibold leading-none">Sign out</span>}
           </button>
         )}
       </div>

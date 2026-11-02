@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Circle markers — recommended card</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --brand:#1668D9; --accent:#2F6FD6; --deep:#10316B;
+    --line:#E5E7EB; --line2:#CBD5E1; --ink:#111827; --ink2:#6B7280;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#F8FAFC;font-family:'Inter',system-ui,'Segoe UI',sans-serif;
+       color:var(--ink);-webkit-font-smoothing:antialiased}
+  .page{width:1560px;padding:44px 48px 34px}
+
+  header.top h1{font-family:'Poppins','Inter',sans-serif;font-size:29px;font-weight:600;margin:0;letter-spacing:-.01em}
+  header.top p{margin:8px 0 0;font-size:14px;color:#64748B;max-width:1010px;line-height:1.55}
+  header.top p b{color:#334155;font-weight:600}
+
+  .row{display:grid;grid-template-columns:344px 1fr;gap:34px;align-items:center;
+       padding:20px 0;border-top:1px solid #E8EDF4}
+  .row:last-of-type{border-bottom:1px solid #E8EDF4}
+
+  .meta .head{display:flex;align-items:center;gap:12px}
+  .tag{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+       padding:5px 10px;border-radius:999px;background:#EAF2FF;color:var(--brand);white-space:nowrap}
+  .tag.rec{background:#E8F7D8;color:#3F7A15}
+  .detail{width:58px;height:58px;display:flex;align-items:center;justify-content:center;
+          background:#fff;border:1px solid #E2E8F0;border-radius:12px;margin-left:auto}
+  .detail .m{transform:scale(1.9)}
+  .meta h2{font-family:'Poppins','Inter',sans-serif;font-size:18px;font-weight:600;margin:10px 0 0}
+  .meta p{font-size:13px;line-height:1.6;color:#64748B;margin:7px 0 0}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .chips code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;
+              color:#334155;background:#fff;border:1px solid #E2E8F0;border-radius:6px;padding:3px 7px}
+
+  /* ── card (fixed "recommended" treatment) ── */
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .opt{position:relative;display:flex;align-items:center;gap:12px;padding:16px;
+       border:2px solid var(--line);border-radius:10px;background:#fff;min-height:76px}
+  .opt.sel{border-color:var(--brand);background:#EAF2FF;box-shadow:0 8px 20px rgba(22,104,217,.14)}
+  .chip{width:40px;height:40px;border-radius:8px;background:#DBEAFE;flex:none;
+        display:flex;align-items:center;justify-content:center}
+  .opt.sel .chip{background:var(--brand)}
+  .chip svg{width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:2;
+            stroke-linecap:round;stroke-linejoin:round}
+  .opt.sel .chip svg{stroke:#fff}
+  .body{flex:1;min-width:0}
+  .body .name{display:block;font-family:'Poppins','Inter',sans-serif;font-size:16px;
+              font-weight:600;line-height:1.2}
+  .opt.sel .body .name{color:var(--deep)}
+  .body .desc{display:block;font-size:12px;color:var(--ink2);margin-top:2px}
+  .qr{display:flex;align-items:center;gap:4px;flex:none;font-size:12px;font-weight:600;color:var(--brand)}
+  .qr svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;
+          stroke-linecap:round;stroke-linejoin:round}
+
+  /* ── circular markers (22px) ── */
+  .m{width:22px;height:22px;border-radius:50%;flex:none;position:relative}
+  .m.solid{background:var(--brand)}
+  .m.donut{background:var(--brand)}
+  .m.donut::after{content:"";position:absolute;left:50%;top:50%;width:7px;height:7px;
+                  margin:-3.5px 0 0 -3.5px;border-radius:50%;background:#fff}
+  .m.ring{background:#fff;border:3px solid var(--brand)}
+  .m.halo{background:var(--brand);box-shadow:0 0 0 4px rgba(22,104,217,.20)}
+  .m.bullseye{background:radial-gradient(circle,#1668D9 0 5px,#fff 5.5px 7.5px,#1668D9 8px 11px)}
+  .m.bubble{background:var(--brand);box-shadow:0 0 0 3px #fff,0 3px 8px rgba(22,104,217,.35)}
+  .m.corner{position:absolute;top:-9px;right:-9px}
+  .m.u{background:#fff;border:2px solid var(--line2)}
+  .opt.trail .m:last-child{margin-left:2px}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <h1>Recommended card, circle-only selection markers</h1>
+    <p>
+      The card treatment stays exactly as approved — <b>#EAF2FF fill, 2px #1668D9 border, solid icon chip,
+      lift shadow</b> — and only the round marker changes. The check is gone on purpose: in Docufy a tick already
+      means <b>completed / verified</b> (order status, payment verified), so it fights the meaning here. A circle
+      says &ldquo;this option is on&rdquo; and matches how radios behave everywhere else in the app.
+    </p>
+  </header>
+
+  <div id="sheet"></div>
+
+  <footer class="legend" style="margin-top:20px;border-top:1px solid #E8EDF4;padding-top:16px">
+    <p class="note" style="font-size:12.5px;line-height:1.65;color:#64748B;max-width:1020px;margin:0">
+      <b style="color:#334155">Implementation note.</b> Every option is the app&rsquo;s existing
+      <code>RadioGroupItem</code> restyled — no custom check glyph and no extra markup, so arrow-key
+      navigation, label association and the selected value keep working untouched. 22px is the target a thumb
+      actually hits on a phone and lines up with the 40px icon chip. Unselected cards keep the hollow grey
+      circle, so the affordance never disappears.
+    </p>
+  </footer>
+</div>
+
+<script>
+  const PHONE = '<svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>';
+  const QRIMG = '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3z"/></svg>';
+
+  const VARIANTS = [
+    { tag: 'V1 · recommended', rec: true, m: 'solid', name: 'Solid dot',
+      text: 'Filled = chosen — the plainest reading and the closest to a native radio. Nothing to decode, and the card fill already carries half the signal.',
+      chips: ['22px disc', 'no inner detail'] },
+    { tag: 'V2', m: 'donut', name: 'Radio donut',
+      text: 'Brand disc with a white hole in the middle — the classic radio silhouette, but large enough to see. Reads unmistakably as a control, not a status.',
+      chips: ['22px disc', '7px white core'] },
+    { tag: 'V3', m: 'ring', name: 'Hollow ring',
+      text: 'White centre with a bold 3px brand ring. The quietest of the set: weight comes from the ring instead of a fill, so it never competes with the card fill.',
+      chips: ['3px ring', 'white core'] },
+    { tag: 'V4', m: 'halo', name: 'Solid dot + halo',
+      text: 'Solid dot wrapped in a 4px soft brand halo, like a focus glow. Extra presence without a second shape, and the halo still reads on the tinted fill.',
+      chips: ['22px disc', 'halo 4px @20%'] },
+    { tag: 'V5', m: 'bullseye', name: 'Bullseye (double ring)',
+      text: 'Brand core, white gap, brand outer ring. The most emphatic circle — the “target” reading — but the busiest of the seven at this size.',
+      chips: ['3 rings', 'heaviest'] },
+    { tag: 'V6', m: 'solid', trail: true, name: 'Solid dot, trailing',
+      text: 'Same dot, moved to the right end of the row, after View QR. Reads as the state of the card rather than as a form control on the left; the row starts with the wallet, which is what people scan for.',
+      chips: ['right-aligned', 'frees the leading edge'] },
+    { tag: 'V7', m: 'bubble', corner: true, name: 'Corner bubble',
+      text: 'Round badge on the card’s top-right corner, half outside the border. Takes no space in the row at all, so the card stays tight on 320px screens; unselected cards simply show no badge.',
+      chips: ['20px on the corner', 'zero row space'] }
+  ];
+
+  function marker(cls, extra) {
+    return '<span class="m ' + cls + (extra ? ' ' + extra : '') + '"></span>';
+  }
+
+  function card(v, selected) {
+    const mcls = selected ? v.m : 'u';
+    const leading = (v.corner || v.trail) ? '' : marker(mcls, '');
+    const trailing = (v.trail && !v.corner) ? marker(mcls, '') : '';
+    const corner = (v.corner && selected) ? marker(mcls, 'corner') : '';
+    return '<div class="opt' + (selected ? ' sel' : '') + (v.trail ? ' trail' : '') + '">' +
+      leading + corner +
+      '<span class="chip">' + PHONE + '</span>' +
+      '<span class="body">' +
+        '<span class="name">' + (selected ? 'GCash' : 'GoTyme') + '</span>' +
+        '<span class="desc">Pay via ' + (selected ? 'GCash' : 'GoTyme') + ' mobile wallet</span>' +
+      '</span>' +
+      '<span class="qr">' + QRIMG + 'View QR</span>' +
+      trailing +
+    '</div>';
+  }
+
+  document.getElementById('sheet').innerHTML = VARIANTS.map(function (v) {
+    return '<section class="row">' +
+      '<div class="meta">' +
+        '<div class="head">' +
+          '<span class="tag' + (v.rec ? ' rec' : '') + '">' + v.tag + '</span>' +
+          '<span class="detail">' + marker(v.m, v.corner ? '' : '') + '</span>' +
+        '</div>' +
+        '<h2>' + v.name + '</h2>' +
+        '<p>' + v.text + '</p>' +
+        '<div class="chips">' + v.chips.map(function (c) { return '<code>' + c + '</code>'; }).join('') + '</div>' +
+      '</div>' +
+      '<div class="cards">' + card(v, true) + card(v, false) + '</div>' +
+    '</section>';
+  }).join('');
+</script>
+</body>
+</html>
+

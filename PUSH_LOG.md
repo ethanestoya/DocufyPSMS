@@ -1444,3 +1444,19 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Pulled the two outstanding collaborator pushes (Ethan's input-field restrictions and aeprnts' sidebar regroup + job-application guards) into the local rontend-dev work via fast-forward, resolving the one merge conflict in AGENTS.md by keeping both sides' bullets.
 - Restyled the three phone detail sheets on the customer Order Tracking page (Printing Details, Payment Method and Status, Cost Breakdown) from a slide-from-bottom sheet into a centred floating window, sized to be read: 660px wide capped at 94vh, with a larger icon chip, title, subtitle and close button, and enlarged the body and every field label inside the sheets so the content is legible on a phone.
 - Typecheck and production build pass.
+
+## 2026-11-03 - Prans (1:50 AM PHT)
+
+- Turned the profile picture upload into a small editor: after choosing an image, the customer can now drag it to reposition, zoom in and out and reset, with the round avatar previewed over the picture, so the avatar is no longer decided by however the file happened to be framed.
+- Kept only the square inside that frame and saved it at 512 pixels, so a large phone photo is downscaled before it is uploaded and the stored picture is a small square instead of the whole file.
+- Made cancelling the editor leave the current picture untouched, and taught the picker to refuse non-image files and to allow the same file to be chosen again after a cancel.
+- Gave the staff dashboard the same Overview as the admin dashboard, including the sales trend and the inventory card beside it, because staff were getting a reduced version with the chart missing.
+- Kept the announcement card and the Services tab admin-only, so staff still land on the Overview alone with no tab bar.
+- Moved the dashboard's date filter out of the page header and into the Sales Trend card, where it belongs: the header keeps only the shop status, and the numbers at the top and the chart now follow one date range instead of two pickers that disagreed.
+- Enlarged the sidebar's Help & Support and Sign out labels so they match every other row in the rail, and removed the "Guides and contact" line under Help, on both the desktop rail and the phone drawer.
+- Redesigned the selected payment method card on the print request: the chosen wallet now gets a tinted card, a solid brand icon and a round bullseye marker instead of a bar pinned to the card edge, so it reads as chosen rather than as a differently shaped card.
+- Applied the same treatment to Cash on Pickup, leaving its unavailable and restricted states exactly as they were.
+- Fixed the payment method picker on the Payment Verification page, where the selected tile set two conflicting border colours and ended up looking unselected and the tiles were cramped; it now uses the same cards, one per row on phones.
+- Brought the down-payment step onto the same cards for all three choices (pay at the shop or online, which wallet, and how much), so every payment screen in the customer flow now looks and behaves the same.
+- Typecheck and production build pass; the payment screens and the photo editor were verified by code and by the crop maths only, because this session has no signed-in account in the browser.
+

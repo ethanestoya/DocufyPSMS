@@ -252,24 +252,6 @@ function trendLabel(date: Date, unit: TrendUnit): string {
   );
 }
 
-/** `2026-11-02` → local midnight, instead of `new Date()`'s UTC parse. */
-function parseDayKey(iso: string): Date | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
-  if (!match) return null;
-  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-}
-
-function isoDay(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
-/** A preset page range → the two `YYYY-MM-DD` boxes the picker shows. */
-function toTrendRange(range: { start: Date; end: Date }): { from: string; to: string } {
-  const now = new Date();
-  const end = range.end.getTime() > now.getTime() ? now : range.end;
-  return { from: isoDay(range.start), to: isoDay(end) };
-}
-
 /**
  * Revenue inside an arbitrary window, split into buckets.
  *
@@ -565,8 +547,7 @@ function OverviewTab({
   orders,
   role = "admin",
   trend,
-  trendRange,
-  onTrendRangeChange,
+  dateSelector,
 }: {
   metrics: DashboardMetrics;
   navigate: ReturnType<typeof useNavigate>;
@@ -574,8 +555,8 @@ function OverviewTab({
   orders: Order[];
   role?: "admin" | "staff";
   trend: TrendSeries;
-  trendRange: { from: string; to: string };
-  onTrendRangeChange: (next: { from: string; to: string }) => void;
+  /** The Overview's single date control, rendered in the Sales Trend card header. */
+  dateSelector: React.ReactNode;
 }) {
   const {
     totalSales, totalOrders, walkInCount, activeCustomers,
@@ -620,55 +601,50 @@ function OverviewTab({
       </div>
 
       {/* Trend and inventory share one row on desktop: the chart takes two
-          thirds, the inventory figures the remaining third. Staff have no
-          sales chart, so their inventory card keeps the full width. */}
+          thirds, the inventory figures the remaining third. Admin and staff
+          share this Overview — only the announcement card and the Services tab
+          stay admin-only. */}
       <div className="grid grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-3">
-        {role === "admin" && (
-          <div className="min-w-0 lg:col-span-2">
-            <SectionCard
-              title="Sales Trend"
-              subtitle={TREND_SUBTITLE[trend.unit]}
-              headerRight={
-                <div className="w-full sm:w-[260px]">
-                  <DateRangeFilter trigger value={trendRange} onChange={onTrendRangeChange} />
-                </div>
-              }
-            >
-              {trend.points.every((point) => point.sales === 0) ? (
-                // Same height as the chart so an empty range leaves a card that
-                // still holds the page together instead of collapsing to a line.
-                <div className="flex h-[260px] items-center justify-center sm:h-[340px]">
-                  <EmptyState icon={TrendingUp} message="No sales in this range" />
-                </div>
-              ) : (
-                <div className="h-[260px] sm:h-[340px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={trend.points} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="salesGrad2" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#2F6FD6" stopOpacity={0.25} />
-                          <stop offset="100%" stopColor="#2F6FD6" stopOpacity={0.02} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 600 }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 600 }} tickFormatter={(v: number) => fmtShortPlain(v)} />
-                      <Tooltip formatter={(v: number) => [fmt(v), "Sales"]} contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(15,23,42,0.08)", fontSize: 12 }} />
-                      <Area type="monotone" dataKey="sales" stroke="#2F6FD6" strokeWidth={2} fill="url(#salesGrad2)" dot={{ r: 3.5, fill: "#2F6FD6", stroke: "#fff", strokeWidth: 2 }} activeDot={{ r: 5 }} isAnimationActive={false} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </SectionCard>
-          </div>
-        )}
+        <div className="min-w-0 lg:col-span-2">
+          <SectionCard
+            title="Sales Trend"
+            subtitle={TREND_SUBTITLE[trend.unit]}
+            headerRight={dateSelector}
+          >
+            {trend.points.every((point) => point.sales === 0) ? (
+              // Same height as the chart so an empty range leaves a card that
+              // still holds the page together instead of collapsing to a line.
+              <div className="flex h-[260px] items-center justify-center sm:h-[340px]">
+                <EmptyState icon={TrendingUp} message="No sales in this range" />
+              </div>
+            ) : (
+              <div className="h-[260px] sm:h-[340px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={trend.points} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="salesGrad2" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#2F6FD6" stopOpacity={0.25} />
+                        <stop offset="100%" stopColor="#2F6FD6" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 600 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 600 }} tickFormatter={(v: number) => fmtShortPlain(v)} />
+                    <Tooltip formatter={(v: number) => [fmt(v), "Sales"]} contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(15,23,42,0.08)", fontSize: 12 }} />
+                    <Area type="monotone" dataKey="sales" stroke="#2F6FD6" strokeWidth={2} fill="url(#salesGrad2)" dot={{ r: 3.5, fill: "#2F6FD6", stroke: "#fff", strokeWidth: 2 }} activeDot={{ r: 5 }} isAnimationActive={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </SectionCard>
+        </div>
 
-        <div className={`min-w-0 ${role === "admin" ? "lg:col-span-1" : "lg:col-span-3"}`}>
+        <div className="min-w-0 lg:col-span-1">
           <InventorySnapshot
             items={items}
             navigate={navigate}
             inventoryPath={inventoryPath}
-            rail={role === "admin"}
+            rail
           />
         </div>
       </div>
@@ -1121,23 +1097,13 @@ export default function AdminDashboard({
 
   const dateRange = useMemo(() => getDateRange(dateRangeId, customStart, customEnd), [dateRangeId, customStart, customEnd]);
 
-  // The chart has its own window so the operator can look at a week of sales
-  // without changing the period every KPI above it is measured over. Picking a
-  // new page range re-seeds it, since the two are meant to start together.
-  const [trendRange, setTrendRange] = useState(() => toTrendRange(dateRange));
-  useEffect(() => {
-    setTrendRange(toTrendRange(dateRange));
-  }, [dateRange]);
-
-  const trend = useMemo(() => {
-    const from = parseDayKey(trendRange.from);
-    const to = parseDayKey(trendRange.to);
-    const start = from ?? dateRange.start;
-    let end = to ?? dateRange.end;
-    if (to) end = new Date(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59, 999);
-    if (end.getTime() < start.getTime()) end = start;
-    return buildTrendSeries(orders, { start, end });
-  }, [orders, trendRange, dateRange]);
+  // ONE range for the whole Overview: the date selector now lives in the Sales
+  // Trend card header, so a chart-only window would be a trap — the control
+  // would sit in the card it does not drive.
+  const trend = useMemo(
+    () => buildTrendSeries(orders, { start: dateRange.start, end: dateRange.end }),
+    [orders, dateRange],
+  );
 
   useEffect(() => {
     const unsubOrders = dataStore.subscribe(() => setOrders(dataStore.getOrders()));
@@ -1172,11 +1138,11 @@ export default function AdminDashboard({
             <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Dashboard</h2>
             <p className="text-sm text-slate-500 mt-1">Welcome back, {userName || "admin"}.</p>
           </div>
-          {/* The date range belongs to Overview — Services carries its own picker. */}
+          {/* The date range moved into the Sales Trend card header, so the page
+              header keeps only the announcement card and the shop's presence. */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
             {role === "admin" && activeTab === "Overview" && <CreateNotificationCard />}
             <div className="flex flex-wrap items-center gap-2.5">
-              {(role === "staff" || activeTab === "Overview") && overviewDateSelector}
               {/* The shop's state reads like a chat presence dot at every
                   width — a full card here cost ~92px of the first screen. */}
               {(role === "staff" || activeTab === "Overview") && <ShopStatusControl />}
@@ -1207,31 +1173,17 @@ export default function AdminDashboard({
             <CardSkeleton cards={4} columns={3} label="Loading dashboard" />
             <DetailSkeleton blocks={2} />
           </div>
-        ) : role === "admin" ? (
-          <>
-            {activeTab === "Overview" && (
-              <OverviewTab
-                metrics={metrics}
-                navigate={navigate}
-                items={inventoryItems}
-                orders={orders}
-                trend={trend}
-                trendRange={trendRange}
-                onTrendRangeChange={setTrendRange}
-              />
-            )}
-            {activeTab === "Services" && <ServicesTab navigate={navigate} />}
-          </>
+        ) : activeTab === "Services" && role === "admin" ? (
+          <ServicesTab navigate={navigate} />
         ) : (
           <OverviewTab
             metrics={metrics}
             navigate={navigate}
             items={inventoryItems}
             orders={orders}
-            role="staff"
+            role={role}
             trend={trend}
-            trendRange={trendRange}
-            onTrendRangeChange={setTrendRange}
+            dateSelector={overviewDateSelector}
           />
         )}
       </div>

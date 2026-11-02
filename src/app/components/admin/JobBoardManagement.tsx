@@ -668,7 +668,7 @@ export default function JobBoardManagement() {
                         <div className="flex min-w-0 items-start gap-3">
                           <PersonAvatar
                             name={applicant.name}
-                            src={applicant.applicantProfileImage}
+                            src={applicant.applicantPhotoUrl ?? applicant.applicantProfileImage}
                             className="h-11 w-11"
                           />
                           <div className="min-w-0">
@@ -755,7 +755,7 @@ export default function JobBoardManagement() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
               <PersonAvatar
                 name={selectedApplicant.name}
-                src={selectedApplicant.applicantProfileImage}
+                src={selectedApplicant.applicantPhotoUrl ?? selectedApplicant.applicantProfileImage}
                 className="h-14 w-14 text-sm"
               />
               <div className="min-w-0 flex-1">

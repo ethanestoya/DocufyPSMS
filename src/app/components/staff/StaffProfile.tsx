@@ -147,8 +147,13 @@ export default function StaffProfile() {
   }, [user]);
 
   const handleSave = async () => {
+    const { normalizeNameForSave, normalizePhoneForSave } = await import('../../utils/inputSanitizers');
+    const sanitizedFirst = normalizeNameForSave(formData.firstName);
+    const sanitizedLast = normalizeNameForSave(formData.lastName);
+    const sanitizedPhone = normalizePhoneForSave(formData.phone);
+    setFormData((prev: any) => ({ ...prev, firstName: sanitizedFirst, lastName: sanitizedLast, phone: sanitizedPhone }));
     const displayName =
-      `${formData.firstName} ${formData.lastName}`.trim() || user?.name || 'Staff User';
+      `${sanitizedFirst} ${sanitizedLast}`.trim() || user?.name || 'Staff User';
     setSaving(true);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
@@ -326,11 +331,14 @@ export default function StaffProfile() {
                   <div>
                     <p className="text-xs text-gray-500">First Name</p>
                     {isEditing ? (
-                      <input
+                      <Input
                         type="text"
+                        lettersOnly
+                        maxDigits={50}
                         value={formData.firstName}
                         onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                        className="text-sm font-medium text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#2F6FD6]"
+                        className="text-sm font-medium text-gray-900 bg-transparent border-0 border-b border-gray-300 rounded-none px-0 h-auto focus-visible:ring-0 focus-visible:border-[#2F6FD6]"
+                        maxLength={50}
                       />
                     ) : (
                       <p className="text-sm font-medium text-gray-900">{formData.firstName}</p>
@@ -343,11 +351,14 @@ export default function StaffProfile() {
                   <div>
                     <p className="text-xs text-gray-500">Last Name</p>
                     {isEditing ? (
-                      <input
+                      <Input
                         type="text"
+                        lettersOnly
+                        maxDigits={50}
                         value={formData.lastName}
                         onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                        className="text-sm font-medium text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#2F6FD6]"
+                        className="text-sm font-medium text-gray-900 bg-transparent border-0 border-b border-gray-300 rounded-none px-0 h-auto focus-visible:ring-0 focus-visible:border-[#2F6FD6]"
+                        maxLength={50}
                       />
                     ) : (
                       <p className="text-sm font-medium text-gray-900">{formData.lastName}</p>
@@ -377,13 +388,17 @@ export default function StaffProfile() {
                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                   <Phone className="w-5 h-5 text-[#2F6FD6]" />
                   <div>
-                    <p className="text-xs text-gray-500">Phone</p>
+                    <p className="text-xs text-gray-500">Contact Number</p>
                     {isEditing ? (
-                      <input
+                      <Input
                         type="tel"
+                        phoneOnly
+                        maxDigits={11}
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="text-sm font-medium text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#2F6FD6]"
+                        className="text-sm font-medium text-gray-900 bg-transparent border-0 border-b border-gray-300 rounded-none px-0 h-auto focus-visible:ring-0 focus-visible:border-[#2F6FD6]"
+                        placeholder="09XXXXXXXXX"
+                        maxLength={11}
                       />
                     ) : (
                       <p className="text-sm font-medium text-gray-900">{formData.phone}</p>

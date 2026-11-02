@@ -300,6 +300,8 @@ export default function SignUpPage() {
                 <Input
                   id="firstName"
                   type="text"
+                  lettersOnly
+                  maxDigits={50}
                   value={formData.firstName}
                   onChange={(e) =>
                     handleChange("firstName", e.target.value)
@@ -313,6 +315,7 @@ export default function SignUpPage() {
                     errors.firstName && "firstName-error",
                   )}
                   required
+                  maxLength={50}
                 />
                 <FieldError id="firstName-error" message={errors.firstName} />
               </div>
@@ -326,6 +329,8 @@ export default function SignUpPage() {
                 <Input
                   id="lastName"
                   type="text"
+                  lettersOnly
+                  maxDigits={50}
                   value={formData.lastName}
                   onChange={(e) =>
                     handleChange("lastName", e.target.value)
@@ -339,6 +344,7 @@ export default function SignUpPage() {
                     errors.lastName && "lastName-error",
                   )}
                   required
+                  maxLength={50}
                 />
                 <FieldError id="lastName-error" message={errors.lastName} />
               </div>
@@ -381,14 +387,13 @@ export default function SignUpPage() {
                 <Input
                   id="contactNumber"
                   type="tel"
+                  phoneOnly
+                  maxDigits={11}
                   value={formData.contactNumber}
                   onChange={(e) =>
-                    handleChange(
-                      "contactNumber",
-                      e.target.value.replace(/\D/g, ""),
-                    )
+                    handleChange("contactNumber", e.target.value)
                   }
-                  placeholder="09XX XXX XXXX"
+                  placeholder="09XXXXXXXXX"
                   autoComplete="tel"
                   enterKeyHint="next"
                   className="h-10 bg-[#F2F7FF] border-transparent rounded-xl text-sm"

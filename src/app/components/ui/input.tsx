@@ -1,9 +1,87 @@
 import * as React from "react";
 
 import { cn } from "./utils";
+import {
+  digitsOnly,
+  alphaSpaces,
+  alphaNumericOnly,
+  alphaNumericSpaces,
+  moneyInput,
+  integersOnly,
+  sanitizePhone,
+  sanitizeEmail,
+} from "../../utils/inputSanitizers";
 
-const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
-  ({ className, type, ...props }, ref) => {
+export interface InputProps extends React.ComponentProps<"input"> {
+  digitsOnly?: boolean;
+  lettersOnly?: boolean;
+  alphaNumericOnly?: boolean;
+  alphaNumericSpaces?: boolean;
+  phoneOnly?: boolean;
+  emailOnly?: boolean;
+  moneyOnly?: boolean;
+  integersOnly?: boolean;
+  allowNegative?: boolean;
+  maxDigits?: number;
+  sanitizeOnChange?: boolean;
+}
+
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  (
+    {
+      className,
+      type,
+      digitsOnly: digitsOnlyProp,
+      lettersOnly,
+      alphaNumericOnly: alphaNumericOnlyProp,
+      alphaNumericSpaces: alphaNumericSpacesProp,
+      phoneOnly,
+      emailOnly,
+      moneyOnly,
+      integersOnly: integersOnlyProp,
+      allowNegative,
+      maxDigits,
+      sanitizeOnChange = true,
+      onChange,
+      ...props
+    },
+    ref,
+  ) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (!sanitizeOnChange) {
+        onChange?.(e);
+        return;
+      }
+
+      let value = e.target.value;
+
+      if (phoneOnly || (type === "tel" && maxDigits)) {
+        value = sanitizePhone(value);
+        if (maxDigits) {
+          value = digitsOnly(value, maxDigits);
+        }
+      } else if (digitsOnlyProp) {
+        value = digitsOnly(value, maxDigits);
+      } else if (lettersOnly) {
+        value = alphaSpaces(value, maxDigits);
+      } else if (alphaNumericOnlyProp) {
+        value = alphaNumericOnly(value, maxDigits);
+      } else if (alphaNumericSpacesProp) {
+        value = alphaNumericSpaces(value, maxDigits);
+      } else if (emailOnly || type === "email") {
+        value = sanitizeEmail(value);
+      } else if (moneyOnly) {
+        value = moneyInput(value);
+      } else if (integersOnlyProp) {
+        value = integersOnly(value, allowNegative);
+      }
+
+      if (value !== e.target.value) {
+        e.target.value = value;
+      }
+      onChange?.(e);
+    };
+
     return (
       <input
         type={type}
@@ -18,11 +96,28 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           className,
         )}
         ref={ref}
+        onChange={handleChange}
+        inputMode={
+          phoneOnly || (type === "tel" && maxDigits)
+            ? "tel"
+            : digitsOnlyProp || integersOnlyProp
+              ? "numeric"
+              : emailOnly || type === "email"
+                ? "email"
+                : props.inputMode
+        }
+        maxLength={
+          maxDigits && (phoneOnly || digitsOnlyProp || integersOnlyProp)
+            ? maxDigits
+            : props.maxLength
+        }
         {...props}
       />
     );
-  }
+  },
 );
 Input.displayName = "Input";
 
 export { Input };
+
+

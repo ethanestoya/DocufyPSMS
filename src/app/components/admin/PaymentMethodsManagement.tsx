@@ -382,11 +382,14 @@ export default function PaymentMethodsManagement() {
               </Label>
               <Input
                 id="pm-account-number"
-                type="text"
+                type="tel"
+                phoneOnly
+                maxDigits={30}
                 value={form.accountNumber}
                 onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
                 placeholder="e.g. 09XXXXXXXXX"
                 className="h-11 bg-white text-sm border-gray-300 focus:border-[#2F6FD6] focus:ring-[#2F6FD6]/20"
+                maxLength={30}
               />
               <p className="text-xs text-gray-500">
                 Leave this blank if the method has no account number to show.

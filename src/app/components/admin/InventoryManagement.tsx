@@ -608,14 +608,15 @@ export default function InventoryManagement({
   const [archiveTarget, setArchiveTarget] = useState<InventoryItem | null>(null);
 
   // Add / edit form state
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<any>({
     name: "",
-    category: "Paper",
+    category: "Paper" as any,
     brand: "",
     unit: "ream",
     currentStock: 0,
     minimumStock: 0,
     paperSize: "",
+    pcsPerUnit: 500,
     price: 0,
   });
 
@@ -1247,12 +1248,13 @@ export default function InventoryManagement({
               ) : form.category === "Add-ons" ? (
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Sell Price (₱)</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={form.price}
-                    onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
-                  />
+                <Input
+                  type="text"
+                  moneyOnly
+                  value={String(form.price ?? '')}
+                  onChange={(e) => setForm({ ...form, price: e.target.value })}
+                  placeholder="0.00"
+                />
                 </div>
               ) : null}
             </div>
@@ -1261,9 +1263,10 @@ export default function InventoryManagement({
                 <Label className="text-sm font-medium">Current Stock</Label>
                 <Input
                   type="number"
+                  integersOnly
                   min="0"
-                  value={form.currentStock}
-                  onChange={(e) => setForm({ ...form, currentStock: Number(e.target.value) })}
+                  value={String(form.currentStock ?? '')}
+                  onChange={(e) => setForm({ ...form, currentStock: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
@@ -1272,9 +1275,10 @@ export default function InventoryManagement({
                 </Label>
                 <Input
                   type="number"
+                  integersOnly
                   min="0"
-                  value={form.minimumStock}
-                  onChange={(e) => setForm({ ...form, minimumStock: Number(e.target.value) })}
+                  value={String(form.minimumStock ?? '')}
+                  onChange={(e) => setForm({ ...form, minimumStock: e.target.value })}
                 />
               </div>
             </div>

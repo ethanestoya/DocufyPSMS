@@ -339,7 +339,7 @@ export default function JobApplyForm() {
               </div>
 
               <p className="text-sm text-slate-500 leading-relaxed max-w-xs mx-auto">
-                Our team will review your application within 3–5 business days.
+                Our team will review your application within 3ï¿½5 business days.
                 We'll contact you using the information provided.
               </p>
 
@@ -411,45 +411,54 @@ export default function JobApplyForm() {
                   <Label htmlFor="firstName" className="text-sm font-medium text-slate-700 mb-1.5">
                     First Name <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="firstName"
-                    type="text"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData((p) => ({ ...p, firstName: e.target.value }))}
-                    onBlur={() => handleBlur("firstName")}
-                    placeholder="e.g. Maria"
-                    className={inputClass("firstName")}
-                  />
+                <Input
+                  id="firstName"
+                  type="text"
+                  lettersOnly
+                  maxDigits={50}
+                  value={formData.firstName}
+                  onChange={(e) => setFormData((p) => ({ ...p, firstName: e.target.value }))}
+                  onBlur={() => handleBlur("firstName")}
+                  placeholder="e.g. Maria"
+                  className={inputClass("firstName")}
+                  maxLength={50}
+                />
                   {fieldError("firstName")}
                 </div>
                 <div>
                   <Label htmlFor="lastName" className="text-sm font-medium text-slate-700 mb-1.5">
                     Last Name <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="lastName"
-                    type="text"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData((p) => ({ ...p, lastName: e.target.value }))}
-                    onBlur={() => handleBlur("lastName")}
-                    placeholder="e.g. Santos"
-                    className={inputClass("lastName")}
-                  />
+                <Input
+                  id="lastName"
+                  type="text"
+                  lettersOnly
+                  maxDigits={50}
+                  value={formData.lastName}
+                  onChange={(e) => setFormData((p) => ({ ...p, lastName: e.target.value }))}
+                  onBlur={() => handleBlur("lastName")}
+                  placeholder="e.g. Santos"
+                  className={inputClass("lastName")}
+                  maxLength={50}
+                />
                   {fieldError("lastName")}
                 </div>
                 <div>
                   <Label htmlFor="contact" className="text-sm font-medium text-slate-700 mb-1.5">
                     Contact Number <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="contact"
-                    type="tel"
-                    value={formData.contact}
-                    onChange={(e) => setFormData((p) => ({ ...p, contact: e.target.value }))}
-                    onBlur={() => handleBlur("contact")}
-                    placeholder="09XX XXX XXXX"
-                    className={inputClass("contact")}
-                  />
+                <Input
+                  id="contact"
+                  type="tel"
+                  phoneOnly
+                  maxDigits={11}
+                  value={formData.contact}
+                  onChange={(e) => setFormData((p) => ({ ...p, contact: e.target.value }))}
+                  onBlur={() => handleBlur("contact")}
+                  placeholder="09XXXXXXXXX"
+                  className={inputClass("contact")}
+                  maxLength={11}
+                />
                   {fieldError("contact")}
                 </div>
                 <div>
@@ -571,7 +580,7 @@ export default function JobApplyForm() {
                         <div className={`border-2 border-dashed rounded-lg p-5 text-center transition-all hover:border-[#2F6FD6] hover:bg-blue-50 ${errors.portfolio && touched.has("portfolio") ? "border-red-400" : "border-slate-300"}`}>
                           <Upload className="w-7 h-7 text-slate-400 mx-auto mb-2" />
                           <p className="text-sm font-medium text-slate-600">Tap to upload resume</p>
-                          <p className="text-xs text-slate-400 mt-1">PDF, PNG, or JPG — up to 10 MB</p>
+                          <p className="text-xs text-slate-400 mt-1">PDF, PNG, or JPG ï¿½ up to 10 MB</p>
                         </div>
                         <input
                           type="file"
@@ -661,7 +670,7 @@ export default function JobApplyForm() {
 
         {/* Info note */}
         <p className="text-xs text-slate-400 text-center px-4">
-          Applications are reviewed within 3–5 business days.
+          Applications are reviewed within 3ï¿½5 business days.
           We'll contact you using the information provided.
         </p>
       </div>

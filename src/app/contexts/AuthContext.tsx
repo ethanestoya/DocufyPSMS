@@ -485,6 +485,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const registerStaff = async (data: { name: string; email: string; password: string; role?: 'staff' | 'admin' }) => {
+    const { normalizeEmailForSave: normEmail, normalizeNameForSave: normName } = await import("../utils/inputSanitizers");
+    data.name = normName(data.name);
+    data.email = normEmail(data.email);
     if (!data.name || !data.email || !data.password) {
       return { success: false, message: 'All fields are required.' };
     }

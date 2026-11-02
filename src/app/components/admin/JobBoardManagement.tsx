@@ -362,10 +362,10 @@ export default function JobBoardManagement() {
               </p>
             </div>
             <Button
-              className="bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
+              variant="primary"
               onClick={() => setShowDialog(true)}
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-4 h-4" />
               New Job Posting
             </Button>
           </div>
@@ -434,17 +434,17 @@ export default function JobBoardManagement() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="border-blue-200 text-[#1668D9] hover:bg-[#1668D9] hover:text-white text-xs px-3"
+                            className="text-xs"
                             onClick={() => handleViewApplicants(job)}
                           >
-                            <Eye className="w-3.5 h-3.5 mr-1" />
+                            <Eye className="w-3.5 h-3.5" />
                             View Applicants
                           </Button>
                           {job.status === 'active' ? (
                             <Button
-                              variant="outline"
+                              variant="destructive-outline"
                               size="sm"
-                              className="bg-white border-2 border-gray-300 text-gray-600 hover:bg-gray-600 hover:text-white text-xs px-3 transition-all"
+                              className="text-xs"
                               onClick={() => handleArchiveJob(job)}
                             >
                               Archive
@@ -453,7 +453,7 @@ export default function JobBoardManagement() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="bg-white border-2 border-blue-300 text-[#2F6FD6] hover:bg-[#2F6FD6] hover:text-white text-xs px-3 transition-all"
+                              className="text-xs"
                               onClick={() => setJobToRestore(job)}
                             >
                               Restore
@@ -515,10 +515,9 @@ export default function JobBoardManagement() {
         <div className="space-y-6">
           <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
             <Button
-              variant="outline"
-              size="default"
+              variant="ghost"
               onClick={() => setViewState('list')}
-              className="flex items-center gap-2 shrink-0 bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-900"
+              className="flex items-center gap-2 shrink-0"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to Job Postings
@@ -620,10 +619,9 @@ export default function JobBoardManagement() {
         <div className="space-y-6">
           <div className="flex items-center gap-4">
             <Button
-              variant="outline"
-              size="default"
+              variant="ghost"
               onClick={() => setViewState('applicants')}
-              className="flex items-center gap-2 bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-900"
+              className="flex items-center gap-2"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to Applicants
@@ -862,7 +860,7 @@ export default function JobBoardManagement() {
                   Cancel
                 </Button>
                 <Button
-                  className="bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
+                  variant="primary"
                   onClick={handleStatusUpdate}
                 >
                   Update Status
@@ -970,7 +968,8 @@ export default function JobBoardManagement() {
               </Button>
               <Button
                 type="submit"
-                className="flex-1 bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
+                variant="primary"
+                className="flex-1"
               >
                 Create Job Posting
               </Button>
@@ -1004,8 +1003,8 @@ export default function JobBoardManagement() {
               Cancel
             </Button>
             <Button
+              variant="primary"
               onClick={confirmCreate}
-              className="bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
             >
               Create Posting
             </Button>
@@ -1038,8 +1037,8 @@ export default function JobBoardManagement() {
               Cancel
             </Button>
             <Button
+              variant="primary"
               onClick={confirmStatusUpdate}
-              className="bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
             >
               Update Status
             </Button>
@@ -1074,8 +1073,8 @@ export default function JobBoardManagement() {
               Cancel
             </Button>
             <Button
+              variant="destructive"
               onClick={confirmArchiveJob}
-              className="bg-amber-600 hover:bg-amber-700 text-white"
             >
               Archive Job
             </Button>

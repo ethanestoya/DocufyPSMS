@@ -61,6 +61,11 @@ interface FileAttachmentsProps {
   // Order Details dialog: a large file tile, the name, what it prints as, and
   // two labelled actions beneath.
   appearance?: "list" | "card";
+  // Show the one-line print spec on phones only. The staff Order Details dialog
+  // prints the same settings in its own "Print details" block on wider screens,
+  // so the line is dropped there rather than stating the values twice — and the
+  // phone layout stays exactly as it was.
+  specOnMobileOnly?: boolean;
 }
 
 function getFileExtension(name: string): string {
@@ -178,6 +183,7 @@ export function FileAttachments({
   lockedBy = null,
   labelledActions = false,
   appearance = "list",
+  specOnMobileOnly = false,
 }: FileAttachmentsProps) {
   // A live lock held by someone else blocks the file actions.
   const actionsLocked = !!lockedBy;
@@ -306,7 +312,7 @@ export function FileAttachments({
           return (
             <div
               key={index}
-              className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4"
+              className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 sm:rounded-[14px] sm:border sm:border-[#E5E7EB] sm:px-4 sm:py-3.5"
             >
               <div
                 aria-hidden="true"
@@ -327,52 +333,56 @@ export function FileAttachments({
                 <p className="break-words text-[15px] font-semibold leading-snug text-[#111827]">
                   {file.name}
                 </p>
-                <p className="mt-1 text-[13px] text-[#6B7280]">
+                <p
+                  className={`mt-1 text-[13px] text-[#6B7280] ${
+                    specOnMobileOnly ? "sm:hidden" : ""
+                  }`}
+                >
                   {spec || file.size}
                 </p>
+              </div>
 
-                <div className="mt-3 flex flex-wrap gap-2.5">
-                  {showView && (
-                    <button
-                      type="button"
-                      onClick={
-                        actionsLocked ? guardLockedAction : () => handleView(file)
-                      }
-                      aria-disabled={actionsLocked || undefined}
-                      title={actionsLocked ? lockTitle : `Preview ${file.name}`}
-                      className={cardActionCls}
-                    >
-                      {loadingKey === `view-${file.name}` ? (
-                        <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                      ) : (
-                        <Eye className="size-4" aria-hidden="true" />
-                      )}
-                      Preview
-                    </button>
-                  )}
-                  {showDownload && (
-                    <button
-                      type="button"
-                      onClick={
-                        actionsLocked
-                          ? guardLockedAction
-                          : () => handleDownload(file)
-                      }
-                      aria-disabled={actionsLocked || undefined}
-                      title={
-                        actionsLocked ? lockTitle : `Download ${file.name}`
-                      }
-                      className={cardActionCls}
-                    >
-                      {loadingKey === `dl-${file.name}` ? (
-                        <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                      ) : (
-                        <Download className="size-4" aria-hidden="true" />
-                      )}
-                      Download
-                    </button>
-                  )}
-                </div>
+              <div className="mt-3 flex flex-wrap gap-2.5 sm:mt-0 sm:shrink-0 sm:flex-nowrap sm:items-center">
+                {showView && (
+                  <button
+                    type="button"
+                    onClick={
+                      actionsLocked ? guardLockedAction : () => handleView(file)
+                    }
+                    aria-disabled={actionsLocked || undefined}
+                    title={actionsLocked ? lockTitle : `Preview ${file.name}`}
+                    className={cardActionCls}
+                  >
+                    {loadingKey === `view-${file.name}` ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Eye className="size-4" aria-hidden="true" />
+                    )}
+                    Preview
+                  </button>
+                )}
+                {showDownload && (
+                  <button
+                    type="button"
+                    onClick={
+                      actionsLocked
+                        ? guardLockedAction
+                        : () => handleDownload(file)
+                    }
+                    aria-disabled={actionsLocked || undefined}
+                    title={
+                      actionsLocked ? lockTitle : `Download ${file.name}`
+                    }
+                    className={cardActionCls}
+                  >
+                    {loadingKey === `dl-${file.name}` ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Download className="size-4" aria-hidden="true" />
+                    )}
+                    Download
+                  </button>
+                )}
               </div>
             </div>
           );

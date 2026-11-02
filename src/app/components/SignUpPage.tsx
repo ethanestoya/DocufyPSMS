@@ -63,11 +63,12 @@ export default function SignUpPage() {
   // Inline validation. Every reason a signup can be refused is shown next to the
   // field that caused it, and the submit button is never silently disabled.
   const [errors, setErrors] = useState<Record<string, string>>({});
-  // Whether the person has actually started filling the form in. Until they
-  // have, pressing the button gets one calm pointer at the first field instead
-  // of a wall of red — plenty of people press it out of curiosity before they
-  // have decided to sign up.
-  const [hasEngaged, setHasEngaged] = useState(false);
+
+  // Track which fields the user has actually interacted with, so guidance
+  // surfaces only after they have had a chance to enter something (no red
+  // on an untouched form, no auto-focus jumps on submit).
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
 
   const handleProfileImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -137,17 +138,15 @@ export default function SignUpPage() {
 
     const firstInvalid = FIELD_ORDER.find((field) => next[field]);
 
-    // Flag a field only once the person has given the form a real go. An
-    // untouched form reveals just the first thing to fill in; a form they have
-    // started reveals everything they forgot, in one pass.
-    const shown = hasEngaged
-      ? next
-      : firstInvalid
-        ? { [firstInvalid]: next[firstInvalid] }
-        : {};
+    // Surface only the first invalid field at a time, but never force focus
+    // or jump the user around — that feels aggressive on basic fields. The
+    // user keeps control of where they are on the form.
+    const shown = firstInvalid
+      ? { [firstInvalid]: next[firstInvalid] }
+      : {};
     setErrors(shown);
 
-    if (firstInvalid) document.getElementById(firstInvalid)?.focus();
+    // No auto-focus: let the user stay where they are.
 
     return !firstInvalid;
   };
@@ -155,6 +154,7 @@ export default function SignUpPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
+    setSubmitAttempted(true);
     if (!validateForm()) return;
 
     setIsSubmitting(true);
@@ -170,7 +170,7 @@ export default function SignUpPage() {
   };
 
   const handleChange = (field: string, value: any) => {
-    if (value) setHasEngaged(true);
+    setTouched((prev) => ({ ...prev, [field]: true }));
     setFormData((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => {
       if (!prev[field]) return prev;
@@ -179,6 +179,16 @@ export default function SignUpPage() {
       return next;
     });
   };
+
+  const handleBlur = (field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  };
+
+  // A field's error is only surfaced once the user has actually interacted
+  // with it (blur) or attempted to submit — never on first render or while
+  // typing into an untouched form. Keeps the form feeling calm.
+  const isFieldErrorVisible = (field: string) =>
+    (touched[field] || submitAttempted) && !!errors[field];
 
   return (
     <div className="min-h-[100dvh] flex flex-col lg:flex-row font-poppins bg-white lg:h-screen lg:overflow-hidden max-lg:overflow-x-hidden animate-in fade-in duration-200">
@@ -230,8 +240,8 @@ export default function SignUpPage() {
       </div>
 
       {/* Right Side - Form */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center px-5 sm:px-8 lg:px-16 py-5 sm:py-8 lg:py-4 bg-white relative z-10 lg:h-full lg:overflow-y-auto">
-        <div className="max-w-md w-full mx-auto">
+      <div className="w-full lg:w-1/2 flex flex-col px-5 sm:px-8 lg:px-16 py-5 sm:py-8 lg:py-4 bg-white relative z-10 lg:h-full lg:overflow-y-auto">
+        <div className="max-w-md w-full mx-auto my-auto">
           {/* Mobile only — Back to Home */}
           <button
             type="button"
@@ -255,36 +265,35 @@ export default function SignUpPage() {
             </div>
             <h2 className="text-2xl font-bold text-[#1c1f26] tracking-tight">
               Create Account
-            </h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Join our printing community today.
-            </p>
-          </div>
+             </h2>
+           </div>
 
           {/* Profile photo — compact */}
-          <div className="mb-5 flex items-center justify-center lg:justify-start gap-3 lg:gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 lg:p-3">
-            <div className="relative h-12 w-12 shrink-0 lg:h-16 lg:w-16 overflow-hidden rounded-full border-2 border-[#1668D9] bg-[#EAF2FF] text-sm lg:text-xl font-bold text-[#1668D9] flex items-center justify-center">
-              {profileImage ? (
-                <img src={profileImage} alt="Profile preview" className="h-full w-full object-cover" />
-              ) : (
-                (formData.firstName || formData.lastName) ? `${(formData.firstName || "")[0] || ""}${(formData.lastName || "")[0] || ""}`.toUpperCase() || "U" : "U"
-              )}
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <div className="flex flex-wrap gap-2">
-                <label className="inline-flex cursor-pointer items-center rounded-lg bg-[#1668D9] px-3 py-2 text-xs font-medium text-white">
-                  Upload photo
-                  <input type="file" accept="image/*" className="hidden" onChange={handleProfileImageChange} />
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setProfileImage(null)}
-                  className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600"
-                >
-                  Skip
-                </button>
+          <div className="mb-5 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 lg:p-3">
+            <p className="text-xs font-medium text-gray-700 mb-2">Profile Photo</p>
+            <div className="flex items-center justify-center lg:justify-start gap-3 lg:gap-4">
+              <div className="relative h-12 w-12 shrink-0 lg:h-16 lg:w-16 overflow-hidden rounded-full border-2 border-[#1668D9] bg-[#EAF2FF] text-sm lg:text-xl font-bold text-[#1668D9] flex items-center justify-center">
+                {profileImage ? (
+                  <img src={profileImage} alt="Profile preview" className="h-full w-full object-cover" />
+                ) : (
+                  (formData.firstName || formData.lastName) ? `${(formData.firstName || "")[0] || ""}${(formData.lastName || "")[0] || ""}`.toUpperCase() || "U" : "U"
+                )}
               </div>
-              <p className="text-[10px] lg:text-[11px] text-slate-500">Optional. Default initials are used if skipped.</p>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex flex-wrap gap-2">
+                  <label className="inline-flex cursor-pointer items-center rounded-lg bg-[#1668D9] px-3 py-2 text-xs font-medium text-white">
+                    Upload photo
+                    <input type="file" accept="image/*" className="hidden" onChange={handleProfileImageChange} />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setProfileImage(null)}
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600"
+                  >
+                    Skip
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -304,17 +313,23 @@ export default function SignUpPage() {
                   onChange={(e) =>
                     handleChange("firstName", e.target.value)
                   }
+                  onBlur={() => handleBlur("firstName")}
                   placeholder="e.g. Juan"
                   autoComplete="given-name"
                   enterKeyHint="next"
-                  className="h-10 bg-[#F2F7FF] border-transparent rounded-xl text-sm"
-                  aria-invalid={!!errors.firstName || undefined}
+                  maxLength={50}
+                  className={`h-10 rounded-xl text-sm border-2 transition-colors ${
+                    isFieldErrorVisible("firstName")
+                      ? "border-blue-200 bg-blue-50/40"
+                      : "bg-[#F2F7FF] border-transparent"
+                  }`}
+                  aria-invalid={isFieldErrorVisible("firstName") || undefined}
                   aria-describedby={describedBy(
-                    errors.firstName && "firstName-error",
+                    isFieldErrorVisible("firstName") && "firstName-error",
                   )}
                   required
                 />
-                <FieldError id="firstName-error" message={errors.firstName} />
+                <FieldError id="firstName-error" message={isFieldErrorVisible("firstName") ? errors.firstName : null} />
               </div>
               <div className="space-y-1">
                 <Label
@@ -330,17 +345,23 @@ export default function SignUpPage() {
                   onChange={(e) =>
                     handleChange("lastName", e.target.value)
                   }
+                  onBlur={() => handleBlur("lastName")}
                   placeholder="e.g. Dela Cruz"
                   autoComplete="family-name"
                   enterKeyHint="next"
-                  className="h-10 bg-[#F2F7FF] border-transparent rounded-xl text-sm"
-                  aria-invalid={!!errors.lastName || undefined}
+                  maxLength={50}
+                  className={`h-10 rounded-xl text-sm border-2 transition-colors ${
+                    isFieldErrorVisible("lastName")
+                      ? "border-blue-200 bg-blue-50/40"
+                      : "bg-[#F2F7FF] border-transparent"
+                  }`}
+                  aria-invalid={isFieldErrorVisible("lastName") || undefined}
                   aria-describedby={describedBy(
-                    errors.lastName && "lastName-error",
+                    isFieldErrorVisible("lastName") && "lastName-error",
                   )}
                   required
                 />
-                <FieldError id="lastName-error" message={errors.lastName} />
+                <FieldError id="lastName-error" message={isFieldErrorVisible("lastName") ? errors.lastName : null} />
               </div>
             </div>
 
@@ -359,17 +380,22 @@ export default function SignUpPage() {
                   onChange={(e) =>
                     handleChange("email", e.target.value)
                   }
+                  onBlur={() => handleBlur("email")}
                   placeholder="e.g. name@psu.palawan.edu.ph"
                   autoComplete="email"
                   enterKeyHint="next"
-                  className="h-10 bg-[#F2F7FF] border-transparent rounded-xl text-sm"
-                  aria-invalid={!!errors.email || undefined}
+                  className={`h-10 rounded-xl text-sm border-2 transition-colors ${
+                    isFieldErrorVisible("email")
+                      ? "border-blue-200 bg-blue-50/40"
+                      : "bg-[#F2F7FF] border-transparent"
+                  }`}
+                  aria-invalid={isFieldErrorVisible("email") || undefined}
                   aria-describedby={describedBy(
-                    errors.email && "email-error",
+                    isFieldErrorVisible("email") && "email-error",
                   )}
                   required
                 />
-                <FieldError id="email-error" message={errors.email} />
+                <FieldError id="email-error" message={isFieldErrorVisible("email") ? errors.email : null} />
               </div>
               <div className="space-y-1">
                 <Label
@@ -388,20 +414,25 @@ export default function SignUpPage() {
                       e.target.value.replace(/\D/g, ""),
                     )
                   }
-                  placeholder="09XX XXX XXXX"
+                  onBlur={() => handleBlur("contactNumber")}
+                  placeholder="09XXXXXXXXX"
                   autoComplete="tel"
                   enterKeyHint="next"
-                  className="h-10 bg-[#F2F7FF] border-transparent rounded-xl text-sm"
-                  aria-invalid={!!errors.contactNumber || undefined}
+                  className={`h-10 rounded-xl text-sm border-2 transition-colors ${
+                    isFieldErrorVisible("contactNumber")
+                      ? "border-blue-200 bg-blue-50/40"
+                      : "bg-[#F2F7FF] border-transparent"
+                  }`}
+                  aria-invalid={isFieldErrorVisible("contactNumber") || undefined}
                   aria-describedby={describedBy(
-                    errors.contactNumber && "contactNumber-error",
+                    isFieldErrorVisible("contactNumber") && "contactNumber-error",
                   )}
                   required
                   maxLength={11}
                 />
                 <FieldError
                   id="contactNumber-error"
-                  message={errors.contactNumber}
+                  message={isFieldErrorVisible("contactNumber") ? errors.contactNumber : null}
                 />
               </div>
             </div>
@@ -426,10 +457,15 @@ export default function SignUpPage() {
                       onChange={(e) =>
                         handleChange("password", e.target.value)
                       }
-                      className="h-10 bg-[#F2F7FF] border-transparent rounded-xl pr-10 text-sm"
-                      aria-invalid={!!errors.password || undefined}
+                      onBlur={() => handleBlur("password")}
+                      className={`h-10 bg-[#F2F7FF] border-transparent rounded-xl pr-10 text-sm border-2 transition-colors ${
+                        isFieldErrorVisible("password")
+                          ? "border-blue-200 bg-blue-50/40"
+                          : "bg-[#F2F7FF] border-transparent"
+                      }`}
+                      aria-invalid={isFieldErrorVisible("password") || undefined}
                       aria-describedby={describedBy(
-                        errors.password && "password-error",
+                        isFieldErrorVisible("password") && "password-error",
                       )}
                       required
                     />
@@ -449,7 +485,7 @@ export default function SignUpPage() {
                       )}
                     </button>
                   </div>
-                  <FieldError id="password-error" message={errors.password} />
+                  <FieldError id="password-error" message={isFieldErrorVisible("password") ? errors.password : null} />
                 </div>
                 <div className="space-y-1">
                   <Label
@@ -474,10 +510,15 @@ export default function SignUpPage() {
                           e.target.value,
                         )
                       }
-                      className="h-10 bg-[#F2F7FF] border-transparent rounded-xl pr-10 text-sm"
-                      aria-invalid={!!errors.confirmPassword || undefined}
+                      onBlur={() => handleBlur("confirmPassword")}
+                      className={`h-10 rounded-xl pr-10 text-sm border-2 transition-colors ${
+                        isFieldErrorVisible("confirmPassword")
+                          ? "border-blue-200 bg-blue-50/40"
+                          : "bg-[#F2F7FF] border-transparent"
+                      }`}
+                      aria-invalid={isFieldErrorVisible("confirmPassword") || undefined}
                       aria-describedby={describedBy(
-                        errors.confirmPassword && "confirmPassword-error",
+                        isFieldErrorVisible("confirmPassword") && "confirmPassword-error",
                       )}
                       required
                     />
@@ -501,7 +542,7 @@ export default function SignUpPage() {
                   </div>
                   <FieldError
                     id="confirmPassword-error"
-                    message={errors.confirmPassword}
+                    message={isFieldErrorVisible("confirmPassword") ? errors.confirmPassword : null}
                   />
                 </div>
               </div>
@@ -543,7 +584,7 @@ export default function SignUpPage() {
                 </button>
               </label>
             </div>
-            <FieldError id="terms-error" message={errors.terms} />
+            <FieldError id="terms-error" message={isFieldErrorVisible("terms") ? errors.terms : null} />
 
             <Button
               type="submit"

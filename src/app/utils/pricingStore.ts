@@ -1004,6 +1004,7 @@ function pricingFieldLabel(key: keyof PricingValues): string {
 export function resolveColorTier(colorMode: 'bw' | 'colored', colorPct?: number): ColorTier {
   if (colorMode === 'bw') return 'bw';
   const pct = typeof colorPct === 'number' ? colorPct : 100;
+  if (pct < 1) return 'bw';
   return pct > 50 ? 'full' : 'partial';
 }
 
@@ -1056,37 +1057,6 @@ export const pricingStore = new PricingStore();
  * Replicates the former hardcoded formula used by both new-print-request and
  * walk-in flows so they stay in lockstep.
  */
-export function calcPagePrice(
-  pricing: PricingValues,
-  input: {
-    colorMode: 'bw' | 'colored';
-    colorPct?: number; // per-page color percentage; >50 → colorHigh, 1..50 → colorLow, 0/undefined+BW → bw
-    paperSize?: string;
-    twoSided?: string;
-  },
-): number {
-  let price: number;
-  if (input.colorMode === 'colored') {
-    const pct = typeof input.colorPct === 'number' ? input.colorPct : 100;
-    price = pct > 50 ? pricing.colorHigh : pct > 0 ? pricing.colorLow : pricing.bw;
-  } else {
-    price = pricing.bw;
-  }
-
-  const size = (input.paperSize || 'a4').toLowerCase();
-  if (size === 'long' || size === 'folio' || size === 'legal') {
-    price += pricing.sizeLongLegalFolio;
-  } else if (size === 'a3') {
-    price += pricing.sizeA3;
-  }
-
-  if (input.twoSided === 'yes') {
-    price -= pricing.duplexSavings;
-  }
-
-  return Math.max(price, 0);
-}
-
 // Shared formatting helper so every consumer labels prices identically.
 export function formatPrice(value: number): string {
   return `₱${value.toFixed(2)}`;

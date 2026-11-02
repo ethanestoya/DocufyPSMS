@@ -392,7 +392,8 @@ export default function DownPaymentMethod() {
 
         <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-gray-100">
           <Button
-            className="h-11 w-full bg-[#2F6FD6] hover:bg-[#2557b8] text-white"
+            variant="primary"
+            className="h-11 w-full"
             disabled={isOnlineVenue && onlineMethods.length === 0}
             onClick={() => setShowConfirm(true)}
           >

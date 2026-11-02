@@ -9,6 +9,7 @@ import {
   RotateCcw,
   Plus,
   Search,
+  X,
   Inbox,
   FileText,
   LayoutDashboard,
@@ -29,6 +30,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import {
   inventoryStore,
   type InventoryItem,
+  type InventoryStatus,
   type StockMovement,
 } from "../../utils/inventoryStore";
 import { formatNumber } from "../../utils/formatNumber";
@@ -347,7 +349,7 @@ function InventoryReports() {
                         toLabel="To"
                         compact
                       />
-                      <button onClick={() => setDropdownOpen(false)} className="w-full py-1.5 bg-[#2F6FD6] text-white rounded-lg text-xs font-semibold hover:bg-[#1e5bb8]">Apply</button>
+                      <Button variant="primary" size="sm" onClick={() => setDropdownOpen(false)} className="w-full">Apply</Button>
                     </div>
                   )}
                 </div>
@@ -594,6 +596,8 @@ export default function InventoryManagement({
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<InventoryStatus | "all">("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
   // Table pagination
   const PAGE_SIZE = 8;
@@ -651,12 +655,41 @@ export default function InventoryManagement({
 
   const hydrating = useHydrating();
 
+  // Categories come from what is actually on the shelf (archived or active), in
+  // the shop's own order, so the filter never offers an empty option.
+  const categoryOptions = useMemo(() => {
+    const present = new Set(items.map((item) => item.category).filter(Boolean));
+    const known = CATEGORIES.filter((category) => present.has(category));
+    const extra = [...present]
+      .filter((category) => !CATEGORIES.includes(category))
+      .sort((a, b) => a.localeCompare(b));
+    return ["all", ...known, ...extra];
+  }, [items]);
+
+  const statusCounts = useMemo(() => {
+    const counts = { out: 0, low: 0, ok: 0 };
+    for (const item of items) counts[inventoryStore.getInventoryStatus(item)] += 1;
+    return counts;
+  }, [items]);
+
+  const filtersActive =
+    search.trim() !== "" || statusFilter !== "all" || categoryFilter !== "all";
+
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("all");
+    setCategoryFilter("all");
+  };
+
   const filteredItems = items.filter((item) => {
+    if (categoryFilter !== "all" && item.category !== categoryFilter) return false;
+    if (statusFilter !== "all" && inventoryStore.getInventoryStatus(item) !== statusFilter) {
+      return false;
+    }
     const q = search.trim().toLowerCase();
     if (!q) return true;
     return (
       item.name.toLowerCase().includes(q) ||
-      item.category.toLowerCase().includes(q) ||
       (item.brand || "").toLowerCase().includes(q)
     );
   });
@@ -669,10 +702,10 @@ export default function InventoryManagement({
     page * PAGE_SIZE,
   );
 
-  // Jump back to page 1 when the result set changes (search / source toggle)
+  // Jump back to page 1 when the result set changes (search / filters / source)
   useEffect(() => {
     setPage(1);
-  }, [search, showArchived, filteredItems.length]);
+  }, [search, statusFilter, categoryFilter, showArchived, filteredItems.length]);
 
   const openAdd = () => {
     setForm({
@@ -923,40 +956,71 @@ export default function InventoryManagement({
 
         {/* Toolbar */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
-          <div className="group relative w-full sm:max-w-xs">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3] transition-colors group-focus-within:text-[#2F6FD6]" />
-            <Input
-              aria-label="Search inventory items"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search items..."
-              className="pl-10"
+          <div className="flex w-full flex-col gap-2 sm:max-w-3xl sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="group relative w-full sm:min-w-[180px] sm:flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3] transition-colors group-focus-within:text-[#2F6FD6]" />
+              <Input
+                aria-label="Search inventory items by name or brand"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search item or brand..."
+                className="pl-10"
+              />
+            </div>
+            <ZoomSafeDropdown
+              label="Filter by stock status"
+              value={statusFilter}
+              onChange={(v) => setStatusFilter(v as InventoryStatus | "all")}
+              applied={statusFilter !== "all"}
+              className="w-full sm:w-[165px]"
+              options={[
+                { value: "all", label: "All statuses" },
+                { value: "ok", label: `In stock (${statusCounts.ok})` },
+                { value: "low", label: `Low stock (${statusCounts.low})` },
+                { value: "out", label: `Out of stock (${statusCounts.out})` },
+              ]}
             />
+            <ZoomSafeDropdown
+              label="Filter by category"
+              value={categoryFilter}
+              onChange={setCategoryFilter}
+              applied={categoryFilter !== "all"}
+              className="w-full sm:w-[165px]"
+              options={categoryOptions.map((category) => ({
+                value: category,
+                label: category === "all" ? "All categories" : category,
+              }))}
+            />
+            {filtersActive && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] border border-[#D5DCE6] bg-white px-3 text-xs font-semibold text-slate-600 transition-colors hover:border-[#B7C3D4] hover:text-slate-800"
+              >
+                <X className="h-3.5 w-3.5" /> Clear
+              </button>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
+              variant={!showArchived ? "primary" : "outline"}
               onClick={() => setShowArchived(false)}
-              className={!showArchived
-                ? "bg-[#2F6FD6] text-white hover:bg-[#2557b8] rounded-md shadow-md shadow-[#2F6FD6]/25"
-                : "bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white rounded-md"}
             >
               Active
             </Button>
             <Button
               type="button"
+              variant={showArchived ? "primary" : "outline"}
               onClick={() => setShowArchived(true)}
-              className={showArchived
-                ? "bg-[#2F6FD6] text-white hover:bg-[#2557b8] rounded-md shadow-md shadow-[#2F6FD6]/25"
-                : "bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white rounded-md"}
             >
               Archived
             </Button>
             <Button
+              variant="primary"
               onClick={openAdd}
-              className="bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
             >
-              <Plus className="h-4 w-4 mr-2" /> Add Item
+              <Plus className="h-4 w-4" /> Add Item
             </Button>
           </div>
         </div>
@@ -972,10 +1036,21 @@ export default function InventoryManagement({
             <div className="p-10 text-center">
               <Boxes className="mx-auto h-10 w-10 text-gray-300" />
               <p className="mt-3 text-sm font-medium text-gray-600">
-                {showArchived
-                  ? "No archived items."
-                  : "No inventory items yet. Add your first item."}
+                {filtersActive
+                  ? "No items match these filters."
+                  : showArchived
+                    ? "No archived items."
+                    : "No inventory items yet. Add your first item."}
               </p>
+              {filtersActive && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="mt-2 text-xs font-semibold text-[#2F6FD6] hover:underline"
+                >
+                  Clear filters
+                </button>
+              )}
             </div>
           ) : (
             <>
@@ -1059,10 +1134,9 @@ export default function InventoryManagement({
                         <div className="flex items-center justify-end gap-1">
                           <Button
                             type="button"
-                            variant="outline"
-                            size="sm"
+                            variant="primary"
+                            size="icon"
                             title="Stock In"
-                            className="border-2 border-green-600 text-green-700 hover:bg-green-600 hover:text-white hover:border-green-700"
                             onClick={() => openStock("in", item)}
                           >
                             <PackagePlus className="h-4 w-4" />
@@ -1070,9 +1144,8 @@ export default function InventoryManagement({
                           <Button
                             type="button"
                             variant="outline"
-                            size="sm"
+                            size="icon"
                             title="Stock Out"
-                            className="border-2 border-red-300 text-red-600 hover:bg-red-500 hover:text-white hover:border-red-500"
                             onClick={() => openStock("out", item)}
                           >
                             <PackageMinus className="h-4 w-4" />
@@ -1080,19 +1153,17 @@ export default function InventoryManagement({
                           <Button
                             type="button"
                             variant="outline"
-                            size="sm"
+                            size="icon"
                             title="Edit"
-                            className="border-2 border-[#2F6FD6]/30 text-[#2F6FD6] hover:bg-[#2F6FD6] hover:border-[#2F6FD6]"
                             onClick={() => openEdit(item)}
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <Button
                             type="button"
-                            variant="outline"
-                            size="sm"
+                            variant={item.archived ? "outline" : "destructive-outline"}
+                            size="icon"
                             title={item.archived ? "Restore" : "Archive"}
-                            className="border-2 border-[#2F6FD6]/30 text-[#2F6FD6] hover:bg-[#2F6FD6] hover:border-[#2F6FD6]"
                             onClick={() => { setArchiveTarget(item); setConfirmType(item.archived ? "restore" : "archive"); }}
                           >
                             {item.archived ? (
@@ -1120,13 +1191,14 @@ export default function InventoryManagement({
                     variant="outline"
                     disabled={page === 1}
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    className="bg-white text-slate-600 border border-gray-200 hover:bg-[#F2F7FF] hover:text-[#2F6FD6] hover:border-[#2F6FD6] disabled:opacity-40 disabled:pointer-events-none rounded-md px-3 h-9"
+                    className="h-9 px-3"
                   >
-                    <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+                    <ChevronLeft className="h-4 w-4" /> Previous
                   </Button>
                   <Button
                     type="button"
-                    className="bg-[#2F6FD6] text-white hover:bg-[#2557b8] rounded-md shadow-sm shadow-[#2F6FD6]/30 h-9 w-9"
+                    variant="primary"
+                    size="icon"
                   >
                     {page}
                   </Button>
@@ -1135,9 +1207,9 @@ export default function InventoryManagement({
                     variant="outline"
                     disabled={page === pageCount}
                     onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-                    className="bg-white text-slate-600 border border-gray-200 hover:bg-[#F2F7FF] hover:text-[#2F6FD6] hover:border-[#2F6FD6] disabled:opacity-40 disabled:pointer-events-none rounded-md px-3 h-9"
+                    className="h-9 px-3"
                   >
-                    Next <ChevronRight className="h-4 w-4 ml-1" />
+                    Next <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
               )}
@@ -1290,9 +1362,9 @@ export default function InventoryManagement({
               Cancel
             </Button>
             <Button
+              variant="primary"
               data-primary-action
               onClick={() => setConfirmType("save")}
-              className="bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
             >
               {editItem ? "Save Changes" : "Add Item"}
             </Button>
@@ -1396,13 +1468,9 @@ export default function InventoryManagement({
                   Cancel
                 </Button>
                 <Button
+                  variant={stockDialog.type === "in" ? "primary" : "outline"}
                   data-primary-action
                   onClick={() => setConfirmType(stockDialog.type === "in" ? "stockIn" : "stockOut")}
-                  className={
-                    stockDialog.type === "in"
-                      ? "bg-green-600 text-white hover:bg-green-700"
-                      : "bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
-                  }
                 >
                   {stockDialog.type === "in" ? "Stock In" : "Stock Out"}
                 </Button>

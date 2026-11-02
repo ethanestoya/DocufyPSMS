@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Docufy PSMS — Before &amp; After</title>
+<style>
+  :root{
+    --blue:#1D73EC;
+    --blue-2:#2F6FD6;
+    --canvas:#f6f7f9;
+    --ink:#0f172a;
+    --muted:#64748b;
+    --line:#e2e8f0;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;padding:24px;background:#e9eef6;
+    font-family:ui-sans-serif,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    color:var(--ink);-webkit-font-smoothing:antialiased;
+  }
+  .board{width:1180px;margin:0 auto;background:#fff;border-radius:18px;
+    box-shadow:0 18px 50px rgba(15,23,42,.10);padding:34px 36px 30px;}
+
+  /* ---------- board header ---------- */
+  .eyebrow{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--blue-2)}
+  h1{font-size:27px;line-height:1.15;margin:8px 0 8px;letter-spacing:-.02em}
+  .sub{font-size:12.5px;color:var(--muted);margin:0;max-width:760px;line-height:1.55}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;
+    padding-bottom:20px;border-bottom:1px solid var(--line);margin-bottom:6px}
+  .stamp{flex:none;font-size:10.5px;font-weight:600;color:#475569;background:#f1f5f9;
+    border:1px solid var(--line);border-radius:999px;padding:6px 11px;white-space:nowrap}
+
+  /* ---------- section ---------- */
+  .section{margin-top:26px;padding-top:26px;border-top:1px solid var(--line)}
+  .section:first-of-type{border-top:0;padding-top:18px}
+  .sec-head{display:flex;align-items:flex-start;gap:11px;margin-bottom:14px}
+  .sec-num{width:21px;height:21px;border-radius:6px;background:var(--blue);color:#fff;
+    font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px}
+  .sec-title{font-size:14px;font-weight:600;margin:0;letter-spacing:-.01em}
+  .sec-note{font-size:11.5px;color:var(--muted);margin:2px 0 0;line-height:1.5}
+
+  /* ---------- comparison panel ---------- */
+  .cmp + .cmp{margin-top:12px}
+  .cmp-head{display:flex;align-items:center;gap:9px;margin-bottom:6px}
+  .tag{font-size:9.5px;font-weight:700;letter-spacing:.1em;padding:3px 7px;border-radius:5px}
+  .tag.before{background:#f1f3f6;color:#64748b;border:1px solid #e2e8f0}
+  .tag.after{background:#e8f0fd;color:#1d4ed8;border:1px solid #c3d8fa}
+  .cmp-note{font-size:11px;color:#64748b}
+  .cmp-note b{color:#334155;font-weight:600}
+
+  .frame{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--canvas)}
+
+  /* ---------- miniature app ---------- */
+  .app{display:grid;grid-template-columns:150px 1fr;min-height:0}
+  .side{background:var(--blue);padding:14px 12px 16px;color:#fff}
+  .brand{display:flex;align-items:center;gap:8px;padding:0 4px 16px}
+  .brand-dot{width:20px;height:20px;border-radius:50%;background:#fff;color:var(--blue);
+    font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .brand-name{font-size:12px;font-weight:600}
+  .nav{display:flex;flex-direction:column;gap:2px}
+  .nav-i{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:6px;
+    font-size:10px;color:rgba(255,255,255,.9)}
+  .nav-i.on{background:#fff;color:var(--blue);font-weight:600}
+  .nav-sq{width:9px;height:9px;border-radius:2.5px;background:currentColor;opacity:.75;flex:none}
+  .nav-sq.ring{background:transparent;border:1.4px solid currentColor}
+
+  .main{background:var(--canvas);display:flex;flex-direction:column;min-width:0}
+  .topbar{background:#fff;border-bottom:1px solid var(--line);height:42px;
+    display:flex;align-items:center;justify-content:space-between;padding:0 14px;gap:10px}
+  .top-left{display:flex;align-items:center;gap:8px;min-width:0}
+  .top-title{font-size:12.5px;font-weight:600;letter-spacing:-.01em}
+  .status-pill{display:inline-flex;align-items:center;gap:5px;font-size:9px;font-weight:600;
+    color:#166534;background:#ECFDF3;border:1px solid #BBF7D0;border-radius:999px;padding:2px 7px 2px 5px;white-space:nowrap}
+  .status-pill .dot{width:5px;height:5px;border-radius:50%;background:#22C55E}
+  .chip{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;color:#475569;
+    background:#fff;border:1px solid #d5dce6;border-radius:7px;padding:4px 8px;white-space:nowrap}
+  .caret{border-left:3.5px solid transparent;border-right:3.5px solid transparent;
+    border-top:4px solid #94a3b8;margin-left:2px}
+
+  .content{padding:11px;display:flex;flex-direction:column;gap:9px}
+
+  /* KPI */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+  .kpi{background:#fff;border:1px solid #e6eaf0;border-radius:9px;padding:9px 10px;display:flex;gap:8px;align-items:center}
+  .kpi-ic{width:24px;height:24px;border-radius:7px;background:#eef4ff;color:var(--blue-2);
+    display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;flex:none}
+  .kpi-l{font-size:8.5px;color:#64748b;letter-spacing:.02em}
+  .kpi-v{font-size:17px;font-weight:600;letter-spacing:-.02em;line-height:1.15}
+  .kpi-t{font-size:8px;font-weight:600;color:#15803d}
+  .kpi-t.down{color:#b91c1c}
+
+  /* cards */
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+  .card{background:#fff;border:1px solid #e6eaf0;border-radius:9px;padding:9px 10px;min-width:0}
+  .card-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
+  .card-title{font-size:10.5px;font-weight:600;letter-spacing:-.01em}
+  .card-sub{font-size:8px;color:#94a3b8;margin-top:1px}
+  .link{font-size:8.5px;font-weight:600;color:var(--blue-2)}
+
+  /* shop status card (before) */
+  .status-card{background:#fff;border:1px solid #e6eaf0;border-radius:9px;padding:9px 11px;
+    display:flex;align-items:center;gap:10px}
+  .status-ic{width:26px;height:26px;border-radius:8px;background:#ECFDF3;color:#16a34a;
+    display:flex;align-items:center;justify-content:center;font-size:12px}
+  .status-t{font-size:10.5px;font-weight:600}
+  .status-s{font-size:8.5px;color:#64748b;margin-top:1px}
+  .status-actions{margin-left:auto;display:flex;gap:6px}
+  .btn-s{font-size:8.5px;font-weight:600;border-radius:6px;padding:4px 9px;border:1px solid #d5dce6;color:#475569;background:#fff}
+  .btn-s.pri{background:var(--blue-2);border-color:var(--blue-2);color:#fff}
+
+  /* segmented control */
+  .seg{display:inline-flex;background:#f1f5f9;border-radius:6px;padding:2px;gap:2px}
+  .seg span{font-size:8px;padding:2.5px 6px;border-radius:4px;color:#64748b}
+  .seg span.on{background:#fff;color:var(--blue-2);font-weight:600;box-shadow:0 1px 2px rgba(15,23,42,.08)}
+
+  /* chart */
+  .chart{width:100%;height:96px;display:block}
+  .chart.tall{height:124px}
+  .axis{display:flex;justify-content:space-between;font-size:7.5px;color:#94a3b8;margin-top:3px;padding:0 2px}
+
+  /* tables */
+  .tr{display:grid;align-items:center;gap:6px;font-size:8.5px;padding:4.5px 0;border-top:1px solid #f1f5f9}
+  .tr.head{border-top:0;color:#94a3b8;font-size:7.5px;letter-spacing:.05em;text-transform:uppercase;padding-bottom:3px}
+  .tr .id{font-weight:600;color:#334155}
+  .tr .muted{color:#94a3b8}
+  .tr .amt{text-align:right;font-weight:600}
+  .tr4{grid-template-columns:1fr 1fr .7fr}
+  .tr5{grid-template-columns:1.1fr 1.1fr .7fr .8fr}
+
+  /* sales comparison */
+  .cmpv{display:flex;justify-content:space-between;gap:8px;margin-bottom:6px}
+  .cmpv-l{font-size:7.5px;color:#94a3b8}
+  .cmpv-v{font-size:12px;font-weight:600}
+  .share{height:6px;border-radius:99px;background:#e8eef8;overflow:hidden;display:flex}
+  .share i{display:block;height:100%}
+  .cmp-note-s{font-size:8px;color:#64748b;margin-top:6px;line-height:1.45}
+
+  /* inventory snapshot */
+  .inv-row{display:grid;grid-template-columns:1fr .8fr .7fr;gap:6px;align-items:center;
+    font-size:8.5px;padding:4px 0;border-top:1px solid #f1f5f9}
+  .inv-row.head{border-top:0;font-size:7.5px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;padding-bottom:3px}
+  .pill{display:inline-block;font-size:7.5px;font-weight:600;padding:1.5px 5px;border-radius:99px}
+  .pill.ok{background:#ECFDF3;color:#15803d}
+  .pill.low{background:#FFF7E6;color:#B45309}
+  .pill.out{background:#FEF2F2;color:#B91C1C}
+  .pill.print{background:#F0EAFE;color:#7C3AED}
+  .pill.ready{background:#E0F7F5;color:#0F766E}
+  .pill.queue{background:#FFF5D6;color:#B45309}
+
+  /* inventory strip (after) */
+  .strip{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid #e6eaf0;border-radius:9px;padding:9px 11px}
+  .strip-t{font-size:10px;font-weight:600;white-space:nowrap}
+  .strip-items{display:flex;gap:6px;flex-wrap:nowrap;overflow:hidden}
+  .strip-i{font-size:8.5px;color:#475569;background:#f8fafc;border:1px solid #eef2f7;border-radius:999px;
+    padding:3px 8px;white-space:nowrap}
+  .strip-i b{font-weight:600;color:#0f172a}
+  .strip .link{margin-left:auto;white-space:nowrap}
+
+  /* date picker (after) */
+  .range{display:inline-flex;align-items:center;gap:5px;font-size:8.5px;color:#475569}
+  .date{display:inline-flex;align-items:center;gap:4px;border:1px solid #d5dce6;background:#fff;
+    border-radius:6px;padding:3.5px 7px;font-size:8.5px;color:#334155}
+  .cal{width:8px;height:8px;border:1.3px solid #94a3b8;border-radius:2px;position:relative}
+  .cal:after{content:"";position:absolute;left:0;right:0;top:2.4px;border-top:1.1px solid #94a3b8}
+
+  /* ---------- inventory toolbar comparison ---------- */
+  .toolbar{background:#fff;display:flex;align-items:center;gap:8px;padding:10px 11px;border-bottom:1px solid var(--line)}
+  .tabs{display:inline-flex;background:#f1f5f9;border-radius:7px;padding:2px;gap:2px}
+  .tabs span{font-size:9px;padding:3.5px 9px;border-radius:5px;color:#64748b}
+  .tabs span.on{background:#fff;color:var(--blue-2);font-weight:600;box-shadow:0 1px 2px rgba(15,23,42,.08)}
+  .search{flex:1;display:flex;align-items:center;gap:6px;border:1px solid #d5dce6;border-radius:7px;
+    padding:5px 8px;font-size:9px;color:#9aa4b2;background:#fff}
+  .search .mag{width:8px;height:8px;border:1.4px solid #94a3b8;border-radius:50%;position:relative}
+  .search .mag:after{content:"";position:absolute;width:1.4px;height:4px;background:#94a3b8;right:-2px;bottom:-3px;transform:rotate(-45deg)}
+  .filter{display:inline-flex;align-items:center;gap:6px;border:1px solid #d5dce6;border-radius:7px;
+    padding:5px 8px;font-size:9px;color:#334155;background:#fff;white-space:nowrap}
+  .filter .lbl{font-size:8px;color:#94a3b8}
+  .filter.applied{background:#F4F8FE;border-color:#9CBBEC;color:#1F4E9C;font-weight:600}
+  .apply-btn{font-size:9px;font-weight:600;color:#fff;background:var(--blue-2);border-radius:7px;padding:6px 10px;white-space:nowrap}
+  .table{padding:2px 11px 6px;background:#fff}
+  .irow{display:grid;grid-template-columns:1.5fr 1fr .8fr .7fr;gap:8px;align-items:center;
+    font-size:9px;padding:5.5px 0;border-top:1px solid #f1f5f9}
+  .irow.head{border-top:0;font-size:7.5px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;padding-bottom:3px}
+  .irow .nm{font-weight:600;color:#334155}
+  .irow .cat{color:#64748b}
+  .foot{background:#fff;border-top:1px solid #f1f5f9;padding:6px 11px;font-size:8px;color:#94a3b8}
+
+  /* ---------- customer files ---------- */
+  .orders{background:#fff;padding:2px 11px 6px}
+  .orow{display:grid;grid-template-columns:1.2fr .9fr .9fr .7fr;gap:8px;align-items:center;
+    font-size:9px;padding:6px 0;border-top:1px solid #f1f5f9}
+  .orow.head{border-top:0;font-size:7.5px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;padding-bottom:3px}
+  .orow .id{font-weight:600}
+  .files{background:#fff;padding:9px 11px 5px}
+  .frow{display:grid;grid-template-columns:22px 1fr auto auto;gap:9px;align-items:center;
+    padding:6.5px 0;border-top:1px solid #f1f5f9}
+  .frow:first-child{border-top:0}
+  .ficon{width:22px;height:26px;border-radius:4px;background:#FEF2F2;color:#B91C1C;
+    font-size:6px;font-weight:700;display:flex;align-items:center;justify-content:center;letter-spacing:.02em}
+  .ficon.img{background:#EFF6FF;color:#1D4ED8}
+  .fname{font-size:9px;font-weight:600;color:#334155}
+  .fmeta{font-size:8px;color:#94a3b8;margin-top:1px}
+  .fdate{font-size:8px;color:#94a3b8;text-align:right;white-space:nowrap}
+  .faction{font-size:8px;font-weight:600;color:var(--blue-2);border:1px solid #cfdffa;
+    background:#F4F8FE;border-radius:5px;padding:3px 7px;white-space:nowrap}
+
+  /* ---------- applicant details ---------- */
+  .applicant{background:#fff;padding:10px 12px 8px}
+  .app-head{display:flex;align-items:center;gap:9px;padding-bottom:8px}
+  .avatar{width:34px;height:34px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:600;background:#eef4ff;color:#2F6FD6}
+  .avatar.photo{background:linear-gradient(135deg,#cbdaf1,#8fb0de);color:#fff;font-size:0}
+  .app-name{font-size:10.5px;font-weight:600}
+  .app-role{font-size:8.5px;color:#94a3b8;margin-top:1px}
+  .arow{display:grid;grid-template-columns:86px 1fr;gap:8px;font-size:9px;padding:5px 0;border-top:1px solid #f1f5f9}
+  .arow .k{color:#94a3b8}
+  .arow .v{color:#334155;font-weight:500}
+  .arow .v.link{color:var(--blue-2);font-weight:600}
+
+  /* ---------- delivered band ---------- */
+  .done{margin-top:26px;border-top:1px solid var(--line);padding-top:20px}
+  .done-h{display:flex;align-items:baseline;gap:9px;margin-bottom:10px}
+  .done-t{font-size:12px;font-weight:600}
+  .done-s{font-size:10.5px;color:#64748b}
+  .chips{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .chipc{border:1px solid #e6eaf0;border-radius:9px;padding:8px 9px;background:#fbfdff}
+  .chipc .k{font-size:8px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#16a34a}
+  .chipc .v{font-size:9px;color:#475569;line-height:1.45;margin-top:3px}
+  .chipc .v b{color:#0f172a;font-weight:600}
+  .foot-note{margin-top:14px;font-size:10px;color:#94a3b8;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="board">
+
+  <div class="head">
+    <div>
+      <div class="eyebrow">Docufy PSMS · Design response</div>
+      <h1>Adviser feedback — before &amp; after</h1>
+      <p class="sub">Admin dashboard, inventory filtering and the customer file list, redrawn around the five UI/UX points. Screens are shown at reduced scale; every label, figure and control mirrors the real app.</p>
+    </div>
+    <div class="stamp">Nov 2026 · frontend-dev</div>
+  </div>
+
+  <!-- ============ 1. ADMIN DASHBOARD ============ -->
+  <div class="section">
+    <div class="sec-head">
+      <div class="sec-num">1</div>
+      <div>
+        <h2 class="sec-title">Admin dashboard — less to read, same information</h2>
+        <p class="sec-note">Drop Recent Transactions and Sales Comparison, move Shop Status into the header, shrink inventory to one line, and replace the Daily / Weekly / Monthly toggles with a single From–To range.</p>
+      </div>
+    </div>
+
+    <!-- BEFORE -->
+    <div class="cmp">
+      <div class="cmp-head">
+        <span class="tag before">BEFORE</span>
+        <span class="cmp-note">Five stacked blocks · <b>Recent Transactions repeats the Orders page</b> · <b>Sales Comparison repeats the trend</b> · Shop Status takes a full card.</span>
+      </div>
+      <div class="frame">
+        <div class="app">
+          <aside class="side">
+            <div class="brand"><div class="brand-dot">D</div><div class="brand-name">Docufy</div></div>
+            <nav class="nav">
+              <div class="nav-i on"><span class="nav-sq"></span>Dashboard</div>
+              <div class="nav-i"><span class="nav-sq ring"></span>Orders</div>
+              <div class="nav-i"><span class="nav-sq ring"></span>Payment Verification</div>
+              <div class="nav-i"><span class="nav-sq ring"></span>Walk-in</div>
+              <div class="nav-i"><span class="nav-sq ring"></span>Inventory</div>
+              <div class="nav-i"><span class="nav-sq ring"></span>Attendance</div>
+              <div class="nav-i"><span class="nav-sq ring"></span>Staff</div>
+              <div class="nav-i"><span class="nav-sq ring"></span>Pricing</div>
+            </nav>
+          </aside>
+          <div class="main">
+            <div class="topbar">
+              <div class="top-left"><span class="top-title">Dashboard</span></div>
+              <span class="chip">This Month <i class="caret"></i></span>
+            </div>
+            <div class="content">
+
+              <div class="kpis">
+                <div class="kpi"><div class="kpi-ic">₱</div><div><div class="kpi-l">Total Sales</div><div class="kpi-v">₱12,480</div><div class="kpi-t">↑ 12.4%</div></div></div>
+                <div class="kpi"><div class="kpi-ic">▤</div><div><div class="kpi-l">Total Orders</div><div class="kpi-v">86</div><div class="kpi-t">↑ 8.1%</div></div></div>
+                <div class="kpi"><div class="kpi-ic">⇄</div><div><div class="kpi-l">Walk-in</div><div class="kpi-v">34</div><div class="kpi-t down">↓ 2.0%</div></div></div>
+                <div class="kpi"><div class="kpi-ic">◍</div><div><div class="kpi-l">Active Customers</div><div class="kpi-v">21</div><div class="kpi-t">↑ 5.0%</div></div></div>
+              </div>
+
+              <!-- full Shop Status card -->
+              <div class="status-card">
+                <div class="status-ic">●</div>
+                <div>
+                  <div class="status-t">Shop Status · Open</div>
+                  <div class="status-s">Docufy is currently accepting orders and processing the queue.</div>
+                </div>
+                <div class="status-actions"><span class="btn-s">Mark Paused</span><span class="btn-s pri">Mark Closed</span></div>
+              </div>
+
+              <div class="grid3">
+                <div class="card" style="grid-column:span 2">
+                  <div class="card-h">
+                    <div><div class="card-title">Sales Trend</div><div class="card-sub">Sales performance over time</div></div>
+                    <div class="seg"><span>Daily</span><span class="on">Weekly</span><span>Monthly</span></div>
+                  </div>
+                  <svg class="chart" viewBox="0 0 640 150" preserveAspectRatio="none">
+                    <defs><linearGradient id="gb1" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#2F6FD6" stop-opacity=".22"/><stop offset="100%" stop-color="#2F6FD6" stop-opacity="0"/>
+                    </linearGradient></defs>
+                    <g stroke="#e9eef6" stroke-width="1">
+                      <line x1="0" y1="28" x2="640" y2="28"/><line x1="0" y1="66" x2="640" y2="66"/>
+                      <line x1="0" y1="104" x2="640" y2="104"/><line x1="0" y1="142" x2="640" y2="142"/>
+                    </g>
+                    <path d="M0,118 C40,108 70,94 110,99 C150,104 180,78 220,83 C260,88 300,58 340,65 C380,72 420,50 460,42 C500,34 540,56 580,38 C610,25 630,20 640,18 L640,150 L0,150 Z" fill="url(#gb1)"/>
+                    <path d="M0,118 C40,108 70,94 110,99 C150,104 180,78 220,83 C260,88 300,58 340,65 C380,72 420,50 460,42 C500,34 540,56 580,38 C610,25 630,20 640,18" fill="none" stroke="#2F6FD6" stroke-width="2.2"/>
+                  </svg>
+                  <div class="axis"><span>W1</span><span>W2</span><span>W3</span><span>W4</span><span>W5</span><span>W6</span></div>
+                </div>
+
+                <div class="card">
+                  <div class="card-h"><div class="card-title">Sales Comparison</div></div>
+                  <div class="cmpv">
+                    <div><div class="cmpv-l">This period</div><div class="cmpv-v">₱12,480</div></div>
+                    <div style="text-align:right"><div class="cmpv-l">Previous</div><div class="cmpv-v" style="color:#94a3b8">₱9,300</div></div>
+                  </div>
+                  <div class="share"><i style="width:57%;background:#2F6FD6"></i><i style="width:43%;background:#dbe4f2"></i></div>
+                  <div class="cmp-note-s">You earned ₱3,180 more than the previous period.</div>
+                </div>
+              </div>
+
+              <div class="grid3">
+                <div class="card">
+                  <div class="card-h"><div class="card-title">Recent Transactions</div><span class="link">View All</span></div>
+                  <div class="tr4 tr head"><span>Order</span><span>Customer</span><span style="text-align:right">Amount</span></div>
+                  <div class="tr tr4"><span class="id">ORD-0052</span><span>Maria Santos</span><span class="amt">₱480</span></div>
+                  <div class="tr tr4"><span class="id">ORD-0051</span><span class="muted">Walk-in</span><span class="amt">₱120</span></div>
+                  <div class="tr tr4"><span class="id">ORD-0050</span><span>J. Reyes</span><span class="amt">₱260</span></div>
+                  <div class="tr tr4"><span class="id">ORD-0049</span><span>A. Cruz</span><span class="amt">₱75</span></div>
+                </div>
+
+                <div class="card" style="grid-column:span 2">
+                  <div class="card-h"><div class="card-title">Inventory Snapshot</div><span class="link">View Inventory</span></div>
+                  <div class="inv-row head"><span>Item</span><span>Stock</span><span>Status</span></div>
+                  <div class="inv-row"><span class="nm">A4 Bond Paper</span><span>2,400 pcs</span><span><span class="pill ok">In stock</span></span></div>
+                  <div class="inv-row"><span class="nm">Long Bond Paper</span><span>800 pcs</span><span><span class="pill low">Low</span></span></div>
+                  <div class="inv-row"><span class="nm">Cyan Ink</span><span>3 pcs</span><span><span class="pill out">Out</span></span></div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AFTER -->
+    <div class="cmp">
+      <div class="cmp-head">
+        <span class="tag after">AFTER</span>
+        <span class="cmp-note">Three blocks · <b>Shop status lives in the header</b> · <b>one From–To range</b> · inventory is a single strip · the two duplicate cards are gone.</span>
+      </div>
+      <div class="frame">
+        <div class="app">
+          <aside class="side">
+            <div class="brand"><div class="brand-dot">D</div><div class="brand-name">Docufy</div></div>
+            <nav class="nav">
+              <div class="nav-i on"><span class="nav-sq"></span>Dashboard</div>
+              <div class="nav-i"><span class="nav-sq ring"></span>Orders</div>
+              <div class="nav-i"><span class="nav-sq ring"></span>Payment Verification</div>
+              <div class="nav-i"><span class="nav-sq ring"></span>Walk-in</div>
+              <div class="nav-i"><span class="nav-sq ring"></span>Inventory</div>
+              <div class="nav-i"><span class="nav-sq ring"></span>Attendance</div>
+              <div class="nav-i"><span class="nav-sq ring"></span>Staff</div>
+              <div class="nav-i"><span class="nav-sq ring"></span>Pricing</div>
+            </nav>
+          </aside>
+          <div class="main">
+            <div class="topbar">
+              <div class="top-left">
+                <span class="top-title">Dashboard</span>
+                <span class="status-pill"><span class="dot"></span>Open · accepting orders</span>
+              </div>
+              <span class="chip">This Month <i class="caret"></i></span>
+            </div>
+            <div class="content">
+
+              <div class="kpis">
+                <div class="kpi"><div class="kpi-ic">₱</div><div><div class="kpi-l">Total Sales</div><div class="kpi-v">₱12,480</div><div class="kpi-t">↑ 12.4%</div></div></div>
+                <div class="kpi"><div class="kpi-ic">▤</div><div><div class="kpi-l">Total Orders</div><div class="kpi-v">86</div><div class="kpi-t">↑ 8.1%</div></div></div>
+                <div class="kpi"><div class="kpi-ic">⇄</div><div><div class="kpi-l">Walk-in</div><div class="kpi-v">34</div><div class="kpi-t down">↓ 2.0%</div></div></div>
+                <div class="kpi"><div class="kpi-ic">◍</div><div><div class="kpi-l">Active Customers</div><div class="kpi-v">21</div><div class="kpi-t">↑ 5.0%</div></div></div>
+              </div>
+
+              <div class="card">
+                <div class="card-h">
+                  <div><div class="card-title">Sales Trend</div><div class="card-sub">Sales performance over the selected range</div></div>
+                  <div class="range">
+                    <span class="date"><span class="cal"></span>10/01/2026</span>
+                    <span>–</span>
+                    <span class="date"><span class="cal"></span>10/31/2026</span>
+                  </div>
+                </div>
+                <svg class="chart tall" viewBox="0 0 640 150" preserveAspectRatio="none">
+                  <defs><linearGradient id="ga1" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#2F6FD6" stop-opacity=".22"/><stop offset="100%" stop-color="#2F6FD6" stop-opacity="0"/>
+                  </linearGradient></defs>
+                  <g stroke="#e9eef6" stroke-width="1">
+                    <line x1="0" y1="28" x2="640" y2="28"/><line x1="0" y1="66" x2="640" y2="66"/>
+                    <line x1="0" y1="104" x2="640" y2="104"/><line x1="0" y1="142" x2="640" y2="142"/>
+                  </g>
+                  <path d="M0,118 C40,108 70,94 110,99 C150,104 180,78 220,83 C260,88 300,58 340,65 C380,72 420,50 460,42 C500,34 540,56 580,38 C610,25 630,20 640,18 L640,150 L0,150 Z" fill="url(#ga1)"/>
+                  <path d="M0,118 C40,108 70,94 110,99 C150,104 180,78 220,83 C260,88 300,58 340,65 C380,72 420,50 460,42 C500,34 540,56 580,38 C610,25 630,20 640,18" fill="none" stroke="#2F6FD6" stroke-width="2.2"/>
+                </svg>
+                <div class="axis"><span>Oct 1</span><span>Oct 6</span><span>Oct 11</span><span>Oct 16</span><span>Oct 21</span><span>Oct 26</span><span>Oct 31</span></div>
+              </div>
+
+              <div class="strip">
+                <div class="kpi-ic" style="width:22px;height:22px;border-radius:6px">▦</div>
+                <div class="strip-t">Inventory</div>
+                <div class="strip-items">
+                  <span class="strip-i">A4 paper <b>2,400 pcs</b></span>
+                  <span class="strip-i" style="background:#FFF7E6;border-color:#FDE68A">Long <b>800 pcs</b> · low</span>
+                  <span class="strip-i" style="background:#FEF2F2;border-color:#FECACA">Cyan ink <b>3 pcs</b> · out</span>
+                </div>
+                <span class="link">View Inventory →</span>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 2. INVENTORY FILTERING ============ -->
+  <div class="section">
+    <div class="sec-head">
+      <div class="sec-num">2</div>
+      <div>
+        <h2 class="sec-title">Inventory — targeted filtering instead of one search box</h2>
+        <p class="sec-note">Status, category and item name become separate controls, and an active filter is visibly applied instead of hiding inside a single query.</p>
+      </div>
+    </div>
+
+    <div class="cmp">
+      <div class="cmp-head">
+        <span class="tag before">BEFORE</span>
+        <span class="cmp-note">One search field and an Active / Archived toggle — <b>no way to narrow by category or stock status</b>.</span>
+      </div>
+      <div class="frame">
+        <div class="toolbar">
+          <div class="tabs"><span class="on">Active</span><span>Archived</span></div>
+          <div class="search"><span class="mag"></span>Search items…</div>
+          <span class="apply-btn" style="margin-left:auto">+ Add Item</span>
+        </div>
+        <div class="table">
+          <div class="irow head"><span>Item</span><span>Category</span><span>Stock</span><span>Status</span></div>
+          <div class="irow"><span class="nm">A4 Bond Paper</span><span class="cat">Paper</span><span>2,400 pcs</span><span><span class="pill ok">In stock</span></span></div>
+          <div class="irow"><span class="nm">Long Bond Paper</span><span class="cat">Paper</span><span>800 pcs</span><span><span class="pill low">Low</span></span></div>
+          <div class="irow"><span class="nm">Cyan Ink</span><span class="cat">Ink</span><span>3 pcs</span><span><span class="pill out">Out</span></span></div>
+          <div class="irow"><span class="nm">Stapler Wire</span><span class="cat">Add-ons</span><span>40 pcs</span><span><span class="pill ok">In stock</span></span></div>
+        </div>
+        <div class="foot">Showing 4 of 4 items</div>
+      </div>
+    </div>
+
+    <div class="cmp">
+      <div class="cmp-head">
+        <span class="tag after">AFTER</span>
+        <span class="cmp-note">Three filters that combine · <b>applied values turn blue</b> · the name field stays for typing · active filters can be cleared in one click.</span>
+      </div>
+      <div class="frame">
+        <div class="toolbar">
+          <span class="filter"><span class="lbl">Status</span>Low stock <i class="caret"></i></span>
+          <span class="filter applied"><span class="lbl">Category</span>Paper <i class="caret"></i></span>
+          <span class="filter applied"><span class="lbl">Item</span>Bond <i class="caret"></i></span>
+          <span class="filter" style="border-style:dashed;color:#94a3b8">Clear 2 filters</span>
+          <span class="apply-btn" style="margin-left:auto">+ Add Item</span>
+        </div>
+        <div class="table">
+          <div class="irow head"><span>Item</span><span>Category</span><span>Stock</span><span>Status</span></div>
+          <div class="irow"><span class="nm">Long Bond Paper</span><span class="cat">Paper</span><span>800 pcs</span><span><span class="pill low">Low</span></span></div>
+          <div class="irow"><span class="nm">A4 Bond Paper</span><span class="cat">Paper</span><span>2,400 pcs</span><span><span class="pill ok">In stock</span></span></div>
+        </div>
+        <div class="foot">Showing 1 of 2 matching items · Name contains “Bond”</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 3. CUSTOMER FILES ============ -->
+  <div class="section">
+    <div class="sec-head">
+      <div class="sec-num">3</div>
+      <div>
+        <h2 class="sec-title">Customer — recent files and their status, newest first</h2>
+        <p class="sec-note">The file the customer just uploaded is surfaced directly on the dashboard with its printing status, instead of being buried inside each order.</p>
+      </div>
+    </div>
+
+    <div class="cmp">
+      <div class="cmp-head">
+        <span class="tag before">BEFORE</span>
+        <span class="cmp-note">Only an order list — <b>the customer must open an order to find out which file it was</b>.</span>
+      </div>
+      <div class="frame">
+        <div class="orders">
+          <div class="orow head"><span>Order</span><span>Date</span><span>Status</span><span style="text-align:right">Total</span></div>
+          <div class="orow"><span class="id">ORD-0052</span><span>Oct 31, 2026</span><span><span class="pill print">Printing</span></span><span style="text-align:right;font-weight:600">₱480</span></div>
+          <div class="orow"><span class="id">ORD-0047</span><span>Oct 28, 2026</span><span><span class="pill ready">Ready</span></span><span style="text-align:right;font-weight:600">₱120</span></div>
+          <div class="orow"><span class="id">ORD-0043</span><span>Oct 24, 2026</span><span><span class="pill ok">Released</span></span><span style="text-align:right;font-weight:600">₱260</span></div>
+        </div>
+        <div class="foot">Open an order → scroll to “File to print” to see the uploaded document.</div>
+      </div>
+    </div>
+
+    <div class="cmp">
+      <div class="cmp-head">
+        <span class="tag after">AFTER</span>
+        <span class="cmp-note">A <b>Recent files</b> strip on the dashboard · newest first · status and date visible without opening anything.</span>
+      </div>
+      <div class="frame">
+        <div class="card-h" style="padding:10px 11px 0"><div class="card-title" style="font-size:10.5px">Recent files</div><span class="link">View all orders</span></div>
+        <div class="files">
+          <div class="frow">
+            <div class="ficon">PDF</div>
+            <div><div class="fname">thesis-final.pdf</div><div class="fmeta">ORD-0052 · A4 · 24 pages · 2 copies</div></div>
+            <span class="pill print">Printing</span>
+            <div class="fdate">Oct 31<br>3:12 PM</div>
+          </div>
+          <div class="frow">
+            <div class="ficon img">JPG</div>
+            <div><div class="fname">2x2-id-photo.jpg</div><div class="fmeta">ORD-0047 · 2R · 8 pcs</div></div>
+            <span class="pill ready">Ready for pickup</span>
+            <div class="fdate">Oct 28<br>9:40 AM</div>
+          </div>
+          <div class="frow">
+            <div class="ficon">PDF</div>
+            <div><div class="fname">barangay-clearance.pdf</div><div class="fmeta">ORD-0043 · Long · 1 page · 1 copy</div></div>
+            <span class="pill ok">Released</span>
+            <div class="fdate">Oct 24<br>1:05 PM</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 4. APPLICANT DETAILS ============ -->
+  <div class="section">
+    <div class="sec-head">
+      <div class="sec-num">4</div>
+      <div>
+        <h2 class="sec-title">Job board — the applicant is a person, not a row</h2>
+        <p class="sec-note">The application review opens on the applicant’s photo, name and contact details, so the reviewer can tell applicants apart before reading the form.</p>
+      </div>
+    </div>
+
+    <div class="cmp">
+      <div class="cmp-head">
+        <span class="tag before">BEFORE</span>
+        <span class="cmp-note">A flat field list — <b>no photo and no contact line</b>, so two applicants with similar names read alike.</span>
+      </div>
+      <div class="frame">
+        <div class="applicant">
+          <div class="app-head">
+            <div>
+              <div class="app-name">Application details</div>
+              <div class="app-role">Job Board · For Interview</div>
+            </div>
+          </div>
+          <div class="arow"><span class="k">Applicant</span><span class="v">Maria Santos</span></div>
+          <div class="arow"><span class="k">Position</span><span class="v">Print Operator</span></div>
+          <div class="arow"><span class="k">Email</span><span class="v">maria.santos@psu.palawan.edu.ph</span></div>
+          <div class="arow"><span class="k">Resume</span><span class="v link">View portfolio</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cmp">
+      <div class="cmp-head">
+        <span class="tag after">AFTER</span>
+        <span class="cmp-note">Photo and contact details in the header · <b>the same fields stay below</b>, nothing is hidden.</span>
+      </div>
+      <div class="frame">
+        <div class="applicant">
+          <div class="app-head">
+            <div class="avatar photo">MS</div>
+            <div>
+              <div class="app-name">Maria Santos</div>
+              <div class="app-role">maria.santos@psu.palawan.edu.ph · 0917 123 4567</div>
+            </div>
+            <span class="pill queue" style="margin-left:auto">For Interview</span>
+          </div>
+          <div class="arow"><span class="k">Position</span><span class="v">Print Operator</span></div>
+          <div class="arow"><span class="k">Applied</span><span class="v">Oct 29, 2026 · 2:14 PM</span></div>
+          <div class="arow"><span class="k">Resume</span><span class="v link">View portfolio</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DELIVERED ============ -->
+  <div class="done">
+    <div class="done-h">
+      <div class="done-t">Also fixed in code this batch</div>
+      <div class="done-s">The four error reports, plus a check on the validation item.</div>
+    </div>
+    <div class="chips">
+      <div class="chipc"><div class="k">Error messages</div><div class="v"><b>Names the real cause.</b> Schema drift, oversized or unsupported uploads no longer read as “something went wrong”.</div></div>
+      <div class="chipc"><div class="k">Inventory</div><div class="v"><b>No false failure.</b> Archiving reports success and flags only the server copy as behind.</div></div>
+      <div class="chipc"><div class="k">Profile &amp; photo</div><div class="v"><b>Says which half failed</b> — details or picture — and why, and cleans up a stranded upload.</div></div>
+      <div class="chipc"><div class="k">Attendance</div><div class="v"><b>Retries once, then one notice.</b> It no longer reappears on the Payment Verification page.</div></div>
+      <div class="chipc"><div class="k">Contact number</div><div class="v"><b>Digits only, exactly 11.</b> The job application form already enforces it; verified, no change needed.</div></div>
+    </div>
+    <div class="foot-note">Data-breach alert: a Google Password Manager notice about a reused/leaked password — not an application defect. No password field exists outside login, sign-up and reset, all correctly marked for the browser.</div>
+  </div>
+
+</div>
+</body>
+</html>

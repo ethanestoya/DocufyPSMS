@@ -11,16 +11,20 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-white text-slate-700 border-2 border-transparent hover:-translate-y-0.5 hover:bg-[#2F6FD6] hover:text-white hover:shadow-md",
+          "bg-white text-slate-700 border-2 border-blue-200 hover:-translate-y-0.5 hover:bg-brand hover:border-brand hover:text-white hover:shadow-md",
+        primary:
+          "bg-brand text-white border-2 border-brand hover:-translate-y-0.5 hover:bg-brand-hover hover:border-brand-hover hover:shadow-md",
         destructive:
-          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+          "bg-destructive text-white border-2 border-destructive hover:-translate-y-0.5 hover:bg-destructive/90 hover:border-destructive/90 hover:shadow-md focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+        "destructive-outline":
+          "bg-white text-destructive border-2 border-destructive hover:-translate-y-0.5 hover:bg-destructive hover:text-white hover:shadow-md focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40",
         outline:
-          "bg-white text-slate-700 border-2 border-transparent hover:-translate-y-0.5 hover:bg-[#2F6FD6] hover:text-white hover:shadow-md dark:bg-input/30 dark:hover:bg-input/50",
+          "bg-white text-slate-700 border-2 border-blue-200 hover:-translate-y-0.5 hover:bg-brand hover:border-brand hover:text-white hover:shadow-md dark:bg-input/30",
         secondary:
-          "bg-white text-slate-700 border-2 border-transparent hover:-translate-y-0.5 hover:bg-[#2F6FD6] hover:text-white hover:shadow-md",
+          "bg-white text-slate-700 border-2 border-blue-200 hover:-translate-y-0.5 hover:bg-brand hover:border-brand hover:text-white hover:shadow-md",
         ghost:
-          "hover:-translate-y-0.5 hover:bg-[#2F6FD6] hover:text-white hover:shadow-md",
-        link: "text-primary underline-offset-4 hover:underline",
+          "hover:-translate-y-0.5 hover:bg-brand hover:text-white hover:shadow-md",
+        link: "text-brand underline-offset-4 hover:text-brand-hover hover:underline",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",

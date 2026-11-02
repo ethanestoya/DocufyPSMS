@@ -288,23 +288,24 @@ export default function LandingPageEditor() {
           <div className="flex gap-2">
             <Button
               variant="outline"
-              className="h-11 sm:h-10 w-full sm:w-auto border-[#2F6FD6]/40 text-[#2F6FD6] hover:bg-[#F2F7FF] hover:text-[#2F6FD6]"
+              className="h-11 w-full sm:h-10 sm:w-auto"
               onClick={() => setShowPreview(true)}
             >
-              <Eye className="w-4 h-4 mr-2" /> Preview
+              <Eye className="w-4 h-4" /> Preview
             </Button>
             <Button
-              variant="outline"
-              className="h-11 sm:h-10 w-full sm:w-auto border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              variant="destructive-outline"
+              className="h-11 w-full sm:h-10 sm:w-auto"
               onClick={() => setShowResetConfirm(true)}
             >
-              <RotateCcw className="w-4 h-4 mr-2" /> Reset
+              <RotateCcw className="w-4 h-4" /> Reset
             </Button>
             <Button
+              variant="primary"
+              className="h-11 w-full sm:h-10 sm:w-auto"
               onClick={() => setShowSaveConfirm(true)}
-              className="h-11 sm:h-10 w-full sm:w-auto bg-[#2F6FD6] text-white hover:bg-[#2557b8]"
             >
-              <Save className="w-4 h-4 mr-2" /> Save Changes
+              <Save className="w-4 h-4" /> Save Changes
             </Button>
           </div>
         </div>
@@ -358,18 +359,18 @@ export default function LandingPageEditor() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-11 sm:h-10 w-full sm:w-auto border-[#2F6FD6]/40 text-[#2F6FD6] hover:bg-[#F2F7FF] hover:text-[#2F6FD6]"
+                    className="h-11 w-full sm:h-10 sm:w-auto"
                     onClick={() => logoInputRef.current?.click()}
                   >
-                    <Upload className="w-4 h-4 mr-2" /> Upload Logo
+                    <Upload className="w-4 h-4" /> Upload Logo
                   </Button>
                   <Button
                     type="button"
-                    variant="outline"
-                    className="h-11 sm:h-10 w-full sm:w-auto border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    variant="destructive-outline"
+                    className="h-11 w-full sm:h-10 sm:w-auto"
                     onClick={() => setShowLogoResetConfirm(true)}
                   >
-                    <RotateCcw className="w-4 h-4 mr-2" /> Reset Logo
+                    <RotateCcw className="w-4 h-4" /> Reset Logo
                   </Button>
                   <input
                     ref={logoInputRef}
@@ -421,27 +422,27 @@ export default function LandingPageEditor() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-11 sm:h-10 w-full sm:w-auto border-[#2F6FD6]/40 text-[#2F6FD6] hover:bg-[#F2F7FF] hover:text-[#2F6FD6]"
+                    className="h-11 w-full sm:h-10 sm:w-auto"
                     onClick={() => authBgInputRef.current?.click()}
                   >
-                    <Upload className="w-4 h-4 mr-2" /> Upload Photo
+                    <Upload className="w-4 h-4" /> Upload Photo
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-11 sm:h-10 w-full sm:w-auto border-[#2F6FD6]/40 text-[#2F6FD6] hover:bg-[#F2F7FF] hover:text-[#2F6FD6]"
+                    className="h-11 w-full sm:h-10 sm:w-auto"
                     onClick={() => setShowAuthBgPreview(true)}
                   >
-                    <Eye className="w-4 h-4 mr-2" /> Preview
+                    <Eye className="w-4 h-4" /> Preview
                   </Button>
                   {content.authBackgroundUrl && (
                     <Button
                       type="button"
-                      variant="outline"
-                      className="h-11 sm:h-10 w-full sm:w-auto border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                      variant="destructive-outline"
+                      className="h-11 w-full sm:h-10 sm:w-auto"
                       onClick={() => setShowAuthBgResetConfirm(true)}
                     >
-                      <RotateCcw className="w-4 h-4 mr-2" /> Reset to Default
+                      <RotateCcw className="w-4 h-4" /> Reset to Default
                     </Button>
                   )}
                   <input
@@ -598,10 +599,9 @@ export default function LandingPageEditor() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 border-[#2F6FD6]/40 text-[#2F6FD6] hover:bg-[#F2F7FF]"
                       onClick={addShopHour}
                     >
-                      <Plus className="w-3.5 h-3.5 mr-1" /> Add Hours
+                      <Plus className="w-3.5 h-3.5" /> Add Hours
                     </Button>
                   </div>
                   <div className="space-y-2">
@@ -619,14 +619,16 @@ export default function LandingPageEditor() {
                           placeholder="Hours (e.g. 9:00 AM - 5:00 PM)"
                           className="flex-1 h-9"
                         />
-                        <button
+                        <Button
                           type="button"
+                          variant="destructive-outline"
+                          size="icon"
                           onClick={() => removeShopHour(i)}
-                          className="shrink-0 p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                          className="h-8 w-8 shrink-0"
                           title="Remove hours"
                         >
                           <Trash2 className="w-4 h-4" />
-                        </button>
+                        </Button>
                       </div>
                     ))}
                   </div>
@@ -656,10 +658,9 @@ export default function LandingPageEditor() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 border-[#2F6FD6]/40 text-[#2F6FD6] hover:bg-[#F2F7FF]"
                       onClick={addLocationLine}
                     >
-                      <Plus className="w-3.5 h-3.5 mr-1" /> Add Line
+                      <Plus className="w-3.5 h-3.5" /> Add Line
                     </Button>
                   </div>
                   <div className="space-y-2">
@@ -671,14 +672,16 @@ export default function LandingPageEditor() {
                           placeholder='e.g. "Room 4, TBI Building"'
                           className="flex-1 h-9"
                         />
-                        <button
+                        <Button
                           type="button"
+                          variant="destructive-outline"
+                          size="icon"
                           onClick={() => removeLocationLine(i)}
-                          className="shrink-0 p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                          className="h-8 w-8 shrink-0"
                           title="Remove line"
                         >
                           <Trash2 className="w-4 h-4" />
-                        </button>
+                        </Button>
                       </div>
                     ))}
                   </div>
@@ -699,10 +702,10 @@ export default function LandingPageEditor() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-9 sm:h-10 w-full sm:w-auto border-[#2F6FD6]/40 text-[#2F6FD6] hover:bg-[#F2F7FF] hover:text-[#2F6FD6]"
+                      className="h-9 w-full sm:h-10 sm:w-auto"
                       onClick={() => setShowMapPreview(true)}
                     >
-                      <MapPin className="w-4 h-4 mr-2" /> Preview Map
+                      <MapPin className="w-4 h-4" /> Preview Map
                     </Button>
                   </div>
                 </div>
@@ -800,10 +803,11 @@ export default function LandingPageEditor() {
             {/* Footer save */}
             <div className="flex justify-end rounded-lg border border-slate-100 bg-white p-3 mt-6 mb-2">
               <Button
+                variant="primary"
                 onClick={() => setShowSaveConfirm(true)}
-                className="h-10 bg-[#2F6FD6] text-white hover:bg-[#2557b8]"
+                className="h-10"
               >
-                <Save className="w-4 h-4 mr-2" /> Save Changes
+                <Save className="w-4 h-4" /> Save Changes
               </Button>
             </div>
           </div>
@@ -962,10 +966,10 @@ export default function LandingPageEditor() {
           <div className="fixed top-4 left-1/2 z-[60] -translate-x-1/2 flex gap-2">
             <Button
               variant="outline"
-              className="h-11 border-[#2F6FD6]/40 bg-white text-[#2F6FD6] shadow-md hover:bg-[#F2F7FF] hover:text-[#2F6FD6]"
+              className="h-11 shadow-md"
               onClick={() => setShowPreview(false)}
             >
-              <X className="w-4 h-4 mr-2" /> Close Preview
+              <X className="w-4 h-4" /> Close Preview
             </Button>
           </div>
         </div>

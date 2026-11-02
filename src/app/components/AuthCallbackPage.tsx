@@ -71,7 +71,7 @@ export default function AuthCallbackPage() {
         navigate("/login", { replace: true });
         return;
       }
-      navigate(`/${user.role}/dashboard`, { replace: true });
+      navigate(`/${user?.role || 'customer'}/dashboard`, { replace: true });
     } else {
       showPopup("Sign-in was not completed. Please try again.", "error");
       navigate("/login", { replace: true });

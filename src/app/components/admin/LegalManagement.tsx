@@ -96,10 +96,9 @@ function PolicyCard({
             type="button"
             size="sm"
             variant="outline"
-            className="h-8 border-[#2F6FD6]/40 text-[#2F6FD6]"
             onClick={onAdd}
           >
-            <Plus className="w-3.5 h-3.5 mr-1" /> Add Section
+            <Plus className="w-3.5 h-3.5" /> Add Section
           </Button>
         </div>
 
@@ -124,32 +123,38 @@ function PolicyCard({
                   placeholder='e.g. "Acceptance of Terms"'
                   className="h-9 flex-1"
                 />
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   onClick={() => onMove(i, -1)}
                   disabled={i === 0}
-                  className="shrink-0 p-1.5 text-slate-400 hover:text-[#2F6FD6] hover:bg-[#F2F7FF] rounded-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                  className="h-7 w-7 shrink-0 text-slate-400"
                   title="Move section up"
                 >
                   <ArrowUp className="w-4 h-4" />
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   onClick={() => onMove(i, 1)}
                   disabled={i === sections.length - 1}
-                  className="shrink-0 p-1.5 text-slate-400 hover:text-[#2F6FD6] hover:bg-[#F2F7FF] rounded-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                  className="h-7 w-7 shrink-0 text-slate-400"
                   title="Move section down"
                 >
                   <ArrowDown className="w-4 h-4" />
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="destructive-outline"
+                  size="icon"
                   onClick={() => onRemove(i)}
-                  className="shrink-0 p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                  className="h-7 w-7 shrink-0"
                   title="Remove section"
                 >
                   <Trash2 className="w-4 h-4" />
-                </button>
+                </Button>
               </div>
               <Textarea
                 value={section.body}
@@ -278,30 +283,31 @@ export default function LegalManagement() {
           <div className="flex gap-2">
             <Button
               variant="outline"
-              className="h-11 sm:h-10 w-full sm:w-auto bg-white border-2 border-[#2F6FD6]/40 text-[#2F6FD6] hover:bg-[#2F6FD6] hover:text-white hover:-translate-y-0.5 hover:shadow-md"
+              className="h-11 w-full sm:h-10 sm:w-auto"
               onClick={() => setShowPreview(true)}
             >
               Preview
             </Button>
             <Button
-              variant="outline"
-              className="h-11 sm:h-10 w-full sm:w-auto bg-white border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white hover:-translate-y-0.5 hover:shadow-md"
+              variant="destructive-outline"
+              className="h-11 w-full sm:h-10 sm:w-auto"
               onClick={() => setShowResetConfirm(true)}
             >
-              <RotateCcw className="w-4 h-4 mr-2" /> Reset
+              <RotateCcw className="w-4 h-4" /> Reset
             </Button>
             <Button
-              variant="outline"
-              className="h-11 sm:h-10 w-full sm:w-auto bg-white border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white hover:-translate-y-0.5 hover:shadow-md"
+              variant="destructive"
+              className="h-11 w-full sm:h-10 sm:w-auto"
               onClick={() => setShowClearAllConfirm(true)}
             >
-              <Trash2 className="w-4 h-4 mr-2" /> Clear All
+              <Trash2 className="w-4 h-4" /> Clear All
             </Button>
             <Button
+              variant="primary"
+              className="h-11 w-full sm:h-10 sm:w-auto"
               onClick={() => setShowSaveConfirm(true)}
-              className="h-11 sm:h-10 w-full sm:w-auto bg-white border-2 border-[#2F6FD6]/40 text-[#2F6FD6] hover:bg-[#2F6FD6] hover:text-white hover:-translate-y-0.5 hover:shadow-md"
             >
-              <Save className="w-4 h-4 mr-2" /> Save Changes
+              <Save className="w-4 h-4" /> Save Changes
             </Button>
           </div>
         </div>
@@ -340,10 +346,11 @@ export default function LegalManagement() {
 
         <div className="flex justify-end rounded-xl border border-slate-200 bg-white p-3 shadow-sm mt-6 mb-2">
           <Button
+            variant="primary"
             onClick={() => setShowSaveConfirm(true)}
-            className="h-10 bg-[#2F6FD6] text-white hover:bg-[#2557b8]"
+            className="h-10"
           >
-            <Save className="w-4 h-4 mr-2" /> Save Changes
+            <Save className="w-4 h-4" /> Save Changes
           </Button>
         </div>
       </div>

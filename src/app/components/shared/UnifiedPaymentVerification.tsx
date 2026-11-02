@@ -961,8 +961,8 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
             )}
             <div className="flex-none self-end">
               <Button
-                variant="outline"
-                className="h-9 border border-[#D5DCE6] bg-white text-[#64748B] hover:border-[#B7C3D4] hover:bg-[#FCFDFF] hover:text-[#475467] hover:translate-y-0 hover:shadow-none"
+                variant="ghost"
+                className="h-9"
                 onClick={() => {
                   setSearchQuery("");
                   setDateFrom("");
@@ -1169,9 +1169,9 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-8 px-3 text-xs text-gray-600 border-gray-200 hover:border-transparent hover:text-white transition-colors"
+                        className="h-8 px-3 text-xs"
                       >
-                        <Eye className="w-3.5 h-3.5 mr-1" /> View
+                        <Eye className="w-3.5 h-3.5" /> View
                       </Button>
                     </td>
                   </tr>
@@ -1200,20 +1200,17 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                   variant="outline"
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  className="bg-white text-slate-600 border border-gray-200 hover:bg-[#F2F7FF] hover:text-[#2F6FD6] hover:border-[#2F6FD6] disabled:opacity-40 disabled:pointer-events-none rounded-md px-3 h-9"
+                  className="h-9 px-3"
                 >
-                  <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+                  <ChevronLeft className="h-4 w-4" /> Previous
                 </Button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
                   <Button
                     key={pg}
                     type="button"
+                    variant={pg === currentPage ? "primary" : "outline"}
+                    size="icon"
                     onClick={() => setCurrentPage(pg)}
-                    className={
-                      pg === currentPage
-                        ? "bg-[#2F6FD6] text-white hover:bg-[#2557b8] rounded-md shadow-sm shadow-[#2F6FD6]/30 h-9 w-9"
-                        : "bg-white text-slate-600 border border-gray-200 hover:bg-[#F2F7FF] hover:text-[#2F6FD6] hover:border-[#2F6FD6] rounded-md h-9 w-9"
-                    }
                   >
                     {pg}
                   </Button>
@@ -1223,9 +1220,9 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                   variant="outline"
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  className="bg-white text-slate-600 border border-gray-200 hover:bg-[#F2F7FF] hover:text-[#2F6FD6] hover:border-[#2F6FD6] disabled:opacity-40 disabled:pointer-events-none rounded-md px-3 h-9"
+                  className="h-9 px-3"
                 >
-                  Next <ChevronRight className="h-4 w-4 ml-1" />
+                  Next <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             )}
@@ -1372,14 +1369,16 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                         Proof of payment
                       </dt>
                       <dd>
-                        <button
+                        <Button
                           type="button"
+                          variant="link"
+                          size="sm"
                           onClick={() => setShowProofImage(true)}
-                          className="inline-flex items-center gap-1 text-[13px] font-medium text-[#2F6FD6] hover:underline"
+                          className="h-auto gap-1 px-0 text-[13px] font-medium"
                         >
                           View screenshot
                           <ArrowUpRight className="h-3.5 w-3.5" />
-                        </button>
+                        </Button>
                       </dd>
                     </div>
                   )}
@@ -1488,7 +1487,7 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                     {selectedPayment.status === "pending" && (
                       <Button
                         size="sm"
-                        variant="ghost"
+                        variant="destructive-outline"
                         disabled={!iHoldLock}
                         title={
                           !iHoldLock && lockHolder
@@ -1499,7 +1498,7 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                           setShowDialog(false);
                           setShowRejectDialog(true);
                         }}
-                        className="h-9 flex-1 rounded-lg text-[13px] font-medium text-red-600 hover:bg-red-50 hover:text-red-600 hover:-translate-y-0 hover:shadow-none sm:flex-none"
+                        className="h-9 flex-1 rounded-lg text-[13px] font-medium sm:flex-none"
                       >
                         <XCircle />
                         Reject
@@ -1507,6 +1506,7 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                     )}
                     <Button
                       size="sm"
+                      variant="primary"
                       data-primary-action
                       disabled={!iHoldLock}
                       title={
@@ -1515,7 +1515,7 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                           : undefined
                       }
                       onClick={() => setPendingVerifyAction("verified")}
-                      className="h-9 flex-1 rounded-lg bg-[#2F6FD6] text-[13px] font-medium text-white hover:bg-[#2557b8] hover:-translate-y-0 hover:shadow-none sm:flex-none"
+                      className="h-9 flex-1 rounded-lg text-[13px] font-medium sm:flex-none"
                     >
                       <CheckCircle />
                       Verify payment
@@ -1621,20 +1621,18 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
             <Button
               variant="outline"
               onClick={() => setShowRejectDialog(false)}
-              className="font-semibold text-[#10316B] border-[#1668D9]/20"
             >
               Cancel
             </Button>
             <Button
-              className="border-2 border-[#1668D9]/30 text-[#1668D9] hover:bg-[#1668D9] hover:text-white font-bold"
+              variant="destructive"
               onClick={() => {
                 if (!rejectionReason.trim())
                   return toast.error("Please provide a reason");
                 setPendingVerifyAction("rejected");
               }}
             >
-              <XCircle className="w-4 h-4 mr-2" /> Confirm
-              Rejection
+              <XCircle className="w-4 h-4" /> Confirm Rejection
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1663,7 +1661,6 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
             <Button
               variant="outline"
               onClick={() => setShowProofImage(false)}
-className="font-semibold border-2 border-[#1668D9]/30 text-[#1668D9] hover:bg-[#1668D9] hover:text-white transition-all"
             >
               Close Preview
             </Button>

@@ -1039,22 +1039,6 @@ export default function Layout({
           )}
 
           <div className="flex items-center gap-3 flex-shrink-0">
-            {/* Live clock — Philippines (Manila) time for all users */}
-            <div className="hidden sm:flex flex-col items-end leading-tight select-none">
-              <span className="text-xs font-bold tabular-nums text-[#1c1f26]">
-                {headerTimeStr}
-              </span>
-              <span className="text-[10px] font-medium tracking-wide text-[#2F6FD6]">
-                {headerWeekday}, {headerDate}
-              </span>
-            </div>
-            <div className="sm:hidden flex items-center gap-1.5 select-none">
-              <Clock className="h-3.5 w-3.5 text-[#1c1f26]" />
-              <span className="text-[11px] font-bold tabular-nums text-[#1c1f26]">
-                {headerTimeStr}
-              </span>
-            </div>
-
             {/* Unclaimed-order indicator (customers only) */}
             {user?.role === "customer" && (
               <UnclaimedHeaderIndicator customerKey={user?.email} />

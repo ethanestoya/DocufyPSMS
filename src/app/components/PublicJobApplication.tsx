@@ -17,7 +17,8 @@ export default function PublicJobApplication() {
   const logo = useLogo();
   const { jobId } = useParams();
   const [formData, setFormData] = useState({
-    fullName: '',
+    firstName: '',
+    lastName: '',
     email: '',
     phone: '',
     address: '',
@@ -46,7 +47,7 @@ export default function PublicJobApplication() {
 
   const handleSubmit = () => {
     // Validate form
-    if (!formData.fullName || !formData.email || !formData.phone) {
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone) {
       showPopup('Please fill in all required fields', 'error');
       return;
     }
@@ -123,12 +124,23 @@ export default function PublicJobApplication() {
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name <span className="text-red-500">*</span></Label>
+                <Label htmlFor="firstName">First Name <span className="text-red-500">*</span></Label>
                 <Input
-                  id="fullName"
-                  placeholder="Juan Dela Cruz"
-                  value={formData.fullName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
+                  id="firstName"
+                  placeholder="Juan"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
+                  maxLength={50}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name <span className="text-red-500">*</span></Label>
+                <Input
+                  id="lastName"
+                  placeholder="Dela Cruz"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
+                  maxLength={50}
                 />
               </div>
               <div className="space-y-2">
@@ -149,7 +161,7 @@ export default function PublicJobApplication() {
                 <Input
                   id="phone"
                   type="tel"
-                  placeholder="+63 912 345 6789"
+                  placeholder="09XXXXXXXXX"
                   value={formData.phone}
                   onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                 />

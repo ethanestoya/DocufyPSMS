@@ -352,6 +352,9 @@ export interface JobApplicationDto {
   rejectionReason: string | null;
   appliedAt: string;
   updatedAt: string;
+  // Resolved from the applicant's profile at read time; null when the profile
+  // has no picture (or the caller may not read profiles).
+  applicantProfileImage?: string | null;
 }
 
 // ── Inventory DTOs (decoupled from row shapes) ────────────────────────────────

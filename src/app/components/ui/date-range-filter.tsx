@@ -77,6 +77,23 @@ function isoToDisplay(iso: string): string {
   return `${pad(date.getMonth() + 1)}/${pad(date.getDate())}/${date.getFullYear()}`;
 }
 
+/** Compact read-back for the one-button trigger: "Nov 1 – Nov 2, 2026". */
+function formatRangeLabel(from: string, to: string): string {
+  const start = isoToDate(from);
+  const end = isoToDate(to);
+  const short = (date: Date) =>
+    date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  if (start && end) {
+    const year = end.getFullYear();
+    return start.getFullYear() === year
+      ? `${short(start)} – ${short(end)}, ${year}`
+      : `${short(start)}, ${start.getFullYear()} – ${short(end)}, ${year}`;
+  }
+  if (start) return `From ${short(start)}, ${start.getFullYear()}`;
+  if (end) return `Until ${short(end)}, ${end.getFullYear()}`;
+  return "Select dates";
+}
+
 /**
  * Insert the `/` separators as the user types, so nobody has to type them:
  * `1`,`0`,`0` → `10/0`, then `5` → `10/05`, then the year → `10/05/2026`.
@@ -138,6 +155,11 @@ interface DateRangeFilterProps {
   max?: string;
   /** Render each label inline before its box instead of stacked above. */
   labelsInline?: boolean;
+  /**
+   * Collapse the pair into ONE button that reads the chosen range and opens the
+   * calendar. For a card header where two boxes would wrap into a stack.
+   */
+  trigger?: boolean;
   compact?: boolean;
   className?: string;
   inputClassName?: string;
@@ -167,6 +189,7 @@ export function DateRangeFilter({
   min,
   max,
   labelsInline = false,
+  trigger = false,
   compact = false,
   className,
   inputClassName,
@@ -360,6 +383,38 @@ const disabled = React.useMemo<Matcher | undefined>(() => {
   // already carries a From/To label it would be redundant noise.
   const showSeparator = !labelsInline && fromLabel === undefined && separator !== null;
 
+  // One button for the whole range: it reads back what is selected and opens the
+  // same calendar. Used where two boxes would wrap into a stacked pair.
+  const anchor = trigger ? (
+    <button
+      type="button"
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      aria-label={`Choose the date range (currently ${formatRangeLabel(value.from, value.to)})`}
+      onClick={() => setOpen((prev) => !prev)}
+      className={cn(
+        "flex h-9 w-full min-w-0 items-center gap-2 rounded-[10px] border bg-white px-3 text-xs font-medium tabular-nums text-slate-700 transition-colors",
+        open
+          ? "border-[#2F6FD6] ring-[3px] ring-[#2F6FD6]/20"
+          : "border-[#D5DCE6] hover:border-[#B7C3D4]",
+        compact && "text-[11px]",
+      )}
+    >
+      <CalendarIcon className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+      <span className="truncate">{formatRangeLabel(value.from, value.to)}</span>
+    </button>
+  ) : (
+    <div className={cn("flex items-center gap-2", labelsInline && "flex-wrap")}>
+      {renderBox("from")}
+      {showSeparator ? (
+        <span aria-hidden="true" className="shrink-0 text-sm text-slate-400">
+          {separator}
+        </span>
+      ) : null}
+      {renderBox("to")}
+    </div>
+  );
+
   return (
     <div className={cn("min-w-0", className)}>
       <Popover
@@ -369,17 +424,7 @@ const disabled = React.useMemo<Matcher | undefined>(() => {
         // immediately dismiss it.
         modal={false}
       >
-        <PopoverAnchor asChild>
-          <div className={cn("flex items-center gap-2", labelsInline && "flex-wrap")}>
-            {renderBox("from")}
-            {showSeparator ? (
-              <span aria-hidden="true" className="shrink-0 text-sm text-slate-400">
-                {separator}
-              </span>
-            ) : null}
-            {renderBox("to")}
-          </div>
-        </PopoverAnchor>
+        <PopoverAnchor asChild>{anchor}</PopoverAnchor>
 
         <PopoverContent
           align="start"

@@ -15,13 +15,10 @@ import {
   CheckCircle,
   Calendar,
   ArrowUpRight,
-  Info,
-  Eye,
   ShoppingCart,
   BarChart3,
   DollarSign,
   Truck,
-  Clock,
   ArrowRight,
   ChevronRight,
   Minus,
@@ -40,13 +37,12 @@ import {
 } from "lucide-react";
 import Layout from "../Layout";
 import { Card } from "../ui/card";
+import { Button } from "../ui/button";
 import { CardSkeleton, DetailSkeleton } from "../ui/card-skeleton";
 import { useHydrating } from "../../utils/useHydrating";
 import { DateRangeFilter } from "../ui/date-range-filter";
 import { SummaryCard } from "../ui/summary-card";
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -62,7 +58,6 @@ import { dataStore, Order } from "../../utils/dataStore";
 import { adminMenuItems } from "../../utils/adminMenuItems";
 import { inventoryStore, InventoryItem } from "../../utils/inventoryStore";
 import { pricingStore } from "../../utils/pricingStore";
-import { formatNumber } from "../../utils/formatNumber";
 import ShopStatusControl from "../shared/ShopStatusControl";
 import CreateNotificationCard from "../shared/CreateNotificationCard";
 import { toast } from "sonner";
@@ -107,25 +102,6 @@ function fmtShortPlain(n: number): string {
   if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
   if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
   return n.toLocaleString("en-PH");
-}
-
-const MONTH_INDEX = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
-// Comparable value for "Mon DD" chart keys so daily/weekly trends sort oldest→newest.
-function sortByMonthDay(a: string, b: string): number {
-  const pa = /^(\w+) (\d+)/.exec(a);
-  const pb = /^(\w+) (\d+)/.exec(b);
-  if (!pa || !pb) return 0;
-  const ka = MONTH_INDEX.indexOf(pa[1]) * 100 + Number(pa[2]);
-  const kb = MONTH_INDEX.indexOf(pb[1]) * 100 + Number(pb[2]);
-  return ka - kb;
-}
-
-function formatDate(iso: string | undefined): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
 }
 
 function getDateRange(id: string, customStart?: string, customEnd?: string): { start: Date; end: Date; label: string } {
@@ -222,17 +198,6 @@ interface DashboardMetrics {
   prevTotalOrders: number;
   prevWalkInCount: number;
   prevActiveCustomers: number;
-  salesTrend: { name: string; sales: number }[];
-  serviceStats: { name: string; count: number; revenue: number }[];
-  paperStats: { name: string; count: number; total: number }[];
-  recentOrders: Order[];
-  // sales tab
-  dailySales: { name: string; sales: number }[];
-  weeklySales: { name: string; sales: number }[];
-  monthlySales: { name: string; sales: number }[];
-  highestMonth: { name: string; sales: number } | null;
-  lowestMonth: { name: string; sales: number } | null;
-  todaySales: { morning: { sales: number; orders: number }; afternoon: { sales: number; orders: number } };
 }
 
 function computeMetrics(orders: Order[], dateRange: { start: Date; end: Date }): DashboardMetrics {
@@ -240,159 +205,109 @@ function computeMetrics(orders: Order[], dateRange: { start: Date; end: Date }):
   const prevRange = getPrevPeriod(dateRange);
   const prevFiltered = ordersInRange(orders, prevRange);
 
-  const tSales = totalSales(filtered);
-  const tOrders = filtered.length;
-  const walkIns = filtered.filter((o) => o.orderSource === "walkin").length;
-  const customers = new Set(filtered.filter((o) => o.customerEmail).map((o) => o.customerEmail)).size;
-
-  const prevTSales = totalSales(prevFiltered);
-  const prevTOrders = prevFiltered.length;
-  const prevWalkIns = prevFiltered.filter((o) => o.orderSource === "walkin").length;
-  const prevCustomers = new Set(prevFiltered.filter((o) => o.customerEmail).map((o) => o.customerEmail)).size;
-
-  // sales trend: monthly aggregation over all orders
-  const monthMap = new Map<string, number>();
-  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  for (const o of orders) {
-    if (o.status === "Canceled") continue;
-    const d = new Date(o.createdAt || o.date);
-    if (isNaN(d.getTime())) continue;
-    const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}`;
-    monthMap.set(key, (monthMap.get(key) || 0) + parseTotal(o));
-  }
-  const sortedKeys = [...monthMap.keys()].sort();
-  const last12 = sortedKeys.slice(-12);
-  const salesTrend = last12.map((k) => {
-    const [yr, mo] = k.split("-").map(Number);
-    return { name: `${monthNames[mo]} ${yr}`, sales: monthMap.get(k) || 0 };
-  });
-
-  // service stats (within date range)
-  const svcMap = new Map<string, { count: number; revenue: number }>();
-  for (const o of filtered) {
-    if (o.status === "Canceled") continue;
-    const svc = deriveService(o);
-    const prev = svcMap.get(svc) || { count: 0, revenue: 0 };
-    prev.count += 1;
-    prev.revenue += parseTotal(o);
-    svcMap.set(svc, prev);
-  }
-  const serviceStats = SERVICE_NAMES.map((n) => ({
-    name: n,
-    count: svcMap.get(n)?.count || 0,
-    revenue: svcMap.get(n)?.revenue || 0,
-  })).sort((a, b) => b.revenue - a.revenue);
-
-  // paper stats
-  const paperMap = new Map<string, number>();
-  for (const o of filtered) {
-    const ps = o.paperSize || "Unknown";
-    paperMap.set(ps, (paperMap.get(ps) || 0) + 1);
-  }
-  const paperTotal = [...paperMap.values()].reduce((a, b) => a + b, 0);
-  const paperStats = [...paperMap.entries()]
-    .map(([name, count]) => ({ name, count, total: paperTotal }))
-    .sort((a, b) => b.count - a.count);
-
-  // recent orders
-  const recentOrders = [...filtered].sort((a, b) => {
-    const da = new Date(a.createdAt || a.date).getTime();
-    const db = new Date(b.createdAt || b.date).getTime();
-    return db - da;
-  }).slice(0, 8);
-
-  // today's sales split into morning (before 12 PM) and afternoon (12 PM on).
-  // Computed over ALL orders (not range-scoped) so "Today" is always real.
-  const nowD = new Date();
-  const todayStart = new Date(nowD.getFullYear(), nowD.getMonth(), nowD.getDate());
-  const todayEnd = new Date(nowD.getFullYear(), nowD.getMonth(), nowD.getDate() + 1);
-  const todaySales = { morning: { sales: 0, orders: 0 }, afternoon: { sales: 0, orders: 0 } };
-  for (const o of orders) {
-    if (o.status === "Canceled") continue;
-    const d = new Date(o.createdAt || o.date);
-    if (isNaN(d.getTime())) continue;
-    if (d < todayStart || d >= todayEnd) continue;
-    const period = d.getHours() < 12 ? "morning" : "afternoon";
-    todaySales[period].sales += parseTotal(o);
-    todaySales[period].orders += 1;
-  }
-
-  // daily sales (ALL orders, not range-scoped — mirrors the Monthly trend so
-  // the Daily view shows full history regardless of the selected date range)
-  const dailyMap = new Map<string, number>();
-  for (const o of orders) {
-    if (o.status === "Canceled") continue;
-    const d = new Date(o.createdAt || o.date);
-    if (isNaN(d.getTime())) continue;
-    const key = d.toLocaleDateString("en-PH", { month: "short", day: "numeric" });
-    dailyMap.set(key, (dailyMap.get(key) || 0) + parseTotal(o));
-  }
-  const dailySales = [...dailyMap.entries()]
-    .map(([name, sales]) => ({ name, sales }))
-    .sort((a, b) => sortByMonthDay(a.name, b.name));
-
-  // weekly aggregation (ALL orders)
-  const weeklyMap = new Map<string, number>();
-  for (const o of orders) {
-    if (o.status === "Canceled") continue;
-    const d = new Date(o.createdAt || o.date);
-    if (isNaN(d.getTime())) continue;
-    const weekStart = new Date(d);
-    weekStart.setDate(d.getDate() - d.getDay());
-    const key = weekStart.toLocaleDateString("en-PH", { month: "short", day: "numeric" });
-    weeklyMap.set(key, (weeklyMap.get(key) || 0) + parseTotal(o));
-  }
-  const weeklySales = [...weeklyMap.entries()]
-    .map(([name, sales]) => ({ name, sales }))
-    .sort((a, b) => sortByMonthDay(a.name, b.name));
-
-  // monthly aggregation (ALL orders, not range-scoped — mirrors the Overview
-  // Sales Trend so the Monthly view shows a real multi-month trend regardless
-  // of the selected date range)
-  const monthlyMap = new Map<string, number>();
-  for (const o of orders) {
-    if (o.status === "Canceled") continue;
-    const d = new Date(o.createdAt || o.date);
-    if (isNaN(d.getTime())) continue;
-    const key = d.toLocaleDateString("en-PH", { month: "short", year: "numeric" });
-    monthlyMap.set(key, (monthlyMap.get(key) || 0) + parseTotal(o));
-  }
-  const monthlySales = [...monthlyMap.entries()]
-    .map(([name, sales]) => ({ name, sales }))
-    .sort((a, b) => {
-      const pa = /^(\w+) (\d{4})$/.exec(a.name);
-      const pb = /^(\w+) (\d{4})$/.exec(b.name);
-      if (!pa || !pb) return 0;
-      const keyA = `${pa[2]}-${MONTH_INDEX.indexOf(pa[1])}`;
-      const keyB = `${pb[2]}-${MONTH_INDEX.indexOf(pb[1])}`;
-      return keyA.localeCompare(keyB);
-    });
-
-  // highest / lowest months
-  const monthEntries = monthlySales.filter((m) => m.sales > 0);
-  const highestMonth = monthEntries.length > 0 ? monthEntries.reduce((a, b) => (a.sales > b.sales ? a : b)) : null;
-  const lowestMonth = monthEntries.length > 0 ? monthEntries.reduce((a, b) => (a.sales < b.sales ? a : b)) : null;
-
   return {
-    totalSales: tSales,
-    totalOrders: tOrders,
-    walkInCount: walkIns,
-    activeCustomers: customers,
-    prevTotalSales: prevTSales,
-    prevTotalOrders: prevTOrders,
-    prevWalkInCount: prevWalkIns,
-    prevActiveCustomers: prevCustomers,
-    salesTrend,
-    serviceStats,
-    paperStats,
-    recentOrders,
-    dailySales,
-    weeklySales,
-    monthlySales,
-    highestMonth,
-    lowestMonth,
-    todaySales,
+    totalSales: totalSales(filtered),
+    totalOrders: filtered.length,
+    walkInCount: filtered.filter((o) => o.orderSource === "walkin").length,
+    activeCustomers: new Set(filtered.filter((o) => o.customerEmail).map((o) => o.customerEmail)).size,
+    prevTotalSales: totalSales(prevFiltered),
+    prevTotalOrders: prevFiltered.length,
+    prevWalkInCount: prevFiltered.filter((o) => o.orderSource === "walkin").length,
+    prevActiveCustomers: new Set(prevFiltered.filter((o) => o.customerEmail).map((o) => o.customerEmail)).size,
   };
+}
+
+// ─── sales trend (one date range, no granularity switch) ──────────────────────
+type TrendUnit = "day" | "week" | "month";
+interface TrendSeries {
+  points: { name: string; sales: number }[];
+  unit: TrendUnit;
+}
+
+const DAY_MS = 86_400_000;
+
+function startOfDay(date: Date): Date {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function bucketStart(date: Date, unit: TrendUnit): Date {
+  const copy = startOfDay(date);
+  if (unit === "week") copy.setDate(copy.getDate() - copy.getDay());
+  else if (unit === "month") copy.setDate(1);
+  return copy;
+}
+
+// Local-time key. `toISOString()` would shift the date for any zone east of
+// UTC, so two sales on the same local day could land in different buckets.
+function dayKey(date: Date): string {
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function trendLabel(date: Date, unit: TrendUnit): string {
+  return date.toLocaleDateString(
+    "en-PH",
+    unit === "month" ? { month: "short", year: "numeric" } : { month: "short", day: "numeric" },
+  );
+}
+
+/** `2026-11-02` → local midnight, instead of `new Date()`'s UTC parse. */
+function parseDayKey(iso: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
+  if (!match) return null;
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+}
+
+function isoDay(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+/** A preset page range → the two `YYYY-MM-DD` boxes the picker shows. */
+function toTrendRange(range: { start: Date; end: Date }): { from: string; to: string } {
+  const now = new Date();
+  const end = range.end.getTime() > now.getTime() ? now : range.end;
+  return { from: isoDay(range.start), to: isoDay(end) };
+}
+
+/**
+ * Revenue inside an arbitrary window, split into buckets.
+ *
+ * The bucket width follows the window instead of asking the operator to pick
+ * it: up to a month reads as days, up to half a year as weeks, and anything
+ * longer rolls up to months. Buckets with no sales are kept at zero so a quiet
+ * stretch is a visible dip rather than a gap in the line.
+ *
+ * The window is clipped to the present — the current month's `end` is still in
+ * the future, and drawing the rest of it would draw sales that have not
+ * happened.
+ */
+function buildTrendSeries(orders: Order[], range: { start: Date; end: Date }): TrendSeries {
+  const start = startOfDay(range.start);
+  const end = new Date(Math.min(range.end.getTime(), Date.now()));
+  const spanDays = Math.floor((end.getTime() - start.getTime()) / DAY_MS) + 1;
+  const unit: TrendUnit = spanDays <= 31 ? "day" : spanDays <= 180 ? "week" : "month";
+  const points: { name: string; sales: number }[] = [];
+  if (spanDays < 1) return { points, unit };
+
+  const sums = new Map<string, number>();
+  for (const order of orders) {
+    if (order.status === "Canceled") continue;
+    const at = new Date(order.createdAt || order.date);
+    if (isNaN(at.getTime()) || at < start || at > end) continue;
+    const key = dayKey(bucketStart(at, unit));
+    sums.set(key, (sums.get(key) || 0) + parseTotal(order));
+  }
+
+  const last = bucketStart(end, unit);
+  const cursor = bucketStart(start, unit);
+  while (cursor.getTime() <= last.getTime()) {
+    points.push({ name: trendLabel(cursor, unit), sales: sums.get(dayKey(cursor)) || 0 });
+    if (unit === "day") cursor.setDate(cursor.getDate() + 1);
+    else if (unit === "week") cursor.setDate(cursor.getDate() + 7);
+    else cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return { points, unit };
 }
 
 // ─── sub-components ───────────────────────────────────────────────────────────
@@ -436,17 +351,17 @@ function SectionCard({
 }) {
   return (
     <Card className={`gap-0 bg-white rounded-2xl border border-slate-200/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${className}`}>
-      <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4 pb-3">
         <div className="min-w-0">
           <h3 className="text-base font-semibold text-slate-800">{title}</h3>
           {subtitle && <p className="text-[13px] text-slate-500 mt-0.5">{subtitle}</p>}
         </div>
         {headerRight ? (
-          <div className="flex items-center gap-2 shrink-0">{headerRight}</div>
+          <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:shrink-0">{headerRight}</div>
         ) : action && actionLabel ? (
-          <button onClick={action} className="text-[13px] font-semibold text-[#2F6FD6] hover:underline flex items-center gap-1 shrink-0">
+          <Button variant="link" size="sm" onClick={action} className="h-auto shrink-0 gap-1 px-0 text-[13px] font-semibold">
             {actionLabel} <ChevronRight className="w-3.5 h-3.5" />
-          </button>
+          </Button>
         ) : null}
       </div>
       <div className={`px-5 pb-5 ${bodyClassName}`}>{children}</div>
@@ -464,97 +379,64 @@ function EmptyState({ icon: Icon, message }: { icon: React.ElementType; message:
 }
 
 // ─── Inventory Snapshot ───────────────────────────────────────────────────────
-function InventorySnapshot({ items, navigate, className = "", inventoryPath = "/admin/inventory" }: { items: InventoryItem[]; navigate: ReturnType<typeof useNavigate>; className?: string; inventoryPath?: string }) {
+// Three numbers plus the items that need a decision. The full stock list used to
+// sit here too, but "View Inventory" already opens the page that lists every
+// item with its stock, unit and status, so repeating it only made the dashboard
+// longer.
+function InventorySnapshot({ items, navigate, inventoryPath = "/admin/inventory" }: { items: InventoryItem[]; navigate: ReturnType<typeof useNavigate>; inventoryPath?: string }) {
   const activeItems = items.filter((i) => !i.archived);
   const lowStockItems = activeItems.filter((i) => inventoryStore.getInventoryStatus(i) === "low");
   const outOfStockItems = activeItems.filter((i) => inventoryStore.getInventoryStatus(i) === "out");
-  const urgentItems = [...outOfStockItems, ...lowStockItems].slice(0, 5);
+  const urgentItems = [...outOfStockItems, ...lowStockItems].slice(0, 4);
 
   return (
     <SectionCard
       title="Inventory Snapshot"
       action={() => navigate(inventoryPath)}
       actionLabel="View Inventory"
-      className={`${className} flex flex-col`}
-      bodyClassName="flex-1 flex flex-col"
     >
-      <div className="grid grid-cols-3 gap-2 text-center sm:gap-3">
-        <div className="p-3 bg-slate-50/70 border border-slate-200/60 rounded-xl">
-          <p className="text-xs font-medium text-slate-500">Total Items</p>
-          <p className="text-xl sm:text-2xl font-semibold text-[#2F6FD6] mt-1">{activeItems.length}</p>
-        </div>
-        <div className="p-3 bg-slate-50/70 border border-slate-200/60 rounded-xl">
-          <p className="text-xs font-medium text-slate-500">Low Stock</p>
-          <p className="text-xl sm:text-2xl font-semibold text-amber-600 mt-1">{lowStockItems.length}</p>
-        </div>
-        <div className="p-3 bg-slate-50/70 border border-slate-200/60 rounded-xl">
-          <p className="text-xs font-medium text-slate-500">Out of Stock</p>
-          <p className="text-xl sm:text-2xl font-semibold text-red-600 mt-1">{outOfStockItems.length}</p>
-        </div>
-      </div>
-
-      {urgentItems.length === 0 ? (
-        <div className="mt-3 flex items-center gap-2 p-2.5 bg-green-50 text-green-700 rounded-xl">
-          <CheckCircle className="w-4 h-4 shrink-0 text-green-600" />
-          <p className="text-xs font-medium">All inventory levels are currently healthy.</p>
-        </div>
-      ) : (
-        <div className="mt-3 space-y-2">
-          <p className="text-xs font-semibold text-slate-500 mb-2">Needs Attention</p>
-          {urgentItems.map((item) => {
-            const isOut = inventoryStore.getInventoryStatus(item) === "out";
-            return (
-              <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50/80">
-                <div className="flex items-center gap-2 min-w-0">
-                  <AlertTriangle className={`w-4 h-4 shrink-0 ${isOut ? "text-red-500" : "text-amber-500"}`} />
-                  <p className="text-sm font-medium text-slate-700 truncate">{item.name}</p>
-                </div>
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ml-2 ${isOut ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
-                  {isOut ? "Out of Stock" : "Low Stock"}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Fills remaining row height without growing the card */}
-      <div className="mt-3 min-h-0 flex-1 flex flex-col">
-        <p className="text-xs font-semibold text-slate-500 mb-1.5">Current Stock Levels</p>
-        {activeItems.length === 0 ? (
-          <p className="text-xs text-slate-500">No inventory items yet.</p>
-        ) : (
-          <div className="flex-1 min-h-0 overflow-y-auto space-y-1 pr-0.5">
-            {activeItems.map((item) => {
-              const status = inventoryStore.getInventoryStatus(item);
-              const pieces = inventoryStore.getItemPieces(item);
-              const isPaper = item.category === "Paper";
-              const statusBadge =
-                status === "out" ? (
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600">Out of Stock</span>
-                ) : status === "low" ? (
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Low Stock</span>
-                ) : (
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">In Stock</span>
-                );
-              return (
-                <div key={item.id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl bg-slate-50/80">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Package className="w-4 h-4 shrink-0 text-slate-400" />
-                    <p className="text-sm font-medium text-slate-700 truncate">{item.name}</p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs font-semibold text-slate-700">
-                      {formatNumber(item.currentStock, Number.isInteger(item.currentStock) ? 0 : 2)} {item.unit}
-                      {isPaper && <span className="text-[10px] text-slate-500 font-medium ml-0.5">({pieces.toLocaleString()} pcs)</span>}
-                    </span>
-                    {statusBadge}
-                  </div>
-                </div>
-              );
-            })}
+      <div className="grid gap-4 @min-[720px]:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] @min-[720px]:items-start">
+        <div className="grid grid-cols-3 gap-2 text-center sm:gap-3">
+          <div className="p-3 bg-slate-50/70 border border-slate-200/60 rounded-xl">
+            <p className="text-xs font-medium text-slate-500">Total Items</p>
+            <p className="text-xl sm:text-2xl font-semibold text-[#2F6FD6] mt-1">{activeItems.length}</p>
           </div>
-        )}
+          <div className="p-3 bg-slate-50/70 border border-slate-200/60 rounded-xl">
+            <p className="text-xs font-medium text-slate-500">Low Stock</p>
+            <p className="text-xl sm:text-2xl font-semibold text-amber-600 mt-1">{lowStockItems.length}</p>
+          </div>
+          <div className="p-3 bg-slate-50/70 border border-slate-200/60 rounded-xl">
+            <p className="text-xs font-medium text-slate-500">Out of Stock</p>
+            <p className="text-xl sm:text-2xl font-semibold text-red-600 mt-1">{outOfStockItems.length}</p>
+          </div>
+        </div>
+
+        <div>
+          {urgentItems.length === 0 ? (
+            <div className="flex items-center gap-2 p-3 bg-green-50 text-green-700 rounded-xl">
+              <CheckCircle className="w-4 h-4 shrink-0 text-green-600" />
+              <p className="text-xs font-medium">All inventory levels are currently healthy.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-slate-500">Needs Attention</p>
+              {urgentItems.map((item) => {
+                const isOut = inventoryStore.getInventoryStatus(item) === "out";
+                return (
+                  <div key={item.id} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/80">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <AlertTriangle className={`w-4 h-4 shrink-0 ${isOut ? "text-red-500" : "text-amber-500"}`} />
+                      <p className="text-sm font-medium text-slate-700 truncate">{item.name}</p>
+                    </div>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ml-2 ${isOut ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
+                      {isOut ? "Out of Stock" : "Low Stock"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </SectionCard>
   );
@@ -609,7 +491,7 @@ function DateRangeSelector({ selectedLabel, rangeId, onSelect, customStart, cust
                   toLabel="To"
                   compact
                 />
-                <button onClick={() => setOpen(false)} className="w-full py-1.5 bg-[#2F6FD6] text-white rounded-lg text-xs font-semibold hover:bg-[#1e5bb8]">Apply</button>
+                <Button variant="primary" size="sm" onClick={() => setOpen(false)} className="w-full">Apply</Button>
               </div>
             )}
           </div>
@@ -620,25 +502,39 @@ function DateRangeSelector({ selectedLabel, rangeId, onSelect, customStart, cust
 }
 
 // ─── Overview Tab ─────────────────────────────────────────────────────────────
-function OverviewTab({ metrics, navigate, items, role = "admin" }: { metrics: DashboardMetrics; navigate: ReturnType<typeof useNavigate>; items: InventoryItem[]; role?: "admin" | "staff" }) {
+const TREND_SUBTITLE: Record<TrendUnit, string> = {
+  day: "Revenue per day in the selected range",
+  week: "Revenue per week in the selected range",
+  month: "Revenue per month in the selected range",
+};
+
+function OverviewTab({
+  metrics,
+  navigate,
+  items,
+  role = "admin",
+  trend,
+  trendRange,
+  onTrendRangeChange,
+}: {
+  metrics: DashboardMetrics;
+  navigate: ReturnType<typeof useNavigate>;
+  items: InventoryItem[];
+  role?: "admin" | "staff";
+  trend: TrendSeries;
+  trendRange: { from: string; to: string };
+  onTrendRangeChange: (next: { from: string; to: string }) => void;
+}) {
   const {
     totalSales, totalOrders, walkInCount, activeCustomers,
     prevTotalSales, prevTotalOrders, prevWalkInCount, prevActiveCustomers,
-    recentOrders, dailySales, weeklySales, monthlySales,
   } = metrics;
-
-  const [salesView, setSalesView] = useState<"daily" | "weekly" | "monthly">("monthly");
-  const chartData = salesView === "daily" ? dailySales : salesView === "weekly" ? weeklySales : monthlySales;
 
   const salesTrendPct = prevTotalSales > 0 ? ((totalSales - prevTotalSales) / prevTotalSales) * 100 : 0;
   const ordersTrendPct = prevTotalOrders > 0 ? ((totalOrders - prevTotalOrders) / prevTotalOrders) * 100 : 0;
   const walkInTrendPct = prevWalkInCount > 0 ? ((walkInCount - prevWalkInCount) / prevWalkInCount) * 100 : 0;
   const customerTrendPct = prevActiveCustomers > 0 ? ((activeCustomers - prevActiveCustomers) / prevActiveCustomers) * 100 : 0;
 
-  const salesComparisonPct = prevTotalSales > 0 ? (totalSales / prevTotalSales) * 100 : 0;
-  const salesDiff = totalSales - prevTotalSales;
-
-  const ordersPath = role === "staff" ? "/staff/queue" : "/admin/orders";
   const inventoryPath = role === "staff" ? "/staff/inventory" : "/admin/inventory";
 
   return (
@@ -671,148 +567,43 @@ function OverviewTab({ metrics, navigate, items, role = "admin" }: { metrics: Da
         />
       </div>
 
-      {/* Shop Status Control */}
-      <ShopStatusControl />
-
-      {/* Sales Trend + Sales Comparison — folded in from the retired Sales tab */}
+      {/* One trend card. The window is picked here instead of from a
+          daily/weekly/monthly toggle — the bucket size follows the window. */}
       {role === "admin" && (
-        <div className="grid grid-cols-1 @min-[900px]:grid-cols-3 gap-4 sm:gap-5">
-          <SectionCard
-            title="Sales Trend"
-            subtitle="Revenue performance over time"
-            className="lg:col-span-2"
-            headerRight={
-              <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
-                {(["daily", "weekly", "monthly"] as const).map((v) => (
-                  <button
-                    key={v}
-                    onClick={() => setSalesView(v)}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${
-                      salesView === v
-                        ? "bg-white text-[#2F6FD6] shadow-sm"
-                        : "text-slate-500 hover:text-slate-700"
-                    }`}
-                  >
-                    {v.charAt(0).toUpperCase() + v.slice(1)}
-                  </button>
-                ))}
-              </div>
-            }
-          >
-            {chartData.length === 0 ? (
-              <EmptyState icon={TrendingUp} message="No sales data for this period" />
-            ) : (
-              <div className="h-52 lg:h-[260px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="salesGrad2" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#2F6FD6" stopOpacity={0.25} />
-                        <stop offset="100%" stopColor="#2F6FD6" stopOpacity={0.02} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 600 }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 600 }} tickFormatter={(v: number) => fmtShortPlain(v)} />
-                    <Tooltip formatter={(v: number) => [fmt(v), "Sales"]} contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(15,23,42,0.08)", fontSize: 12 }} />
-                    <Area type="monotone" dataKey="sales" stroke="#2F6FD6" strokeWidth={2} fill="url(#salesGrad2)" dot={{ r: 3.5, fill: "#2F6FD6", stroke: "#fff", strokeWidth: 2 }} activeDot={{ r: 5 }} isAnimationActive={false} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </SectionCard>
-
-          <SectionCard title="Sales Comparison" subtitle="Current vs previous period">
-            {totalSales === 0 && prevTotalSales === 0 ? (
-              <EmptyState icon={BarChart3} message="No sales data available for comparison." />
-            ) : (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-between sm:gap-4">
-                  <div className="sm:flex-1">
-                    <p className="text-[10px] sm:text-xs text-slate-500 font-medium uppercase sm:normal-case tracking-wide">This Period</p>
-                    <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                      <p className="text-lg sm:text-2xl font-bold text-slate-900">{fmtShort(totalSales)}</p>
-                      {prevTotalSales > 0 && (
-                        <span className={`inline-flex items-center gap-0.5 text-xs font-semibold px-2 py-0.5 rounded-full ${salesTrendPct >= 0 ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
-                          {salesTrendPct >= 0 ? "↗" : "↘"} {Math.abs(salesTrendPct).toFixed(1)}%
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="sm:flex-1">
-                    <p className="text-[10px] sm:text-xs text-slate-500 font-medium uppercase sm:normal-case tracking-wide">Previous Period</p>
-                    <p className="text-lg sm:text-2xl font-bold text-slate-500 mt-0.5">{fmtShort(prevTotalSales)}</p>
-                  </div>
-                </div>
-                {prevTotalSales > 0 && (
-                  <div className="w-full bg-slate-100 rounded-full h-2 sm:h-3 overflow-hidden">
-                    <div className="bg-[#2F6FD6] h-full rounded-full transition-all" style={{ width: `${Math.min(salesComparisonPct, 100)}%` }} />
-                  </div>
-                )}
-                {salesDiff !== 0 && (
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {salesDiff > 0
-                      ? <>You earned <span className="font-semibold text-green-600">{fmt(salesDiff)}</span> more than the previous period.</>
-                      : <>You earned <span className="font-semibold text-red-500">{fmt(Math.abs(salesDiff))}</span> less than the previous period.</>
-                    }
-                  </p>
-                )}
-              </div>
-            )}
-          </SectionCard>
-        </div>
-      )}
-
-      {/* Recent Transactions + Inventory Snapshot */}
-      <div className="grid grid-cols-1 @min-[900px]:grid-cols-3 gap-4 sm:gap-5">
         <SectionCard
-          title="Recent Transactions"
-          action={() => navigate(ordersPath)}
-          actionLabel="View All"
-          className="flex flex-col"
-          bodyClassName="flex-1 flex flex-col"
+          title="Sales Trend"
+          subtitle={TREND_SUBTITLE[trend.unit]}
+          headerRight={
+            <div className="w-full sm:w-[260px]">
+              <DateRangeFilter trigger value={trendRange} onChange={onTrendRangeChange} />
+            </div>
+          }
         >
-          {recentOrders.length === 0 ? (
-            <EmptyState icon={Clock} message="No transactions yet" />
+          {trend.points.every((point) => point.sales === 0) ? (
+            <EmptyState icon={TrendingUp} message="No sales in this range" />
           ) : (
-            <div className="flex flex-col gap-3 h-full">
-              <div className="flex flex-col flex-1 divide-y divide-slate-100">
-                {recentOrders.slice(0, 6).map((o) => {
-                  const isPaid = o.status !== "Awaiting Payment" && o.status !== "Canceled";
-                  const isWalkIn = o.orderSource === "walkin";
-                  return (
-                    <div key={o.id} className="flex items-center gap-3 py-2.5">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[13px] font-semibold text-slate-800">{o.displayId ?? o.id}</span>
-                          <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded ${isWalkIn ? "bg-slate-100 text-slate-600" : "bg-blue-50 text-[#2F6FD6]"}`}>
-                            {isWalkIn ? "Walk-in" : "Print Order"}
-                          </span>
-                        </div>
-                        <p className="text-[13px] text-slate-500 mt-0.5 truncate">{o.customerName || "—"}</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-sm font-semibold text-slate-900">{fmt(parseTotal(o))}</p>
-                        <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${isPaid ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
-                          {isPaid ? "Paid" : "Pending"}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="mt-auto flex items-center justify-between px-2 py-2 border-t border-slate-100">
-                <p className="text-xs text-slate-500">Showing {Math.min(recentOrders.length, 6)} recent</p>
-                <p className="text-xs font-semibold text-slate-700">
-                  Total {fmt(recentOrders.slice(0, 6).reduce((s, o) => s + parseTotal(o), 0))}
-                </p>
-              </div>
+            <div className="h-56 sm:h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trend.points} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="salesGrad2" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#2F6FD6" stopOpacity={0.25} />
+                      <stop offset="100%" stopColor="#2F6FD6" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 600 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 600 }} tickFormatter={(v: number) => fmtShortPlain(v)} />
+                  <Tooltip formatter={(v: number) => [fmt(v), "Sales"]} contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(15,23,42,0.08)", fontSize: 12 }} />
+                  <Area type="monotone" dataKey="sales" stroke="#2F6FD6" strokeWidth={2} fill="url(#salesGrad2)" dot={{ r: 3.5, fill: "#2F6FD6", stroke: "#fff", strokeWidth: 2 }} activeDot={{ r: 5 }} isAnimationActive={false} />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
           )}
         </SectionCard>
+      )}
 
-        <InventorySnapshot items={items} navigate={navigate} className="lg:col-span-2" inventoryPath={inventoryPath} />
-      </div>
+      <InventorySnapshot items={items} navigate={navigate} inventoryPath={inventoryPath} />
     </div>
   );
 }
@@ -1071,13 +862,15 @@ function ServicesTab({ navigate }: { navigate: ReturnType<typeof useNavigate> })
                             <StatusBadge label="Active" />
                           </td>
                           <td className="py-3 pr-1 text-right">
-                            <button
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={() => navigate("/admin/pricing")}
                               title={`Manage ${s.name} pricing`}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-[#2F6FD6] hover:bg-blue-50 transition-colors"
+                              className="text-slate-400"
                             >
                               <MoreHorizontal className="w-4 h-4" />
-                            </button>
+                            </Button>
                           </td>
                         </tr>
                       );
@@ -1089,12 +882,9 @@ function ServicesTab({ navigate }: { navigate: ReturnType<typeof useNavigate> })
           </div>
           <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100">
             <p className="text-xs text-slate-500">Showing {serviceStats.length} services</p>
-            <button
-              onClick={() => navigate("/admin/pricing")}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-[#2F6FD6] hover:underline"
-            >
+            <Button variant="link" size="sm" onClick={() => navigate("/admin/pricing")} className="h-auto gap-1 px-0 text-xs font-semibold">
               View detailed report <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+            </Button>
           </div>
         </Card>
 
@@ -1161,12 +951,9 @@ function ServicesTab({ navigate }: { navigate: ReturnType<typeof useNavigate> })
                   })}
                 </div>
                 <div className="mt-auto pt-5 flex justify-end">
-                  <button
-                    onClick={() => navigate("/admin/pricing")}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-[#2F6FD6] hover:underline"
-                  >
+                  <Button variant="link" size="sm" onClick={() => navigate("/admin/pricing")} className="h-auto gap-1 px-0 text-xs font-semibold">
                     View detailed report <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
+                  </Button>
                 </div>
               </>
             )}
@@ -1180,12 +967,9 @@ function ServicesTab({ navigate }: { navigate: ReturnType<typeof useNavigate> })
           <div>
             <h3 className="text-base font-semibold text-slate-800">Manage Services</h3>
           </div>
-          <button
-            onClick={() => navigate("/admin/pricing")}
-            className="inline-flex items-center gap-1.5 px-4 h-9 rounded-lg bg-white border-2 border-blue-200 text-sm font-semibold text-[#1668D9] hover:bg-[#1668D9] hover:text-white transition-all hover:-translate-y-0.5 hover:shadow-md"
-          >
+          <Button variant="primary" onClick={() => navigate("/admin/pricing")}>
             <Plus className="w-4 h-4" /> Add Service
-          </button>
+          </Button>
         </div>
         <div className="px-5 pb-4 overflow-x-auto">
           <table className="w-full">
@@ -1216,20 +1000,23 @@ function ServicesTab({ navigate }: { navigate: ReturnType<typeof useNavigate> })
                   </td>
                   <td className="py-3 pr-1">
                     <div className="flex items-center justify-end gap-1">
-                      <button
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => navigate("/admin/pricing")}
                         title={`Edit ${s.name}`}
-                        className="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium text-slate-600 bg-white border border-slate-200 hover:border-[#2F6FD6] hover:text-[#2F6FD6] transition-colors"
                       >
                         <Pencil className="w-3.5 h-3.5" /> Edit
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => navigate("/admin/pricing")}
                         title="More options"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-[#2F6FD6] hover:bg-blue-50 transition-colors"
+                        className="text-slate-400"
                       >
                         <MoreHorizontal className="w-4 h-4" />
-                      </button>
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -1265,6 +1052,24 @@ export default function AdminDashboard({
   const [inventoryItems, setInventoryItems] = useState(inventoryStore.getActiveItems());
 
   const dateRange = useMemo(() => getDateRange(dateRangeId, customStart, customEnd), [dateRangeId, customStart, customEnd]);
+
+  // The chart has its own window so the operator can look at a week of sales
+  // without changing the period every KPI above it is measured over. Picking a
+  // new page range re-seeds it, since the two are meant to start together.
+  const [trendRange, setTrendRange] = useState(() => toTrendRange(dateRange));
+  useEffect(() => {
+    setTrendRange(toTrendRange(dateRange));
+  }, [dateRange]);
+
+  const trend = useMemo(() => {
+    const from = parseDayKey(trendRange.from);
+    const to = parseDayKey(trendRange.to);
+    const start = from ?? dateRange.start;
+    let end = to ?? dateRange.end;
+    if (to) end = new Date(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59, 999);
+    if (end.getTime() < start.getTime()) end = start;
+    return buildTrendSeries(orders, { start, end });
+  }, [orders, trendRange, dateRange]);
 
   useEffect(() => {
     const unsubOrders = dataStore.subscribe(() => setOrders(dataStore.getOrders()));
@@ -1302,7 +1107,12 @@ export default function AdminDashboard({
           {/* The date range belongs to Overview — Services carries its own picker. */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
             {role === "admin" && activeTab === "Overview" && <CreateNotificationCard />}
-            {(role === "staff" || activeTab === "Overview") && overviewDateSelector}
+            <div className="flex flex-wrap items-center gap-2.5">
+              {(role === "staff" || activeTab === "Overview") && overviewDateSelector}
+              {/* The shop's state reads like a chat presence dot at every
+                  width — a full card here cost ~92px of the first screen. */}
+              {(role === "staff" || activeTab === "Overview") && <ShopStatusControl />}
+            </div>
           </div>
         </div>
 
@@ -1331,11 +1141,28 @@ export default function AdminDashboard({
           </div>
         ) : role === "admin" ? (
           <>
-            {activeTab === "Overview" && <OverviewTab metrics={metrics} navigate={navigate} items={inventoryItems} />}
+            {activeTab === "Overview" && (
+              <OverviewTab
+                metrics={metrics}
+                navigate={navigate}
+                items={inventoryItems}
+                trend={trend}
+                trendRange={trendRange}
+                onTrendRangeChange={setTrendRange}
+              />
+            )}
             {activeTab === "Services" && <ServicesTab navigate={navigate} />}
           </>
         ) : (
-          <OverviewTab metrics={metrics} navigate={navigate} items={inventoryItems} role="staff" />
+          <OverviewTab
+            metrics={metrics}
+            navigate={navigate}
+            items={inventoryItems}
+            role="staff"
+            trend={trend}
+            trendRange={trendRange}
+            onTrendRangeChange={setTrendRange}
+          />
         )}
       </div>
     </Layout>

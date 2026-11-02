@@ -15,12 +15,14 @@
 import { internetUtcMs, toPHT, formatPHTime } from "./pht";
 import { auditLogStore } from "./auditLogStore";
 import {
+  AttendanceIdentityMissingError,
   fetchAttendanceRecords,
   upsertAttendanceRecord,
   logAttendanceAdjustment,
   subscribeAttendanceChanges,
   type AttendanceRecordDto,
 } from "../../lib/db/attendanceRepo";
+import { getErrorDetail } from "../../lib/db/errors";
 import { toast } from "sonner";
 import { authReady } from "../../lib/supabaseClient";
 
@@ -270,25 +272,34 @@ class AttendanceStore {
 
   // ── Backend write-through (fire-and-forget) ────────────────────────────
   // Pushes a single record to `attendance_records`. Local state is ALWAYS
-  // authoritative for the current session — the DB push is best-effort; on
-  // failure the change is kept locally (offline mode) and a toast surfaces it.
+  // authoritative for the current session, so a failed push never blocks the
+  // clock — it only means the server copy is behind.
   private pushRecord(record: DailyAttendanceRecord): void {
     if (this.dbSyncing.has(record.id)) return;
     this.dbSyncing.add(record.id);
 
     void (async () => {
+      const payload = {
+        email: record.userId,
+        date: record.date,
+        timeIn: record.timeIn ?? null,
+        timeOut: record.timeOut ?? null,
+        exceeded: record.exceeded === true,
+        extraSessions: record.extraSessions ?? [],
+      };
       try {
-        await upsertAttendanceRecord({
-          email: record.userId,
-          date: record.date,
-          timeIn: record.timeIn ?? null,
-          timeOut: record.timeOut ?? null,
-          exceeded: record.exceeded === true,
-          extraSessions: record.extraSessions ?? [],
-        });
+        try {
+          await upsertAttendanceRecord(payload);
+        } catch (first) {
+          // A dropped connection is worth one silent retry; a missing roster
+          // link is not (it will fail identically, just later).
+          if (first instanceof AttendanceIdentityMissingError) throw first;
+          await new Promise((resolve) => setTimeout(resolve, 2500));
+          await upsertAttendanceRecord(payload);
+        }
+        this.syncNoticeShown = false;
       } catch (err) {
-        console.warn("[attendanceStore] DB push failed (kept locally):", err);
-        toast.error("Attendance time clock couldn't sync to the server — kept locally.");
+        this.reportSyncFailure('attendance', err);
       } finally {
         this.dbSyncing.delete(record.id);
       }
@@ -305,11 +316,30 @@ class AttendanceStore {
           date,
           absenceStatus: type ?? null,
         });
+        this.syncNoticeShown = false;
       } catch (err) {
-        console.warn("[attendanceStore] absence sync failed (kept locally):", err);
-        toast.error("Attendance status couldn't sync to the server — kept locally.");
+        this.reportSyncFailure('absence', err);
       }
     })();
+  }
+
+  // True once a sync warning has been shown and no push has succeeded since.
+  // The push is background work: without this the same failure re-fired on every
+  // later clock action and surfaced on whatever page the person had moved to
+  // (which is how a clock-in problem showed up as a banner on Payment
+  // Verification).
+  private syncNoticeShown = false;
+
+  private reportSyncFailure(scope: 'attendance' | 'absence', err: unknown): void {
+    console.error(`[db:attendance.${scope}]`, err);
+    if (this.syncNoticeShown) return;
+    this.syncNoticeShown = true;
+    const detail = getErrorDetail(err);
+    const what = scope === 'attendance' ? "Today's clock-in" : 'Your attendance status';
+    toast.warning(
+      `${what} is saved on this device, but it hasn't reached the server yet.${detail ? ` ${detail}` : ''}`,
+      { id: 'attendance-sync' },
+    );
   }
 
   // Cross-tab live sync: when another tab writes attendance/absences, reload
@@ -653,8 +683,11 @@ class AttendanceStore {
           newValue: after ? after.toISOString() : null,
           reason: 'Admin manual adjustment',
         });
+        this.syncNoticeShown = false;
       } catch (err) {
-        console.warn("[attendanceStore] adjustment audit failed:", err);
+        // This used to be console-only, so an admin correction that never
+        // reached the server looked saved and then affected salary silently.
+        this.reportSyncFailure('attendance', err);
       }
     })();
   }

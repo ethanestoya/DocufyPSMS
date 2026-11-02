@@ -103,11 +103,11 @@ export function PasswordStrengthIndicator({
       {/* Validation Checklist */}
       <div className="space-y-2">
         <p className="text-xs font-medium text-gray-700">Requirements:</p>
-        <div className="space-y-1.5">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
           {validationResults.map((result) => (
             <div
               key={result.id}
-              className={`flex items-center gap-2 text-xs transition-colors ${
+              className={`flex items-center gap-1.5 text-xs transition-colors ${
                 result.passed
                   ? "text-green-700"
                   : password.length > 0
@@ -137,34 +137,6 @@ export function PasswordStrengthIndicator({
           ))}
         </div>
       </div>
-
-      {/* Summary Status */}
-      {password.length > 0 && (
-        <div
-          className={`text-xs p-3 rounded-lg border transition-all ${
-            isValid
-              ? "bg-green-50 border-green-200 text-green-800"
-              : "bg-amber-50 border-amber-200 text-amber-800"
-          }`}
-        >
-          {isValid ? (
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
-              <span className="font-medium">
-                Password meets all requirements
-              </span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <X className="w-4 h-4 text-amber-600 flex-shrink-0" />
-              <span className="font-medium">
-                {totalCount - passedCount} requirement
-                {totalCount - passedCount !== 1 ? "s" : ""} remaining
-              </span>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

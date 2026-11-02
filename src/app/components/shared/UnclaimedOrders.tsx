@@ -338,9 +338,9 @@ export default function UnclaimedOrders({
                                   e.stopPropagation();
                                   setSelectedRecord(record);
                                 }}
-                                className="h-8 bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
+                                className="h-8"
                               >
-                                <Eye className="h-3.5 w-3.5 mr-1.5" />
+                                <Eye className="h-3.5 w-3.5" />
                                 View
                               </Button>
                             </td>

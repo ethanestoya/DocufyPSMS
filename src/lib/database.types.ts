@@ -16,9 +16,8 @@ export type Database = {
           role: Database['public']['Enums']['app_role']
           email: string | null
           phone: string | null
-          address: string | null
-          student_id: string | null
-          employee_id: string | null
+           address: string | null
+           employee_id: string | null
           profile_image_path: string | null
           active: boolean
           suspended: boolean
@@ -31,10 +30,9 @@ export type Database = {
           role?: Database['public']['Enums']['app_role']
           email?: string | null
           phone?: string | null
-          address?: string | null
-          student_id?: string | null
-          employee_id?: string | null
-          profile_image_path?: string | null
+           address?: string | null
+           employee_id?: string | null
+           profile_image_path?: string | null
           active?: boolean
           suspended?: boolean
           created_at?: string
@@ -46,10 +44,9 @@ export type Database = {
           role?: Database['public']['Enums']['app_role']
           email?: string | null
           phone?: string | null
-          address?: string | null
-          student_id?: string | null
-          employee_id?: string | null
-          profile_image_path?: string | null
+           address?: string | null
+           employee_id?: string | null
+           profile_image_path?: string | null
           active?: boolean
           suspended?: boolean
           created_at?: string

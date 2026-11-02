@@ -10,6 +10,9 @@
   --popover-foreground: oklch(0.145 0 0);
   --primary: #030213;
   --primary-foreground: oklch(1 0 0);
+  --brand: #1668D9;
+  --brand-hover: #0F57B8;
+  --brand-soft: #EAF2FF;
   --secondary: oklch(0.95 0.0058 264.53);
   --secondary-foreground: #030213;
   --muted: #ececf0;
@@ -87,6 +90,9 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-soft: var(--brand-soft);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);

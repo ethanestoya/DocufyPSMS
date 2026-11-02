@@ -132,8 +132,7 @@ const FILE_UPLOAD_ACCEPT = [
   ...ALLOWED_EXTENSIONS,
 ].join(",");
 
-const SUPPORTED_FORMATS_LABEL =
-  "PDF, DOC, DOCX, XLS, XLSX, JPG, JPEG, PNG, GIF, WEBP, BMP";
+const SUPPORTED_FORMATS_LABEL = "PDF, Word, Excel, and images";
 
 const COLOR_MODE_OPTIONS = [
   { value: "bw", label: "Black & White" },
@@ -724,7 +723,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
 
       if (!isValidType) {
         setFileError(
-          `Unsupported file format in "${file.name}". Please upload PDF, DOC, DOCX, XLS, XLSX, or image files only.`,
+          `"${file.name}" can't be uploaded. Use a PDF, Word, Excel, or image file.`,
         );
         return;
       }
@@ -804,15 +803,14 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
   const colorTierPctFor = (fileData: FileData) => {
     if (fileData.colorMode === "bw") return 0;
     const analysis = fileData.colorAnalysis;
-    if (analysis && analysis.colorPages.length > 0) {
-      const sum = analysis.colorPages.reduce(
-        (acc, p) => acc + (analysis.colorPercentages[p] ?? 0),
-        0,
-      );
-      const avg = sum / analysis.colorPages.length;
-      return avg <= 50 ? 50 : avg <= 75 ? 75 : 100;
-    }
-    return 100;
+    if (!analysis || !analysis.colorPages || analysis.colorPages.length === 0) return 0;
+    const sum = analysis.colorPages.reduce(
+      (acc, p) => acc + (analysis.colorPercentages[p] ?? 0),
+      0,
+    );
+    const avg = sum / analysis.colorPages.length;
+    if (avg < 1) return 0;
+    return avg <= 50 ? 50 : avg <= 75 ? 75 : 100;
   };
 
   const midColorRate = (rates: { bw: number; partial: number; full: number }) =>
@@ -1581,13 +1579,13 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
             </div>
           </div>
           <Button
-            variant="outline"
+            variant="primary"
             onClick={() =>
               navigate(`/customer/payment/${submittedOrderId}`, {
                 state: { paymentMethod, showSuccessAfter: true },
               })
             }
-            className="shrink-0 w-full sm:w-auto bg-white text-[#2F6FD6] border-2 border-[#2F6FD6] hover:bg-[#2F6FD6] hover:text-white transition-all text-sm h-10 sm:h-11"
+            className="shrink-0 w-full sm:w-auto h-10 sm:h-11"
           >
             Go to Payment Verification
           </Button>
@@ -1856,10 +1854,9 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                             )}
                           </div>
                           <Button
-                            variant="ghost"
+                            variant="destructive-outline"
                             size="sm"
                             onClick={() => setFileToRemove(fileData.id)}
-                            className="text-red-400 hover:bg-red-500 hover:text-white border-2 border-red-200 hover:border-red-500 transition-all"
                             disabled={analyzingFileId === fileData.id}
                           >
                             <X className="w-4 h-4 mr-1" />
@@ -1882,22 +1879,12 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                     : "Upload Your First Document"
                   : "Add More Files"}
               </p>
-              <p className="text-sm text-gray-500 mb-2">
-                Supported formats: {SUPPORTED_FORMATS_LABEL}
+              <p className="text-sm text-gray-500 mb-4">
+                PDF works best. Word, Excel, and images are also accepted.
               </p>
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4 max-w-lg mx-auto">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-gray-700 text-left">
-                    <strong>Preferred Format: PDF</strong>
-                    <br />
-                    Other formats may print with layout shifts.
-                  </p>
-                </div>
-              </div>
 
               <label className="inline-block cursor-pointer">
-                <span className="px-6 py-3 bg-white text-[#2F6FD6] rounded-lg border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md font-medium inline-flex items-center gap-2">
+                <span className="px-6 py-3 bg-white text-slate-700 rounded-lg border-2 border-blue-200 hover:bg-brand hover:border-brand hover:text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md font-medium inline-flex items-center gap-2">
                   <Upload className="w-4 h-4" />
                   {files.length === 0 ? "Choose File" : "Add More Files"}
                 </span>
@@ -2091,17 +2078,19 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                         <Settings className="h-4 w-4 text-[#2F6FD6]" />
                         <h3 className="text-sm font-semibold text-gray-900">Print Settings</h3>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setBreakdownFileId(fileData.id);
-                          setShowColorPricing(true);
-                        }}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-50"
-                      >
-                        <Info className="h-4 w-4 shrink-0 text-[#2F6FD6]" />
-                        See Pricing Breakdown
-                      </button>
+                      {fileData.printType && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBreakdownFileId(fileData.id);
+                            setShowColorPricing(true);
+                          }}
+                          className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-50"
+                        >
+                          <Info className="h-4 w-4 shrink-0 text-[#2F6FD6]" />
+                          See Pricing Breakdown
+                        </button>
+                      )}
                       {fileData.printType === "photo" ? (
                         <div className="space-y-4">
                           {!hasPhotoPaperStock && (
@@ -2199,7 +2188,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                             <div className="@min-[640px]:col-span-2 @min-[960px]:col-span-1">
                               <div className="flex items-center justify-between gap-3 @min-[640px]:block @min-[640px]:space-y-2">
                                 <Label className="text-sm font-medium shrink-0">Page Range</Label>
-                                <div className="w-[55%] shrink-0 @min-[640px]:w-full">
+<div className="w-[55%] shrink-0 @min-[640px]:w-full overflow-visible">
                                   <ZoomSafeDropdown
                                     label="Page range"
                                     value={fileData.pageRange}
@@ -2352,7 +2341,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                                     }));
                                     toast.success("Print settings applied to all files");
                                   }}
-                                  className="w-full border-[#2F6FD6] text-[#2F6FD6] hover:bg-[#2F6FD6] hover:text-white font-medium sm:flex-1"
+                                  className="w-full font-medium sm:flex-1"
                                 >
                                   <Settings className="w-4 h-4 mr-2" />
                                   Apply Settings to All Files
@@ -3272,8 +3261,11 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
             <div className="flex flex-col-reverse gap-2 pt-4 border-t border-gray-100 @min-[640px]:flex-row @min-[640px]:items-center @min-[640px]:justify-between @min-[640px]:gap-4">
               {/* Secondary: Back + Cancel Order */}
               <div className="grid grid-cols-2 gap-2 @min-[640px]:w-auto @min-[640px]:gap-3">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-xs"
                   onClick={() => {
                     if (currentStep > 1) {
                       const prev = isPhotocopy ? 1 : currentStep - 1;
@@ -3283,24 +3275,26 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                       navigate(dashboardPath);
                     }
                   }}
-                  className="w-full py-2.5 text-xs font-semibold rounded-lg border border-gray-300 text-gray-700 bg-gray-100 hover:bg-gray-200 active:scale-[0.98] transition-all"
                 >
                   Back
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="destructive-outline"
+                  size="sm"
+                  className="w-full text-xs"
                   onClick={handleCancelOrder}
-                  className="w-full py-2.5 text-xs font-semibold rounded-lg border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 active:scale-[0.98] transition-all"
                 >
                   Cancel Order
-                </button>
+                </Button>
               </div>
               {/* Primary: Proceed to In Queue */}
-              <button
+              <Button
                 type="button"
+                variant="primary"
                 onClick={() => setShowProceedConfirm(true)}
                 disabled={shopPaused || isSubmittingOrder || (isPhotocopy ? false : files.length === 0)}
-                className="w-full py-3 bg-[#2F6FD6] text-white font-semibold text-sm rounded-lg shadow-sm hover:bg-[#2557b8] disabled:bg-gray-400 disabled:cursor-not-allowed active:scale-[0.98] transition-all @min-[640px]:w-auto @min-[640px]:min-w-[180px] @min-[640px]:px-6"
+                className="w-full @min-[640px]:w-auto @min-[640px]:min-w-[180px] @min-[640px]:px-6"
               >
                 {isSubmittingOrder ? (
                   <span className="inline-flex items-center gap-2 justify-center">
@@ -3312,14 +3306,14 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                 ) : (
                   "Proceed to In Queue"
                 )}
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
         <div className={isWalkin ? "flex items-center justify-between mt-8 pt-6 border-t" : "sticky bottom-0 -mx-4 mt-6 flex flex-col-reverse items-stretch gap-3 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur @min-[640px]:flex-row @min-[640px]:flex-wrap @min-[640px]:items-center @min-[640px]:justify-between @min-[640px]:gap-4 sm:static sm:mx-0 sm:mt-1 sm:border-t sm:px-0 sm:py-0 sm:pt-6 sm:bg-transparent sm:backdrop-blur-none"}>
           <Button
             variant="outline"
-            className={`bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200 hover:text-gray-900 ${isWalkin ? "" : "w-full @min-[640px]:w-auto @min-[640px]:min-w-[155px] h-12 @min-[640px]:h-11 px-6 text-base font-medium"}`}
+            className={isWalkin ? "" : "w-full @min-[640px]:w-auto @min-[640px]:min-w-[155px] h-12 @min-[640px]:h-11 px-6 text-base font-medium"}
             onClick={() => {
               if (currentStep > 1) {
                 const prev = currentStep - 1;
@@ -3342,9 +3336,10 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
           <div className={`flex flex-col-reverse w-full gap-2 ${isWalkin ? "sm:flex-row sm:gap-3 sm:w-auto" : "@min-[640px]:flex-row @min-[640px]:gap-3 @min-[640px]:w-auto"}`}>
             {currentStep < 4 ? (
               <Button
+                variant="primary"
                 className={isWalkin
-                  ? "bg-[#2F6FD6] text-white hover:bg-[#2557b8] disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  : "w-full @min-[640px]:w-auto @min-[640px]:min-w-[155px] h-12 @min-[640px]:h-11 px-6 text-base font-medium bg-[#2F6FD6] text-white hover:bg-[#2557b8] disabled:bg-gray-400 disabled:cursor-not-allowed"}
+                  ? ""
+                  : "w-full @min-[640px]:w-auto @min-[640px]:min-w-[155px] h-12 @min-[640px]:h-11 px-6 text-base font-medium"}
                 onClick={() => {
                   const nextStep = currentStep + 1;
                   setCurrentStep(nextStep);
@@ -3371,17 +3366,17 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
               <>
                 {isWalkin && (
                   <Button
-                    variant="outline"
-                    className="border-red-500 text-red-500 hover:bg-red-50"
+                    variant="destructive-outline"
                     onClick={handleCancelOrder}
                   >
                     Cancel Order
                   </Button>
                 )}
                 <Button
+                  variant="primary"
                   className={isWalkin
-                    ? "bg-[#2F6FD6] text-white hover:bg-[#2557b8]"
-                    : "w-full @min-[640px]:w-auto @min-[640px]:min-w-[155px] h-12 @min-[640px]:h-11 px-6 text-base font-medium bg-[#2F6FD6] text-white hover:bg-[#2557b8] disabled:bg-gray-400"}
+                    ? ""
+                    : "w-full @min-[640px]:w-auto @min-[640px]:min-w-[155px] h-12 @min-[640px]:h-11 px-6 text-base font-medium"}
                   onClick={() => {
                     if (isWalkin) {
                       setShowProceedConfirm(true);
@@ -3474,8 +3469,9 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                 : "The shop is currently closed (weekend / holiday schedule). New print requests will be accepted again once we reopen."}
             </p>
             <Button
+              variant="primary"
               onClick={() => navigate(dashboardPath)}
-              className="mt-6 h-11 px-6 bg-[#2F6FD6] text-white hover:bg-[#2557b8]"
+              className="mt-6 h-11 px-6"
             >
               Back to Dashboard
             </Button>
@@ -3573,15 +3569,11 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                     <strong>{formatPrice(shadeRateFor(bFile, 0))}</strong>
                   </div>
                   <div className="flex justify-between gap-4">
-                    <span>Partially colored page (25-50%)</span>
+                    <span>Partially colored page (1-50%)</span>
                     <strong>{formatPrice(shadeRateFor(bFile, 50))}</strong>
                   </div>
                   <div className="flex justify-between gap-4">
-                    <span>Colored page (51-75%)</span>
-                    <strong>{formatPrice(shadeRateFor(bFile, 75))}</strong>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <span>Fully colored page (76-100%)</span>
+                    <span>Fully colored page (51-100%)</span>
                     <strong>{formatPrice(shadeRateFor(bFile, 100))}</strong>
                   </div>
                 </div>
@@ -3905,7 +3897,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
             </DialogHeader>
             <div className="flex gap-3 mt-6">
               <Button
-                variant="outline"
+                variant="primary"
                 onClick={() => {
                   setShowSuccessModal(false);
                   if (isDownTier && !isOnline) {
@@ -3926,7 +3918,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                     navigate(`/customer/track/${submittedOrderId}`);
                   }
                 }}
-                className="flex-1 bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
+                className="flex-1"
               >
                 {isDownTier && !isOnline
                   ? "Proceed to Down Payment Method"
@@ -3935,11 +3927,12 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                     : "Track Order"}
               </Button>
               <Button
+                variant="outline"
                 onClick={() => {
                   setShowSuccessModal(false);
                   navigate("/customer/dashboard");
                 }}
-                className="flex-1 bg-white text-gray-600 border-2 border-gray-200 hover:bg-gray-100 hover:text-gray-700"
+                className="flex-1"
               >
                 Go to Dashboard
               </Button>
@@ -3995,29 +3988,46 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
 
       {/* Non-PDF upload — preferred-format reminder */}
       <Dialog open={showNonPdfDialog} onOpenChange={setShowNonPdfDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="grid-cols-1 sm:max-w-md [&_[data-slot=dialog-close]]:hidden">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg font-bold text-gray-900">
-              <FileText className="h-5 w-5 text-amber-600" />
-              Preferred Format: PDF
-            </DialogTitle>
-            <DialogDescription className="text-sm leading-relaxed">
-              You selected{" "}
-              <span className="font-semibold text-gray-800">
-                {pendingUpload?.map((f) => f.name).join(", ")}
-              </span>
-              . Docufy recommends uploading <strong>PDF</strong> files for the
-              most accurate print output. DOC, DOCX, Excel, and image files are
-              also supported, but Docufy is not responsible for any formatting
-              errors or layout issues that may occur when printing these
-              non-PDF formats.
+            <div className="mb-2 flex items-center gap-3">
+              <div className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-amber-50 ring-1 ring-amber-200">
+                <FileText className="h-5 w-5 text-amber-600" />
+              </div>
+              <DialogTitle className="text-lg font-bold text-gray-900">
+                {pendingUpload && pendingUpload.length > 1
+                  ? `${pendingUpload.length} files aren't PDFs`
+                  : "This file isn't a PDF"}
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-sm leading-relaxed text-gray-600">
+              PDFs print exactly as they look. Other formats can shift.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="mt-4 gap-2">
+
+          <div className="flex min-w-0 items-start gap-2.5 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
+            <FileText className="mt-0.5 h-4 w-4 flex-none text-gray-500" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-gray-800">
+                {pendingUpload?.[0]?.name}
+              </p>
+              {pendingUpload && pendingUpload.length > 1 && (
+                <p className="text-xs text-gray-500">
+                  +{pendingUpload.length - 1} more file
+                  {pendingUpload.length - 1 === 1 ? "" : "s"}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <p className="text-xs text-gray-500">
+            Supported: {SUPPORTED_FORMATS_LABEL}
+          </p>
+
+          <DialogFooter>
             <Button
               type="button"
               variant="outline"
-              className="border-gray-300 text-gray-600"
               onClick={() => {
                 setShowNonPdfDialog(false);
                 setPendingUpload(null);
@@ -4036,9 +4046,8 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                 if (fileInputRef.current) fileInputRef.current.value = "";
                 void processUploadedFiles(filesToProcess);
               }}
-              className="bg-[#2F6FD6] hover:bg-[#2557b8] text-white"
             >
-              Continue with Upload
+              I understand
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -4070,14 +4079,12 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
               <Button
                 variant="outline"
                 onClick={() => setShowCancelConfirmDialog(false)}
-                className="bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200 hover:text-gray-900"
               >
                 Keep Editing
               </Button>
               <Button
                 variant="destructive"
                 onClick={confirmCancelOrder}
-                className="bg-red-600 hover:bg-red-700"
               >
                 Yes, Cancel Transaction
               </Button>

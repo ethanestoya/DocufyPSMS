@@ -1460,3 +1460,10 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Brought the down-payment step onto the same cards for all three choices (pay at the shop or online, which wallet, and how much), so every payment screen in the customer flow now looks and behaves the same.
 - Typecheck and production build pass; the payment screens and the photo editor were verified by code and by the crop maths only, because this session has no signed-in account in the browser.
 
+
+## 2026-11-03 - Prans (2:08 AM PHT)
+
+- Promoted the current `frontend-dev` work to the `deployment` branch, which is the branch the live build tracks: the profile photo cropper, the staff dashboard on the full admin overview, the date filter moved into the Sales Trend card, the sidebar footer labels, and the unified payment method cards across the print request, payment verification and down payment steps.
+- The promotion is a clean fast-forward, so `deployment` and `frontend-dev` now sit on the same commit and production matches the work branch exactly - no separate merge commit and no code changed by the promotion itself.
+- Typecheck and production build pass.
+

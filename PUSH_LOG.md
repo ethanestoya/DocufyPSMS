@@ -1410,3 +1410,18 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Restyled the Archive action to the app's red-outline destructive style, matching the Archive buttons elsewhere and the collaborator's own intention.
 - Typecheck and production build pass; the restored page is identical to the version already verified live, apart from that one button style.
 
+
+## 2026-11-02 - Prans (02:26 PM PHT)
+
+- Regrouped the admin sidebar around the work being done instead of departments: Work (Dashboard, Orders, Payment Verification, Inventory), Team (Staff Management, Job Board), Settings (Pricing Management, Payment Methods, Landing Page, Terms & Privacy, Audit Trail), with Orders kept as the one expandable parent.
+- Dropped the Attendance row, which already redirects to Staff Management, and removed the two parent rows that only opened and closed.
+- Turned New walk-in into a pinned create action above the list instead of a nav row: it now has its own ACTIONS heading, a filled plus chip and a chevron that slides on hover, so it reads as something to do rather than the page you are already on.
+- Replaced the sidebar collapse button with a plain chevron on the rail's edge that points the way the rail will move.
+- Hid Help & Support from admins, whose contact section is the shop's own details, while staff and customers keep it.
+- Simplified the sidebar footer to Help & Support plus a single Sign out row that still asks for confirmation; profile stays in the header avatar menu, and the mobile drawer keeps its account row because phones have no header avatar.
+- Restored the rule under the sidebar brand so the logo no longer floats above the navigation.
+- Blocked a second application to the same posting in the store, and refused an application form for a posting that no longer exists, showing either an already-applied panel with the application status or an honest "position no longer available" state.
+- Showed the applied state and date on the customer job card with a link to the application, so it no longer just hides the Apply button.
+- Added an optional photo to job applications, defaulting to the applicant's account picture, stored privately and shown on the admin applicant list and detail; the new database column must be added or the application still saves without the photo.
+- Kept the dashboard at the adviser's layout and resized what remained: the Sales Trend chart now fills its card at every width with the empty state matching that height, and the Inventory Snapshot can no longer stretch the row beside it.
+- Typecheck and production build pass; the signed-in sidebar, job board and apply flow are structure-verified only because this session had no admin, staff or customer login and the browser exposes no screenshot surface. The new photo column (`job_applications.photo_storage_path`) still needs to be added in Supabase.

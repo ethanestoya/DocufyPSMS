@@ -1,18 +1,22 @@
-// Sectioned navigation model for the EXISTING single sidebar.
-// The sidebar stays one component; its items are grouped under section
-// headings (MAIN / MANAGEMENT). The MANAGEMENT section contains a single
-// expandable parent row (Management) whose children render inline underneath
-// it inside this same sidebar — never in a second panel. Customers keep the
-// legacy flat menu.
+// Sectioned navigation model for the EXISTING single sidebar. Items are
+// grouped by the job they belong to (WORK / TEAM / SETTINGS) rather than by
+// department, so the heading carries the grouping and no heading repeats a
+// row. Orders is the only expandable parent — the only genuine hierarchy.
+// Walk-in Transactions is deliberately NOT a row: it is a create action and
+// lives pinned under the brand instead. Customers keep the legacy flat menu.
 import React from "react";
 import {
   LayoutDashboard,
   Package,
   CreditCard,
-  ShoppingCart,
   Boxes,
   Briefcase,
-  SlidersHorizontal,
+  Users,
+  Tag,
+  QrCode,
+  LayoutTemplate,
+  ShieldCheck,
+  History,
   Clock,
 } from "lucide-react";
 
@@ -92,18 +96,16 @@ export const flattenSections = (sections: NavSection[]): NavModule[] =>
   sections.flatMap((section) => section.items);
 
 // ─── Admin modules ───────────────────────────────────────────────────────────
-// MAIN (first-level, directly accessible — Orders and Payment Verification are
-// frequently used, so they stay as direct destinations near the top).
+// WORK — the daily loop: look at the numbers, move orders, verify payments,
+// keep stock.
 const dashboard = {
   label: "Dashboard",
   path: "/admin/dashboard",
   icon: <LayoutDashboard className="w-5 h-5" />,
 };
 
-// Orders is now an expandable parent with three children: "All Orders" (the
-// live queue), "Pickup Monitoring" (ready-for-pickup / overdue tracking) and
-// "Unclaimed Orders" (the policy review workspace). All render inline in the
-// same sidebar.
+// Orders is the one expandable parent: "All Orders" (the live queue),
+// "Pickup Monitoring" and "Unclaimed Orders" render inline underneath it.
 const orders = {
   label: "Orders",
   path: "/admin/orders",
@@ -121,16 +123,18 @@ const paymentVerification = {
   icon: <CreditCard className="w-5 h-5" />,
 };
 
-const walkIn = {
-  label: "Walk-in Transactions",
-  path: "/admin/walk-in",
-  icon: <ShoppingCart className="w-5 h-5" />,
-};
-
 const inventory = {
   label: "Inventory",
   path: "/admin/inventory",
   icon: <Boxes className="w-5 h-5" />,
+};
+
+// TEAM — the people side. Attendance is part of Staff Management (the old
+// /admin/attendance route redirects there), so it is not a row of its own.
+const staffManagement = {
+  label: "Staff Management",
+  path: "/admin/staff",
+  icon: <Users className="w-5 h-5" />,
 };
 
 const jobBoard = {
@@ -139,28 +143,53 @@ const jobBoard = {
   icon: <Briefcase className="w-5 h-5" />,
 };
 
-// MANAGEMENT (expandable parent, children render inline in the same sidebar).
-const management = {
-  label: "Management",
-  path: "/admin/staff",
-  icon: <SlidersHorizontal className="w-5 h-5" />,
-  children: [
-    { label: "Staff Management", path: "/admin/staff" },
-    { label: "Payment Methods", path: "/admin/payment-methods" },
-    { label: "Pricing Management", path: "/admin/pricing" },
-    { label: "Landing Page", path: "/admin/landing" },
-    { label: "Terms & Privacy", path: "/admin/legal" },
-    { label: "Audit Trail", path: "/admin/audit-trail" },
-  ],
+// SETTINGS — everything that changes how the shop behaves for customers.
+const pricing = {
+  label: "Pricing Management",
+  path: "/admin/pricing",
+  icon: <Tag className="w-5 h-5" />,
+};
+
+const paymentMethods = {
+  label: "Payment Methods",
+  path: "/admin/payment-methods",
+  icon: <QrCode className="w-5 h-5" />,
+};
+
+const landingPage = {
+  label: "Landing Page",
+  path: "/admin/landing",
+  icon: <LayoutTemplate className="w-5 h-5" />,
+};
+
+const termsPrivacy = {
+  label: "Terms & Privacy",
+  path: "/admin/legal",
+  icon: <ShieldCheck className="w-5 h-5" />,
+};
+
+const auditTrail = {
+  label: "Audit Trail",
+  path: "/admin/audit-trail",
+  icon: <History className="w-5 h-5" />,
 };
 
 export const adminSections: NavSection[] = [
   {
-    key: "main",
-    label: "MAIN",
-    items: [dashboard, orders, paymentVerification, walkIn, inventory, jobBoard],
+    key: "work",
+    label: "WORK",
+    items: [dashboard, orders, paymentVerification, inventory],
   },
-  { key: "management", label: "MANAGEMENT", items: [management] },
+  {
+    key: "team",
+    label: "TEAM",
+    items: [staffManagement, jobBoard],
+  },
+  {
+    key: "settings",
+    label: "SETTINGS",
+    items: [pricing, paymentMethods, landingPage, termsPrivacy, auditTrail],
+  },
 ];
 
 // ─── Staff modules (same structure; admin-only items are not exposed) ────────
@@ -187,12 +216,6 @@ const staffPaymentVerification = {
   icon: <CreditCard className="w-5 h-5" />,
 };
 
-const staffWalkIn = {
-  label: "Walk-in Transactions",
-  path: "/staff/walk-in",
-  icon: <ShoppingCart className="w-5 h-5" />,
-};
-
 const staffInventory = {
   label: "Inventory",
   path: "/staff/inventory",
@@ -208,13 +231,12 @@ const staffTimesheet = {
 
 export const staffSections: NavSection[] = [
   {
-    key: "main",
-    label: "MAIN",
+    key: "work",
+    label: "WORK",
     items: [
       staffDashboard,
       staffOrders,
       staffPaymentVerification,
-      staffWalkIn,
       staffInventory,
       staffTimesheet,
     ],

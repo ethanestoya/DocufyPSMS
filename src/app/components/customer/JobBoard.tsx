@@ -315,7 +315,26 @@ export default function JobBoard() {
                           </div>
                         )}
 
-                        {!application && (
+                        {application ? (
+                          <div className="mt-4 flex flex-col gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                            <p className="flex items-center gap-2 text-sm text-slate-600">
+                              <CheckCircle className="h-4 w-4 shrink-0 text-emerald-500" />
+                              <span>
+                                Applied {formatPHDate(application.appliedDate, "long")}
+                                {appliedTime(application.appliedDateTime)
+                                  ? ` · ${appliedTime(application.appliedDateTime)}`
+                                  : ""}
+                              </span>
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setTab("applications")}
+                              className="inline-flex items-center justify-center gap-1 rounded-lg px-2 py-1 text-sm font-semibold text-[#1668D9] hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
+                            >
+                              View application
+                            </button>
+                          </div>
+                        ) : (
                           <div className="mt-4">
                             <Button
                               variant="primary"
@@ -490,7 +509,7 @@ export default function JobBoard() {
                 <div className="flex min-w-0 items-center gap-3">
                   <PersonAvatar
                     name={selectedApp.name}
-                    src={selectedApp.applicantProfileImage}
+                    src={selectedApp.applicantPhotoUrl ?? selectedApp.applicantProfileImage}
                     className="h-12 w-12 text-sm"
                   />
                   <div className="min-w-0">

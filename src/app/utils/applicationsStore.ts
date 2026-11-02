@@ -15,9 +15,11 @@ import { authReady } from '../../lib/supabaseClient';
 import { subscribeTableChanges } from '../../lib/db/hooks';
 import {
   createApplication,
+  deleteApplicantPhoto,
   fetchApplications,
   getPortfolioSignedUrl,
   updateApplication,
+  uploadApplicantPhoto,
   uploadPortfolio,
 } from '../../lib/db/jobApplicationsRepo';
 import type { JobApplicationDto } from '../../lib/db/types';
@@ -39,6 +41,12 @@ export type ApplicationType = {
   portfolioFile?: File | null;
   portfolioFileName?: string;
   portfolioStoragePath?: string | null;
+  // Photo sent with this application (optional). `applicantPhotoUrl` is its
+  // resolved signed URL on the admin side; the fallback chain is
+  // application photo → account profile photo → initials.
+  photoFile?: File | null;
+  photoStoragePath?: string | null;
+  applicantPhotoUrl?: string | null;
   appliedDateTime: string;
   status: 'Pending' | 'Under Review' | 'For Interview' | 'Approved' | 'Rejected';
   appliedDate: string;
@@ -79,6 +87,8 @@ function toApplicationType(dto: JobApplicationDto): ApplicationType {
     portfolioType: isFile ? 'file' : dto.portfolioUrl ? 'link' : undefined,
     portfolioFileName: dto.portfolioFileName ?? undefined,
     portfolioStoragePath: dto.portfolioStoragePath,
+    photoStoragePath: dto.photoStoragePath,
+    applicantPhotoUrl: dto.applicantPhotoUrl ?? null,
     appliedDateTime: `${dateStr} ${timeStr}`.trim(),
     status: dto.status,
     appliedDate: dateStr,
@@ -213,6 +223,19 @@ class ApplicationsStore {
       applicantProfileId?: string | null;
     },
   ): Promise<AddApplicationResult> {
+    // One application per job per applicant. The board hides its Apply button
+    // once a row exists, but a direct link, a double-tap or a resubmitted form
+    // still reaches this path — so the check sits here, before any row is
+    // pushed and before a file is uploaded, and leaves nothing behind.
+    const existing = this.getApplicationByJobId(app.jobId);
+    if (existing) {
+      return {
+        application: existing,
+        saved: false,
+        error: `You've already applied to this position (${applicationDisplayId(existing.id)}).`,
+      };
+    }
+
     const now = new Date();
     const dateStr = toPHTKey(now);
     const timeStr = formatPHTime(now);
@@ -227,6 +250,7 @@ class ApplicationsStore {
     this.applications = [...this.applications, newApp];
     this.notify();
     this.busy = true;
+    let photoPath: string | null = null;
 
     try {
       let storagePath: string | null = null;
@@ -239,6 +263,17 @@ class ApplicationsStore {
           app.applicantProfileId,
           app.portfolioFile,
           app.portfolioFileName ?? (app.portfolioFile.name || 'resume'),
+        );
+      }
+
+      // The photo is uploaded before the row so the table never points at an
+      // object that was never written. Without a profile id there is no owner
+      // folder for the bucket's RLS, so it is skipped rather than attempted.
+      if (app.photoFile && app.applicantProfileId) {
+        photoPath = await uploadApplicantPhoto(
+          app.applicantProfileId,
+          app.photoFile,
+          app.photoFile.name || 'photo',
         );
       }
 
@@ -255,19 +290,30 @@ class ApplicationsStore {
         coverLetter: app.skills,
         portfolioUrl: app.portfolioType === 'link' ? app.portfolio || null : null,
         portfolioStoragePath: storagePath,
+        photoStoragePath: photoPath,
       });
+
+      // The repo drops the photo (and says so) when the database has no
+      // `photo_storage_path` column yet; the upload would then be an orphan.
+      if (photoPath && !saved.photoStoragePath) {
+        void deleteApplicantPhoto(photoPath);
+        photoPath = null;
+      }
 
       // Adopt the DB row (server uuid id + storage path) so the cache matches
       // what a refresh/realtime will return.
       const mapped = toApplicationType(saved);
       mapped.portfolioFile = app.portfolioFile ?? null;
       mapped.portfolioFileName = app.portfolioFileName;
+      mapped.photoFile = app.photoFile ?? null;
       this.applications = this.applications.map((a) => (a.id === newApp.id ? mapped : a));
       this.notify();
       return { application: mapped, saved: true };
     } catch (err) {
       this.applications = this.applications.filter((a) => a.id !== newApp.id);
       this.notify();
+      // The row never landed, so its photo must not linger in the bucket.
+      if (photoPath) void deleteApplicantPhoto(photoPath);
       console.error('[db:applications.create]', err);
       return { application: newApp, saved: false, error: getErrorMessage(err) };
     } finally {

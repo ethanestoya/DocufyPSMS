@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   LayoutDashboard,
@@ -19,6 +19,8 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import { ZoomSafeDropdown } from "../ui/zoom-safe-dropdown";
+import { PersonAvatar } from "../ui/person-avatar";
+import { DetailSkeleton } from "../ui/card-skeleton";
 import {
   Dialog,
   DialogContent,
@@ -26,8 +28,11 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { applicationsStore, applicationDisplayId } from "../../utils/applicationsStore";
+import { applicationStatusStyle } from "../../utils/applicationStatus";
+import { formatPHDate } from "../../utils/pht";
 import { notificationStore } from "../../utils/notificationStore";
 import { jobsStore } from "../../utils/jobsStore";
+import { useHydrating } from "../../utils/useHydrating";
 import { useAuth } from "../../contexts/AuthContext";
 
 const menuItems = [
@@ -79,6 +84,22 @@ export default function JobApplyForm() {
     return jobsStore.subscribe(syncJob);
   }, [jobId]);
 
+  // The customer's own application for this job, if there is one. Subscribed so
+  // a row that only arrives with hydration still switches the page out of the
+  // form instead of leaving someone to fill in something that cannot be sent.
+  const [existingApplication, setExistingApplication] = useState(() =>
+    applicationsStore.getApplicationByJobId(jobId || ""),
+  );
+
+  useEffect(() => {
+    const syncApplication = () =>
+      setExistingApplication(applicationsStore.getApplicationByJobId(jobId || ""));
+    syncApplication();
+    return applicationsStore.subscribe(syncApplication);
+  }, [jobId]);
+
+  const hydrating = useHydrating();
+
   const jobTitle = job?.title || "Open Position";
 
   const [submitted, setSubmitted] = useState(false);
@@ -86,6 +107,13 @@ export default function JobApplyForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [showTerms, setShowTerms] = useState(false);
+  // Optional photo sent with the application. When the applicant has an account
+  // picture it is used as the default, so most people never pick a file; a
+  // chosen file always wins and is stored with the application itself.
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState("");
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -114,6 +142,18 @@ export default function JobApplyForm() {
       return next;
     });
   }, [user]);
+
+  // The preview is an object URL for the chosen file; it is released as soon as
+  // the file changes or the form unmounts.
+  useEffect(() => {
+    if (!photoFile) {
+      setPhotoPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(photoFile);
+    setPhotoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photoFile]);
 
   const markTouched = (field: string) => {
     setTouched((prev) => new Set(prev).add(field));
@@ -187,6 +227,25 @@ export default function JobApplyForm() {
     setErrors((prev) => { const n = { ...prev }; delete n.portfolio; return n; });
   };
 
+  // Optional, so a rejected image never blocks the form — it is reported under
+  // the control and simply not attached.
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Let the same file be picked again after a rejection.
+    e.target.value = "";
+    if (!file) return;
+    if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) {
+      setPhotoError("Use a JPEG, PNG or WebP image.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError("That image is larger than 5 MB.");
+      return;
+    }
+    setPhotoError("");
+    setPhotoFile(file);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs = validate();
@@ -215,12 +274,21 @@ export default function JobApplyForm() {
         portfolioType: formData.resumeType,
         portfolioFile: formData.resumeFile,
         portfolioFileName: formData.resumeFile?.name,
+        photoFile,
       });
 
       // The row only exists if the upload and the insert both landed. Telling
       // someone their application was received when it wasn't is the one thing
       // this screen must never do.
       if (!result.saved) {
+        // A refusal because this job is already on file (an application made
+        // in another tab, say) is shown as the application itself rather than
+        // an error over a form that would keep being refused.
+        const onFile = applicationsStore.getApplicationByJobId(jobId || "");
+        if (onFile) {
+          setExistingApplication(onFile);
+          return;
+        }
         setSubmitError(
           result.error ||
             "Your application couldn't be sent. Check your connection and try again.",
@@ -396,6 +464,159 @@ export default function JobApplyForm() {
     );
   }
 
+  // Nothing to apply to: the posting was removed, or it was closed/archived
+  // after the link was shared. Rendering the form would offer a job that no
+  // longer exists — and its Submit button could never succeed. While the job
+  // lists are still hydrating, the unknown is shown as loading, not as a
+  // missing posting.
+  if (!job || job.status !== "active") {
+    if (hydrating) {
+      return (
+        <Layout
+          menuItems={menuItems}
+          title="Job Application"
+          showBackButton
+          hideMobileBackButton
+        >
+          <div className="max-w-xl mx-auto">
+            <DetailSkeleton blocks={2} label="Loading job posting" />
+          </div>
+        </Layout>
+      );
+    }
+
+    return (
+      <Layout
+        menuItems={menuItems}
+        title="Job Application"
+        showBackButton
+        hideMobileBackButton
+      >
+        <div className="max-w-xl mx-auto space-y-5">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            aria-label="Go back"
+            className="md:hidden inline-flex items-center gap-1 rounded-xl p-2 pl-0 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            <span className="text-sm font-medium">Back</span>
+          </button>
+
+          <Card className="p-6 sm:p-8 bg-white shadow-sm border border-slate-200/70">
+            <div className="text-center space-y-5">
+              <div className="w-14 h-14 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto">
+                <AlertCircle className="w-7 h-7 text-amber-500" />
+              </div>
+
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  This position is no longer available
+                </h2>
+                <p className="text-sm text-slate-500 mt-1">
+                  {job
+                    ? "The shop has closed this posting, so it isn't accepting applications anymore."
+                    : "The posting may have been filled or removed since this link was shared."}
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                onClick={() => navigate("/customer/job-board")}
+                className="w-full h-11"
+              >
+                Browse open positions
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
+
+  // The board hides its Apply button once a row exists, so reaching this page
+  // with an application already on file means a stale link or an old tab. The
+  // application is shown instead of a form that the store would refuse.
+  // `!isSubmitting` matters: the store paints its optimistic row while this
+  // form's own upload is still in flight, and that row must not swap the form
+  // for "you've already applied" mid-submit.
+  if (existingApplication && !isSubmitting) {
+    return (
+      <Layout
+        menuItems={menuItems}
+        title="Job Application"
+        showBackButton
+        hideMobileBackButton
+      >
+        <div className="max-w-xl mx-auto space-y-5">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            aria-label="Go back"
+            className="md:hidden inline-flex items-center gap-1 rounded-xl p-2 pl-0 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            <span className="text-sm font-medium">Back</span>
+          </button>
+
+          <Card className="p-6 sm:p-8 bg-white shadow-sm border border-slate-200/70">
+            <div className="text-center space-y-5">
+              <div className="w-14 h-14 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto">
+                <CheckCircle className="w-7 h-7 text-emerald-500" />
+              </div>
+
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  You've already applied
+                </h2>
+                <p className="text-sm text-slate-500 mt-1">
+                  Your application for{" "}
+                  <strong className="text-slate-700">{jobTitle}</strong> was
+                  submitted on {formatPHDate(existingApplication.appliedDate, "long")}.
+                  One application per position is kept, so there's nothing more
+                  to send.
+                </p>
+              </div>
+
+              <div className="inline-flex flex-wrap items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2">
+                <span className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
+                  Application
+                </span>
+                <span className="text-xs font-semibold tracking-wide text-slate-700">
+                  {applicationDisplayId(existingApplication.id)}
+                </span>
+                <span
+                  className={`rounded-md border px-2 py-0.5 text-xs font-medium ${applicationStatusStyle(existingApplication.status).badge}`}
+                >
+                  {existingApplication.status}
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-2.5 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate("/customer/job-board?tab=applications")}
+                  className="w-full h-11"
+                >
+                  View Application Status
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => navigate("/customer/job-board")}
+                  className="w-full h-11"
+                >
+                  Browse other positions
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout
       menuItems={menuItems}
@@ -436,6 +657,59 @@ export default function JobApplyForm() {
                 Personal Information
               </h3>
               <div className="space-y-3.5">
+                {/* Photo — optional. The account picture is the default; a chosen
+                    file is attached to this application and shown to the shop. */}
+                <div className="flex items-start gap-3.5">
+                  <PersonAvatar
+                    name={`${formData.firstName} ${formData.lastName}`.trim()}
+                    src={photoPreview ?? user?.profileImage ?? null}
+                    className="h-20 w-20 text-xl"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-700">Your photo</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {photoFile
+                        ? `${photoFile.name} · ${Math.max(1, Math.round(photoFile.size / 1024))} KB`
+                        : user?.profileImage
+                          ? "Using your profile photo"
+                          : "Optional · JPEG, PNG or WebP, up to 5 MB"}
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-9 px-3 text-xs"
+                        onClick={() => photoInputRef.current?.click()}
+                      >
+                        {photoFile || user?.profileImage ? "Change" : "Add photo"}
+                      </Button>
+                      {photoFile && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPhotoFile(null);
+                            setPhotoError("");
+                          }}
+                          className="rounded px-2 py-1 text-xs font-medium text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                    {photoError && (
+                      <p role="alert" className="mt-1 text-xs text-red-500">
+                        {photoError}
+                      </p>
+                    )}
+                    <input
+                      ref={photoInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={handlePhotoChange}
+                      className="hidden"
+                    />
+                  </div>
+                </div>
                 <div>
                   <Label htmlFor="firstName" className="text-sm font-medium text-slate-700 mb-1.5">
                     First Name <span className="text-red-500">*</span>

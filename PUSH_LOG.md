@@ -1437,3 +1437,10 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Brought in the job-application guards: one application per posting (refused before anything is uploaded or saved), no application form for a posting that is gone or closed, and an optional applicant photo carried through to the admin review screens.
 - Typecheck and production build pass, and the dev server serves the app. The applicant photo still needs the `job_applications.photo_storage_path` column added in Supabase, otherwise the application saves without a photo.
 
+
+
+## 2026-11-02 - Prans (4:10 PM PHT)
+
+- Pulled the two outstanding collaborator pushes (Ethan's input-field restrictions and aeprnts' sidebar regroup + job-application guards) into the local rontend-dev work via fast-forward, resolving the one merge conflict in AGENTS.md by keeping both sides' bullets.
+- Restyled the three phone detail sheets on the customer Order Tracking page (Printing Details, Payment Method and Status, Cost Breakdown) from a slide-from-bottom sheet into a centred floating window, sized to be read: 660px wide capped at 94vh, with a larger icon chip, title, subtitle and close button, and enlarged the body and every field label inside the sheets so the content is legible on a phone.
+- Typecheck and production build pass.

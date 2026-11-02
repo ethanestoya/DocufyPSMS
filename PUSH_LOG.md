@@ -1402,3 +1402,11 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Each file row shows the file name, its order number, file type, size and upload time, and the order's current printing status badge, and opens that order's tracking page.
 - Added an honest empty state ("No files uploaded yet") so a customer with no uploads is not shown a blank card.
 - Typecheck and production build pass; chart bucketing verified with sample orders (daily, weekly and monthly windows), the inventory filters verified with the seeded items (status counts 3 / 0 / 2, Out of stock → 2 rows, combined with Paper → the same 2, a search with no match showed the filtered-empty state, and Clear restored all 5), and the recent-files list verified through a temporary dev route with sample orders (upload order 3h → 9h → 30h → 6 days, files from one order split by their own upload time, statuses Printing / Completed / Canceled, plus the empty state).
+
+## 2026-11-02 - Prans (11:08 AM PHT)
+
+- Restored Job Board Management after a merge silently rolled it back: an earlier "merge" commit was not a real merge and replaced the page with an older copy, so the rebuild disappeared without anyone choosing to undo it; the page is back to the rebuilt version.
+- Restored the details the rebuild carries: pay rate, schedule, location, duties and requirements in the create/edit dialog, the "Use shop address" helper, the posting/applicant/application views, applicant photos, the shared status colours, interview times in 12-hour form, and a dialog that only closes once the save lands.
+- Restyled the Archive action to the app's red-outline destructive style, matching the Archive buttons elsewhere and the collaborator's own intention.
+- Typecheck and production build pass; the restored page is identical to the version already verified live, apart from that one button style.
+

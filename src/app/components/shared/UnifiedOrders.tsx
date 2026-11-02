@@ -16,7 +16,6 @@ import {
   ChevronDown,
   ChevronUp,
   Printer,
-  Play,
   FileText,
   AlertCircle,
   AlertTriangle,
@@ -70,6 +69,7 @@ import { TableSkeleton } from "../ui/table-skeleton";
 import { useHydrating } from "../../utils/useHydrating";
 import { generateReceiptData } from "../../utils/invoiceUtils";
 import { OrderReceiptDialog } from "./OrderReceipt";
+import { CustomerDetailsDialog } from "./CustomerDetailsDialog";
 import { pricingStore } from "../../utils/pricingStore";
 import { ORDER_STATUS_STYLES, getStatusBadgeClasses } from "../../utils/orderStatusPalette";
 import { inventoryStore } from "../../utils/inventoryStore";
@@ -95,17 +95,6 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
   canceled: "Canceled",
   awaitingPayment: "Awaiting payment",
 };
-
-// Fallback estimate when an order has no stored cost breakdown, using the
-// shared centralized pricing so admin/staff estimates stay in lockstep.
-function fallbackPrintTotal(pages: number, copies: number, type: string): number {
-  const pricing = pricingStore.getPricing();
-  return (
-    pages *
-    copies *
-    (type === 'Colored' ? pricing.colorHigh : pricing.bw)
-  );
-}
 
 type OrderType = {
   id: string;
@@ -145,6 +134,10 @@ type OrderType = {
     photoSize?: string;
     photoQuantity?: number;
     notes?: string;
+    pageRange?: string;
+    specificPages?: string;
+    twoSided?: string;
+    pagesPerSheet?: string;
   }[];
   paymentVerified?: boolean;
   paymentVerifiedAt?: Date;
@@ -182,6 +175,129 @@ type OrderType = {
   createdAt?: Date;
   lastUpdatedAt?: Date;
 };
+
+// ── Print details ────────────────────────────────────────────────────────────
+// What the job will actually be printed as, built only from settings the order
+// stored. Anything the order does not carry is left out rather than guessed, so
+// an older order shows fewer rows instead of a wrong one.
+const PRINT_TYPE_LABELS: Record<string, string> = {
+  document: "Document",
+  vellum: "Vellum",
+  sticker: "Sticker",
+  photo: "Photo",
+};
+
+const CONTENT_TYPE_LABELS: Record<string, string> = {
+  text: "Text only",
+  textWithImage: "Text with image",
+  imageOnly: "Image only",
+};
+
+type PrintDetailItem = { label: string; value: string };
+type PrintDetailGroup = {
+  file?: string;
+  items: PrintDetailItem[];
+  note?: string;
+};
+
+// The one-line stamp under the order number: the same PHT date and time the
+// rest of the app prints, shortened so the customer, channel and date share a
+// single line — "Oct 28, 2026, 4:08 PM".
+function compactStamp(value: Date): string {
+  const date = formatPHDate(value).replace(/^([A-Za-z]{3})[A-Za-z]*/, "$1");
+  const time = formatPHTime(value).replace(/^0/, "");
+  return `${date}, ${time}`;
+}
+
+function buildPrintDetails(order: OrderType): PrintDetailGroup[] {
+  const files = order.attachedFiles ?? [];
+  const single = files.length === 1;
+  const capitalise = (value: string) =>
+    value.charAt(0).toUpperCase() + value.slice(1);
+  const colorLabel = (mode: string) =>
+    mode === "bw" ? "Black & white" : "Color";
+
+  if (files.length === 0) {
+    // A photocopy walk-in has no uploaded file; its settings live on the order.
+    const items: PrintDetailItem[] = [];
+    if (order.paperSize)
+      items.push({ label: "Paper size", value: capitalise(order.paperSize) });
+    if (order.colorMode)
+      items.push({ label: "Color", value: colorLabel(order.colorMode) });
+    if (order.pages)
+      items.push({ label: "Pages", value: String(order.pages) });
+    if (order.copies)
+      items.push({ label: "Copies", value: String(order.copies) });
+    if (order.customerType === "photocopy")
+      items.push({ label: "Print type", value: "Photocopy" });
+    return items.length > 0 ? [{ items }] : [];
+  }
+
+  return files
+    .map((file) => {
+      const printType = (file.printType ?? "").toLowerCase();
+      const isPhoto = printType === "photo";
+      const paperSize = file.paperSize ?? (single ? order.paperSize : undefined);
+      const pages = file.pageCount ?? (single ? order.pages : undefined);
+      const copies = file.copies ?? (single ? order.copies : undefined);
+      const colorMode =
+        file.colorMode ?? (single ? order.colorMode : undefined);
+      const contentType = (file.contentType ?? "").toLowerCase();
+      const items: PrintDetailItem[] = [];
+
+      if (isPhoto) {
+        if (file.photoSize)
+          items.push({
+            label: "Photo size",
+            value: file.photoSize === "A4photo" ? "A4" : file.photoSize,
+          });
+        if (file.photoQuantity)
+          items.push({
+            label: "Quantity",
+            value: `${file.photoQuantity} pcs`,
+          });
+      } else {
+        if (paperSize)
+          items.push({ label: "Paper size", value: capitalise(paperSize) });
+        if (colorMode)
+          items.push({ label: "Color", value: colorLabel(colorMode) });
+        if (pages) items.push({ label: "Pages", value: String(pages) });
+        if (copies) items.push({ label: "Copies", value: String(copies) });
+      }
+
+      if (PRINT_TYPE_LABELS[printType])
+        items.push({ label: "Print type", value: PRINT_TYPE_LABELS[printType] });
+
+      if (!isPhoto) {
+        if (CONTENT_TYPE_LABELS[contentType])
+          items.push({
+            label: "Content",
+            value: CONTENT_TYPE_LABELS[contentType],
+          });
+        if (file.pageRange === "specific")
+          items.push({
+            label: "Page range",
+            value: file.specificPages
+              ? `Pages ${file.specificPages}`
+              : "Selected pages",
+          });
+        if (file.twoSided === "yes")
+          items.push({ label: "Sides", value: "Double-sided" });
+        if (file.pagesPerSheet && file.pagesPerSheet !== "1")
+          items.push({
+            label: "Per sheet",
+            value: `${file.pagesPerSheet} pages`,
+          });
+      }
+
+      return {
+        file: files.length > 1 ? file.name : undefined,
+        items,
+        note: file.notes?.trim() || undefined,
+      };
+    })
+    .filter((group) => group.items.length > 0);
+}
 
 // Avatar component for initials
 const Avatar = ({ name }: { name: string }) => {
@@ -273,6 +389,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
   const [selectedOrder, setSelectedOrder] =
     useState<OrderType | null>(null);
   const [showDialog, setShowDialog] = useState(false);
+  const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
   const [sortColumn, setSortColumn] = useState<string | null>(
     null,
   );
@@ -356,14 +473,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
   const selectedPayment = useMemo(
     () =>
       selectedOrder
-        ? computeOrderPayment(
-            selectedOrder,
-            fallbackPrintTotal(
-              selectedOrder.pages,
-              selectedOrder.copies,
-              selectedOrder.type,
-            ),
-          )
+        ? computeOrderPayment(selectedOrder)
         : null,
     [selectedOrder],
   );
@@ -373,13 +483,6 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
     status === "printing" ||
     status === "completed" ||
     status === "awaitingPayment";
-
-  // Receipt figures drive the payment card and its breakdown, so the order total
-  // is printed once (in the card) and only its parts are listed underneath.
-  const receipt = useMemo(
-    () => (selectedOrder ? generateReceiptData(selectedOrder) : null),
-    [selectedOrder],
-  );
 
   // The files shown as the hero of the dialog. A single-file order falls back to
   // the order's own print settings when the file carries no spec of its own.
@@ -400,18 +503,18 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
     }));
   }, [selectedOrder]);
 
-  // The breakdown is a disclosure, so it starts closed for every order.
-  const [breakdownOpen, setBreakdownOpen] = useState(false);
-  useEffect(() => {
-    setBreakdownOpen(false);
-  }, [selectedOrder?.id, showDialog]);
+  // What the job will be printed as, one group per uploaded file.
+  const printDetails = useMemo(
+    () => (selectedOrder ? buildPrintDetails(selectedOrder) : []),
+    [selectedOrder],
+  );
 
   const paymentChipCls =
     selectedPayment?.status === "Paid"
-      ? "inline-flex items-center rounded-full bg-[#DCFCE7] px-2.5 py-1 text-[12px] font-semibold text-[#14532D]"
+      ? "inline-flex items-center gap-1.5 rounded-full bg-[#DCFCE7] px-3 py-1.5 text-[13px] font-semibold text-[#14532D]"
       : selectedPayment?.status === "Partially Paid"
-        ? "inline-flex items-center rounded-full bg-[#FEF3C7] px-2.5 py-1 text-[12px] font-semibold text-[#92400E]"
-        : "inline-flex items-center rounded-full bg-[#FEE2E2] px-2.5 py-1 text-[12px] font-semibold text-[#991B1B]";
+        ? "inline-flex items-center gap-1.5 rounded-full bg-[#FEF3C7] px-3 py-1.5 text-[13px] font-semibold text-[#92400E]"
+        : "inline-flex items-center gap-1.5 rounded-full bg-[#FEE2E2] px-3 py-1.5 text-[13px] font-semibold text-[#991B1B]";
 
   // What the notes section can honestly say: the note recorded on the order,
   // plus the reason behind the CURRENT state — and each of those only once.
@@ -433,8 +536,16 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
       : "",
     cancelNote && cancelNote !== customerNote ? cancelNote : "",
   ].filter(Boolean);
+  // A released or canceled order has nothing left to act on: its footer keeps
+  // the read-only line and drops the two buttons.
+  const hasFooterAction =
+    selectedOrder?.status === "inQueue" ||
+    selectedOrder?.status === "printing" ||
+    selectedOrder?.status === "completed" ||
+    (selectedOrder?.status === "awaitingPayment" &&
+      !selectedOrder?.paymentVerified);
 
-// HEARTBEAT: while our order details dialog is open on an actionable row,
+  // HEARTBEAT: while our order details dialog is open on an actionable row,
   // keep renewing OUR lock so it persists for as long as we keep viewing —
   // it never vanishes mid-review. A dead tab stops beating and expires.
   //
@@ -1261,10 +1372,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                               <td className="px-4 py-4 whitespace-nowrap">
                                 {(() => {
                                   // PREVIEW — outstanding balance alongside the total.
-                                  const pay = computeOrderPayment(
-                                    order,
-                                    fallbackPrintTotal(order.pages, order.copies, order.type),
-                                  );
+                                   const pay = computeOrderPayment(order);
                                   return (
                                     <div className="flex flex-col gap-0.5">
                                       <span className="text-sm font-semibold text-[#1c1f26]">
@@ -1287,7 +1395,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="rounded-lg border-[1.5px] border-[#D5DCE6] bg-white px-[13px] text-[11.5px] font-semibold text-[#344054] transition-colors hover:border-[#1668D9] hover:bg-[#1668D9] hover:text-white"
+                                  className="rounded-lg px-[13px] text-[11.5px] font-semibold"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleOpenDetails(order);
@@ -1341,20 +1449,17 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                   variant="outline"
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  className="bg-white text-slate-600 border border-gray-200 hover:bg-[#F2F7FF] hover:text-[#2F6FD6] hover:border-[#2F6FD6] disabled:opacity-40 disabled:pointer-events-none rounded-md px-3 h-9"
+                  className="h-9 px-3"
                 >
-                  <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+                  <ChevronLeft className="h-4 w-4" /> Previous
                 </Button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
                   <Button
                     key={pg}
                     type="button"
+                    variant={pg === currentPage ? "primary" : "outline"}
+                    size="icon"
                     onClick={() => setCurrentPage(pg)}
-                    className={
-                      pg === currentPage
-                        ? "bg-[#2F6FD6] text-white hover:bg-[#2557b8] rounded-md shadow-sm shadow-[#2F6FD6]/30 h-9 w-9"
-                        : "bg-white text-slate-600 border border-gray-200 hover:bg-[#F2F7FF] hover:text-[#2F6FD6] hover:border-[#2F6FD6] rounded-md h-9 w-9"
-                    }
                   >
                     {pg}
                   </Button>
@@ -1364,9 +1469,9 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                   variant="outline"
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  className="bg-white text-slate-600 border border-gray-200 hover:bg-[#F2F7FF] hover:text-[#2F6FD6] hover:border-[#2F6FD6] disabled:opacity-40 disabled:pointer-events-none rounded-md px-3 h-9"
+                  className="h-9 px-3"
                 >
-                  Next <ChevronRight className="h-4 w-4 ml-1" />
+                  Next <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             )}
@@ -1384,6 +1489,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
             // Release OUR hold when the order details modal closes. Only frees
             // OUR lock — another reviewer's hold is left untouched.
             if (selectedOrder) releaseLock(selectedOrder.id, myName);
+            setCustomerDialogOpen(false);
             setShowDialog(false);
           } else {
             setShowDialog(true);
@@ -1402,22 +1508,31 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
         >
           {selectedOrder && (
             <>
-              {/* Header — the order number and its state, stated once */}
-              <DialogHeader className="flex-row items-center justify-between gap-3 space-y-0 px-5 pt-5 pb-0 pr-12 text-left">
-                <div className="min-w-0 flex items-center gap-2">
-                  <DialogTitle className="text-lg font-semibold leading-none text-[#1c1f26]">
-                    {selectedOrder.displayId ?? selectedOrder.id}
+              {/* Header — the title, the order, and who placed it */}
+              <DialogHeader className="flex-row items-start justify-between gap-3 space-y-0 px-6 pt-6 pb-0 text-left">
+                <div className="min-w-0">
+                  <DialogTitle className="text-[20px] font-bold leading-tight text-[#111827]">
+                    Order details
                   </DialogTitle>
+                  <div className="mt-2 flex flex-wrap items-center gap-2.5">
+                    <span className="text-[16px] font-semibold text-[#111827]">
+                      {selectedOrder.displayId ?? selectedOrder.id}
+                    </span>
                     <Badge
                       variant="outline"
-                      className={`gap-1.5 border-transparent text-[12px] font-semibold ${getStatusBadgeClasses(
+                      className={`gap-1.5 border-transparent px-2.5 py-1 text-[13px] font-semibold ${getStatusBadgeClasses(
                         selectedOrder.status,
                       )}`}
                     >
-                      <span
-                        aria-hidden="true"
-                        className="size-1.5 rounded-full bg-current"
-                      />
+                      {selectedOrder.status === "released" ||
+                      selectedOrder.status === "completed" ? (
+                        <Check className="size-3.5" aria-hidden="true" />
+                      ) : (
+                        <span
+                          aria-hidden="true"
+                          className="size-1.5 rounded-full bg-current"
+                        />
+                      )}
                       {ORDER_STATUS_LABELS[selectedOrder.status] ??
                         selectedOrder.status}
                     </Badge>
@@ -1430,30 +1545,33 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                         Locked by {lockHolder}
                       </Badge>
                     )}
-                  <DialogDescription className="mt-2.5 text-[13.5px] leading-relaxed text-[#6B7280]">
-                    {selectedOrder.customerEmail ? (
-                      <span
-                        title={selectedOrder.customerEmail}
-                        className="cursor-help"
-                      >
-                        {selectedOrder.customer}
-                      </span>
-                    ) : (
-                      selectedOrder.customer
-                    )}
+                  </div>
+                  <DialogDescription className="mt-2 break-words text-[14px] leading-relaxed text-[#4B5563]">
+                    {selectedOrder.customer}
+                    {selectedOrder.orderSource !== "walkin" ||
+                    selectedOrder.customer !== "Walk-in Customer" ? (
+                      <>
+                        {" · "}
+                        {selectedOrder.orderSource === "online"
+                          ? "Online order"
+                          : "Walk-in"}
+                      </>
+                    ) : null}
                     {" · "}
-                    {selectedOrder.orderSource === "online"
-                      ? "Online"
-                      : "Walk-in"}
-                    {" · "}
-                    {formatPHDate(
-                      selectedOrder.createdAt || selectedOrder.submittedAt,
-                    )}
-                    {", "}
-                    {formatPHTime(
+                    {compactStamp(
                       selectedOrder.createdAt || selectedOrder.submittedAt,
                     )}
                   </DialogDescription>
+                  {selectedOrder.customerEmail && (
+                    <button
+                      type="button"
+                      onClick={() => setCustomerDialogOpen(true)}
+                      className="mt-1.5 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[13px] font-semibold text-[#1D4ED8] transition-colors hover:bg-[#F2F7FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8]/40"
+                    >
+                      <User className="size-3.5" aria-hidden="true" />
+                      View customer
+                    </button>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -1465,13 +1583,14 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                 </button>
               </DialogHeader>
 
-              <div className="h-px bg-[#E5E7EB]" />
+              <div className="mt-5 h-px bg-[#E5E7EB]" />
 
               <div className="flex-1 overflow-y-auto">
-                {/* The file is the hero of this dialog */}
+
+                {/* Print job — the file, then what it prints as */}
                 <section className="px-6 py-5">
                   <h3 className="text-[13px] font-semibold text-[#111827]">
-                    {detailFiles.length > 1 ? "Files to print" : "File to print"}
+                    Print job
                   </h3>
                   <div className="mt-3">
                     {detailFiles.length > 0 ? (
@@ -1482,22 +1601,41 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                         showView={true}
                         lockedBy={canActOnOrder ? null : lockHolder}
                         appearance="card"
+                        specOnMobileOnly
                       />
                     ) : (
                       <div className="flex flex-col gap-3 rounded-[14px] border border-[#E5E7EB] px-4 py-3.5 sm:flex-row sm:items-center">
                         <div
                           aria-hidden="true"
-                          className="flex size-14 shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white"
+                          className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white"
                         >
                           <Copy className="size-5 text-[#1D4ED8]" />
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="text-[15px] font-semibold text-[#111827]">
-                            Photocopy · {selectedOrder.paperSize} paper
+                            Photocopy
                           </p>
-                          <p className="mt-1 text-[13px] text-[#6B7280]">
-                            {selectedOrder.pages}{" "}
-                            {selectedOrder.pages === 1 ? "page" : "pages"} ·{" "}
+                          <p
+                            className={`mt-0.5 text-[13px] text-[#6B7280] ${
+                              printDetails.length > 0 ? "sm:hidden" : ""
+                            }`}
+                          >
+                            {selectedOrder.paperSize && (
+                              <>
+                                {selectedOrder.paperSize
+                                  .charAt(0)
+                                  .toUpperCase() +
+                                  selectedOrder.paperSize.slice(1)}{" "}
+                                paper ·{" "}
+                              </>
+                            )}
+                            {selectedOrder.pages > 0 && (
+                              <>
+                                {selectedOrder.pages}{" "}
+                                {selectedOrder.pages === 1 ? "page" : "pages"}{" "}
+                                ·{" "}
+                              </>
+                            )}
                             {selectedOrder.copies}{" "}
                             {selectedOrder.copies === 1 ? "copy" : "copies"}
                           </p>
@@ -1505,6 +1643,42 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                       </div>
                     )}
                   </div>
+
+                  {/* Every setting the order stored, stated once. Phones keep
+                      the one-line spec under the file (unchanged). */}
+                  {printDetails.length > 0 && (
+                    <div className="mt-4 hidden space-y-3 sm:block">
+                      {printDetails.map((group, index) => (
+                        <div
+                          key={`${group.file ?? "order"}-${index}`}
+                          className="rounded-[12px] border border-[#E5E7EB] bg-[#F8FAFC] px-5 py-4"
+                        >
+                          {printDetails.length > 1 && group.file && (
+                            <p className="mb-3 break-words text-[12.5px] font-medium text-[#6B7280]">
+                              {group.file}
+                            </p>
+                          )}
+                          <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
+                            {group.items.map((item) => (
+                              <div key={item.label}>
+                                <dt className="text-[13px] text-[#6B7280]">
+                                  {item.label}
+                                </dt>
+                                <dd className="mt-1 break-words text-[16px] font-semibold text-[#111827]">
+                                  {item.value}
+                                </dd>
+                              </div>
+                            ))}
+                          </dl>
+                          {group.note && (
+                            <p className="mt-4 border-t border-[#E5E7EB] pt-3 break-words text-[12.5px] leading-relaxed text-[#6B7280]">
+                              {group.note}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </section>
 
                 {/* Payment — the figure is printed here, once */}
@@ -1514,6 +1688,9 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                   </h3>
                   <div className="mt-3 flex min-h-[72px] flex-wrap items-center gap-x-3 gap-y-2 rounded-[14px] border border-[#E5E7EB] px-4 py-3.5">
                     <span className={paymentChipCls}>
+                      {selectedPayment?.status === "Paid" && (
+                        <Check className="size-3.5" aria-hidden="true" />
+                      )}
                       {selectedPayment?.status ?? "Payment Due"}
                     </span>
                     <span className="text-[15px] font-semibold text-[#111827]">
@@ -1525,10 +1702,13 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                         </span>
                       )}
                     </span>
-                    <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-1">
                       {!selectedOrder.paymentVerified && (
-                        <button
+                        <Button
                           type="button"
+                          variant="link"
+                          size="sm"
+                          className="h-auto px-0 text-[13px] font-medium"
                           onClick={() =>
                             navigate(
                               `${userRole === "admin" ? "/admin" : "/staff"}/payment-verification?orderId=${encodeURIComponent(
@@ -1536,89 +1716,56 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                               )}`,
                             )
                           }
-                          className="rounded text-[13px] font-medium text-[#4B5563] transition-colors hover:text-[#111827] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8] focus-visible:ring-offset-2"
                         >
                           Verify payment
-                        </button>
+                        </Button>
                       )}
-                      <button
+                      <Button
                         type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto px-0 text-[13px] font-medium"
                         onClick={() => setShowReceipt(true)}
-                        className="rounded text-[13px] font-medium text-[#1D4ED8] transition-colors hover:text-[#1E40AF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8] focus-visible:ring-offset-2"
                       >
                         View receipt
-                      </button>
+                      </Button>
                     </div>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setBreakdownOpen((open) => !open)}
-                    aria-expanded={breakdownOpen}
-                    className="mt-3 inline-flex items-center gap-1.5 rounded text-[13px] font-medium text-[#4B5563] transition-colors hover:text-[#111827] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8] focus-visible:ring-offset-2"
-                  >
-                    <Play
-                      aria-hidden="true"
-                      className={`size-3 fill-current transition-transform ${
-                        breakdownOpen ? "rotate-90" : ""
-                      }`}
-                    />
-                    {breakdownOpen ? "Hide breakdown" : "Show breakdown"}
-                  </button>
-
-                  {breakdownOpen && (
-                    <dl className="mt-2 w-full max-w-[210px] space-y-1.5 pl-5 text-[13.5px]">
-                      <div className="flex items-baseline justify-between gap-6">
-                        <dt className="text-[#6B7280]">Printing</dt>
-                        <dd className="font-medium text-[#111827]">
-                          {formatCurrency(receipt?.printingCost ?? 0)}
-                        </dd>
-                      </div>
-                      {receipt && receipt.addons.length > 0 && (
-                        <div className="flex items-baseline justify-between gap-6">
-                          <dt className="text-[#6B7280]">Add-ons</dt>
-                          <dd className="font-medium text-[#111827]">
-                            {formatCurrency(receipt.addonsCost)}
-                          </dd>
-                        </div>
-                      )}
-                      {(selectedPayment?.remaining ?? 0) > 0 && (
-                        <div className="flex items-baseline justify-between gap-6">
-                          <dt className="text-[#6B7280]">Balance</dt>
-                          <dd className="font-semibold text-[#92400E]">
-                            {formatCurrency(selectedPayment?.remaining ?? 0)}
-                          </dd>
-                        </div>
-                      )}
-                    </dl>
-                  )}
                 </section>
 
-                {/* Customer notes — the section is always present, honestly */}
-                <section className="border-t border-[#E5E7EB] px-6 py-5">
-                  <h3 className="text-[13px] font-semibold text-[#111827]">
-                    Customer notes
-                  </h3>
-                  <p className="mt-2.5 break-words text-[14px] leading-relaxed text-[#4B5563]">
-                    {customerNote || "None"}
-                  </p>
-                  {systemNotes.length > 0 && (
-                    <div className="mt-3 space-y-2">
-                      {systemNotes.map((note) => (
-                        <p
-                          key={note}
-                          className={`break-words rounded-[10px] px-3 py-2 text-[13px] leading-relaxed ${
-                            note === cancelNote
-                              ? "bg-[#FEF2F2] text-[#991B1B]"
-                              : "bg-[#F3F4F6] text-[#4B5563]"
-                          }`}
-                        >
-                          {note}
+                {/* Notes — only when the order actually carries one */}
+                {(customerNote || systemNotes.length > 0) && (
+                  <section className="border-t border-[#E5E7EB] px-6 py-5">
+                    {customerNote && (
+                      <>
+                        <h3 className="text-[13px] font-semibold text-[#111827]">
+                          Customer notes
+                        </h3>
+                        <p className="mt-2.5 break-words text-[14px] leading-relaxed text-[#4B5563]">
+                          {customerNote}
                         </p>
-                      ))}
-                    </div>
-                  )}
-                </section>
+                      </>
+                    )}
+                    {systemNotes.length > 0 && (
+                      <div
+                        className={`space-y-2 ${customerNote ? "mt-3" : ""}`}
+                      >
+                        {systemNotes.map((note) => (
+                          <p
+                            key={note}
+                            className={`break-words rounded-[10px] px-3 py-2 text-[13px] leading-relaxed ${
+                              note === cancelNote
+                                ? "bg-[#FEF2F2] text-[#991B1B]"
+                                : "bg-[#F3F4F6] text-[#4B5563]"
+                            }`}
+                          >
+                            {note}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                )}
 
                 {errorMessage && (
                   <div className="px-6 pb-5">
@@ -1630,36 +1777,85 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                 )}
               </div>
 
-              {/* Footer — exactly one primary action, labelled by the state */}
-              {(selectedOrder.status === "inQueue" ||
-                selectedOrder.status === "printing" ||
-                selectedOrder.status === "completed" ||
-                (selectedOrder.status === "awaitingPayment" &&
-                  !selectedOrder.paymentVerified)) && (
-                <div className="border-t border-[#E5E7EB] px-6 py-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      {(selectedOrder.status === "inQueue" ||
-                        selectedOrder.status === "awaitingPayment") && (
-                        <Button
-                          variant="outline"
-                          disabled={!canActOnOrder}
-                          title={
-                            !canActOnOrder && lockHolder
-                              ? `${lockHolder} is managing this order`
-                              : undefined
-                          }
-                          onClick={() => handleUpdateStatus("canceled")}
-                          className="w-full border-[#B91C1C] bg-white text-[#B91C1C] hover:border-[#991B1B] hover:bg-[#B91C1C] hover:text-white disabled:pointer-events-none disabled:opacity-40 sm:w-[150px]"
-                        >
-                          Cancel order
-                        </Button>
-                      )}
-                    </div>
+              {/* Footer — Cancel order on the left edge, the state's action on
+                  the right edge, as far apart as the window allows. A finished
+                  order keeps one read-only line and no buttons. */}
+              <div className="border-t border-[#E5E7EB] px-6 py-4">
+                {(() => {
+                  const unpaidCash =
+                    selectedOrder.status === "completed" &&
+                    selectedOrder.paymentMethod === "Cash" &&
+                    !selectedOrder.paymentVerified;
+                  const noteCls = `flex items-center gap-1.5 text-[12.5px] leading-relaxed ${
+                    hasFooterAction ? "mb-3" : ""
+                  }`;
 
-                    <div className="flex flex-col gap-1.5 sm:items-end">
+                  if (!hasFooterAction) {
+                    return (
+                      <p className={`${noteCls} text-[#6B7280]`}>
+                        <Unlock className="size-3.5" aria-hidden="true" />
+                        Read-only — this order is already{" "}
+                        {selectedOrder.status === "released"
+                          ? "released"
+                          : "canceled"}
+                      </p>
+                    );
+                  }
+                  if (
+                    selectedOrder.status === "awaitingPayment" &&
+                    !selectedOrder.paymentVerified
+                  ) {
+                    return (
+                      <p className={`${noteCls} text-[#8A5007]`}>
+                        <Clock className="size-3.5" aria-hidden="true" />
+                        Waiting for{" "}
+                        {selectedOrder.paymentMethod ?? "payment"} verification
+                        before this order can print.
+                      </p>
+                    );
+                  }
+                  if (unpaidCash) {
+                    return (
+                      <p className={`${noteCls} text-[#8A5007]`}>
+                        <Clock className="size-3.5" aria-hidden="true" />
+                        Verify the cash payment before releasing this order.
+                      </p>
+                    );
+                  }
+                  if (lockHolder && !iHoldLock) {
+                    return (
+                      <p className={`${noteCls} text-[#8A5007]`}>
+                        <Eye className="size-3.5" aria-hidden="true" />
+                        {lockHolder} is managing this order.
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
+
+                {hasFooterAction && (
+                  <div className="flex items-center justify-between gap-3">
+                    {(selectedOrder.status === "inQueue" ||
+                      selectedOrder.status === "awaitingPayment") && (
+                      <Button
+                        variant="destructive-outline"
+                        disabled={!canActOnOrder}
+                        title={
+                          !canActOnOrder && lockHolder
+                            ? `${lockHolder} is managing this order`
+                            : undefined
+                        }
+                        onClick={() => handleUpdateStatus("canceled")}
+                        className="h-10 rounded-[10px] px-5 text-[14px] font-semibold"
+                      >
+                        Cancel order
+                      </Button>
+                    )}
+
+                    <div className="ml-auto flex items-center">
                       {selectedOrder.status === "inQueue" && (
                         <Button
+                          variant="primary"
                           data-primary-action
                           disabled={!canActOnOrder}
                           title={
@@ -1668,7 +1864,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                               : undefined
                           }
                           onClick={() => handleUpdateStatus("printing")}
-                          className="w-full bg-[#1D4ED8] text-white hover:bg-[#1E40AF] disabled:pointer-events-none disabled:opacity-40 sm:w-[200px]"
+                          className="h-10 rounded-[10px] px-5 text-[14px] font-semibold"
                         >
                           <Printer className="size-4" aria-hidden="true" />
                           Start printing
@@ -1677,6 +1873,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
 
                       {selectedOrder.status === "printing" && (
                         <Button
+                          variant="primary"
                           data-primary-action
                           disabled={!canActOnOrder}
                           title={
@@ -1685,69 +1882,45 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                               : undefined
                           }
                           onClick={() => handleUpdateStatus("completed")}
-                          className="w-full bg-[#1D4ED8] text-white hover:bg-[#1E40AF] disabled:pointer-events-none disabled:opacity-40 sm:w-[200px]"
+                          className="h-10 rounded-[10px] px-5 text-[14px] font-semibold"
                         >
                           <Check className="size-4" aria-hidden="true" />
                           Mark as done
                         </Button>
                       )}
 
-                      {selectedOrder.status === "completed" &&
-                        (() => {
-                          // Cash on Pickup may only be released once the cash has
-                          // been verified (it can be printed before that).
-                          const cashPickupUnpaid =
-                            selectedOrder.paymentMethod === "Cash" &&
-                            !selectedOrder.paymentVerified;
-                          return (
-                            <>
-                              <Button
-                                data-primary-action
-                                disabled={cashPickupUnpaid || !canActOnOrder}
-                                onClick={() => handleUpdateStatus("released")}
-                                className="w-full bg-[#1D4ED8] text-white hover:bg-[#1E40AF] disabled:pointer-events-none disabled:opacity-40 sm:w-[200px]"
-                              >
-                                <Package className="size-4" aria-hidden="true" />
-                                Release order
-                              </Button>
-                              {cashPickupUnpaid && (
-                                <p className="text-[12.5px] leading-relaxed text-[#6B7280] sm:text-right">
-                                  Verify the cash payment before releasing this
-                                  order.
-                                </p>
-                              )}
-                            </>
-                          );
-                        })()}
+                      {selectedOrder.status === "completed" && (
+                        <Button
+                          variant="primary"
+                          data-primary-action
+                          disabled={
+                            (selectedOrder.paymentMethod === "Cash" &&
+                              !selectedOrder.paymentVerified) ||
+                            !canActOnOrder
+                          }
+                          onClick={() => handleUpdateStatus("released")}
+                          className="h-10 rounded-[10px] px-5 text-[14px] font-semibold"
+                        >
+                          <Package className="size-4" aria-hidden="true" />
+                          Release order
+                        </Button>
+                      )}
 
                       {selectedOrder.status === "awaitingPayment" &&
                         !selectedOrder.paymentVerified && (
-                          <>
-                            <button
-                              type="button"
-                              disabled
-                              className="inline-flex h-10 w-full cursor-not-allowed items-center justify-center gap-2 rounded-[10px] border border-transparent bg-[#E5E7EB] px-4 text-[14px] font-semibold text-[#9CA3AF] sm:w-[200px]"
-                            >
-                              <Printer className="size-4" aria-hidden="true" />
-                              Start printing
-                            </button>
-                            <p className="text-[12.5px] leading-relaxed text-[#6B7280] sm:text-right">
-                              Waiting for{" "}
-                              {selectedOrder.paymentMethod ?? "payment"}{" "}
-                              verification before this order can print.
-                            </p>
-                          </>
+                          <Button
+                            variant="primary"
+                            disabled
+                            className="h-10 rounded-[10px] px-5 text-[14px] font-semibold"
+                          >
+                            <Printer className="size-4" aria-hidden="true" />
+                            Start printing
+                          </Button>
                         )}
-
-                      {!canActOnOrder && lockHolder && (
-                        <p className="text-[12.5px] leading-relaxed text-[#8A5007] sm:text-right">
-                          {lockHolder} is managing this order.
-                        </p>
-                      )}
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </>
           )}
         </DialogContent>
@@ -1811,12 +1984,13 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
 
           <DialogFooter className="gap-2">
             <Button
+              variant="outline"
               onClick={() => setShowStatusForm(false)}
-              className="bg-white hover:-translate-y-0.5 hover:shadow-md hover:bg-red-50 border-2 border-gray-300 text-gray-700 hover:border-red-300 hover:text-red-600"
             >
               Cancel
             </Button>
             <Button
+              variant={pendingStatus === "canceled" ? "destructive" : "primary"}
               onClick={() =>
                 pendingStatus === "completed"
                   ? openPaperConfirm()
@@ -1824,11 +1998,6 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
               }
               loading={statusSaving}
               loadingText="Updating..."
-              className={
-                pendingStatus === "canceled"
-                  ? "bg-red-600 text-white hover:bg-red-700"
-                  : "bg-[#2F6FD6] text-white hover:bg-[#2557b8]"
-              }
               disabled={
                 statusSaving ||
                 (pendingStatus === "canceled" &&
@@ -1943,9 +2112,9 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
               No Errors
             </Button>
             <Button
+              variant="primary"
               onClick={() => confirmPaperUsage(false)}
               disabled={!paperFormData.reason}
-              className="bg-[#2F6FD6] text-white hover:bg-[#2557b8]"
             >
               Confirm Error Usage
             </Button>
@@ -1976,6 +2145,16 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
           open={showReceipt}
           onOpenChange={setShowReceipt}
           data={generateReceiptData(selectedOrder)}
+        />
+      )}
+
+      {/* Customer behind this order — opened from the order header */}
+      {selectedOrder && (
+        <CustomerDetailsDialog
+          open={customerDialogOpen}
+          onOpenChange={setCustomerDialogOpen}
+          customerName={selectedOrder.customer}
+          customerEmail={selectedOrder.customerEmail}
         />
       )}
       </StaffTimeInGate>

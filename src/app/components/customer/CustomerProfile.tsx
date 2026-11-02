@@ -21,7 +21,7 @@ const menuItems = [
   { label: 'Job Board', path: '/customer/job-board', icon: <Briefcase className="w-5 h-5" /> },
 ];
 
-// Profile data (name/phone/student ID) is stored PER ACCOUNT so a customer who
+// Profile data (name/phone) is stored PER ACCOUNT so a customer who
 // signs out cannot leave their details behind for the next person on the same
 // browser. The legacy shared key is adopted ONLY when it embeds the signed-in
 // account's own email — otherwise it is ignored (leak-safe migration).
@@ -48,7 +48,7 @@ function profileStorageKey(user: AuthUser | null): string {
  * nothing to show for the current account. */
 function readSavedProfile(
   user: AuthUser | null,
-): { firstName?: string; lastName?: string; email?: string; phone?: string; studentId?: string } | null {
+): { firstName?: string; lastName?: string; email?: string; phone?: string } | null {
   if (!user) return null;
 
   try {
@@ -87,7 +87,7 @@ function readSavedProfile(
 
 function buildFormData(
   user: AuthUser | null,
-  saved: { firstName?: string; lastName?: string; email?: string; phone?: string; studentId?: string } | null,
+  saved: { firstName?: string; lastName?: string; email?: string; phone?: string } | null,
 ) {
   const nameParts = (user?.name || '').split(' ');
   const defaultFirstName = nameParts[0] || '';
@@ -97,7 +97,6 @@ function buildFormData(
     lastName: saved?.lastName || defaultLastName,
     email: user?.email || saved?.email || '',
     phone: saved?.phone ?? user?.phone ?? '',
-    studentId: saved?.studentId || user?.studentId || '',
   };
 }
 
@@ -143,7 +142,6 @@ export default function CustomerProfile() {
     lastName: string;
     email: string;
     phone: string;
-    studentId: string;
   }>(() => buildFormData(user, readSavedProfile(user)));
   const [isEditing, setIsEditing] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(() =>
@@ -160,7 +158,6 @@ export default function CustomerProfile() {
 
   const displayName = `${formData.firstName} ${formData.lastName}`.trim() || user?.name || 'Customer User';
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('') || 'U';
-  const studentIdValue = formData.studentId || user?.studentId || '';
 
   const handleProfileImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -190,19 +187,16 @@ export default function CustomerProfile() {
     }
     setIsSaving(true);
 
-    // Text details (name/phone/student ID) write to the per-account blob
+    // Text details (name/phone) write to the per-account blob
     // regardless of the upload/backend result, so nothing is lost locally.
     localStorage.setItem(profileStorageKey(user), JSON.stringify(formData));
 
     // The picture is Supabase-ONLY: upload first, best-effort.
     const pictureChanged = (profileImage ?? null) !== (user.profileImage ?? null);
-    let pictureSynced = !pictureChanged;
+    let pictureError: string | null = null;
     if (pictureChanged) {
-      try {
-        pictureSynced = await updateProfileImage(profileImage ?? null);
-      } catch {
-        pictureSynced = false;
-      }
+      const result = await updateProfileImage(profileImage ?? null);
+      if (!result.ok) pictureError = result.message;
     }
 
     // Push text details to the signed-in user's OWN profiles row. The email is
@@ -210,27 +204,19 @@ export default function CustomerProfile() {
     const patch: Database['public']['Tables']['profiles']['Update'] = {
       full_name: displayName,
       phone: formData.phone.trim() || null,
-      student_id: formData.studentId.trim() || null,
     };
-    let detailsSynced = false;
-    try {
-      detailsSynced = await syncProfileDetails(patch);
-    } catch {
-      detailsSynced = false;
-    }
+    const detailsResult = await syncProfileDetails(patch);
+    const detailsError = detailsResult.ok ? null : detailsResult.message;
 
     updateProfile({ name: displayName });
     setIsSaving(false);
 
-    const failures: string[] = [];
-    if (!detailsSynced) failures.push('saving your details to the server');
-    if (!pictureSynced) failures.push('uploading your profile picture');
-
-    if (failures.length > 0) {
-      toast.error(
-        `Your details were kept on this device, but ${failures.join(' and ')} failed. `
-        + 'Please try again — the dialog is still open.',
-      );
+    if (detailsError || pictureError) {
+      const problems = [
+        detailsError ? `Your details weren't saved — ${detailsError}` : null,
+        pictureError ? `Your photo wasn't saved — ${pictureError}` : null,
+      ].filter(Boolean).join(' ');
+      toast.error(`Your changes were kept on this device. ${problems}`);
       return;
     }
 
@@ -350,7 +336,7 @@ export default function CustomerProfile() {
                 <Button
                   variant="outline"
                   onClick={() => setIsEditing(true)}
-                  className="w-full shrink-0 sm:w-auto bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
+                  className="w-full shrink-0 sm:w-auto"
                 >
                   <Pencil className="w-4 h-4 mr-2" />
                   Edit Profile
@@ -375,6 +361,7 @@ export default function CustomerProfile() {
                       type="text"
                       value={formData.firstName}
                       onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
+                      maxLength={50}
                     />
                   </div>
                 </div>
@@ -387,6 +374,7 @@ export default function CustomerProfile() {
                       type="text"
                       value={formData.lastName}
                       onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
+                      maxLength={50}
                     />
                   </div>
                 </div>
@@ -420,24 +408,6 @@ export default function CustomerProfile() {
                     />
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="studentId">Student ID</Label>
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-gray-400" />
-                    <Input
-                      id="studentId"
-                      type="text"
-                      value={studentIdValue}
-                      readOnly
-                      disabled
-                      className="bg-gray-50 text-gray-600 cursor-not-allowed"
-                    />
-                  </div>
-                  <p className="flex items-center gap-1 text-xs text-gray-500">
-                    <Lock className="h-3 w-3" />
-                    Student ID cannot be changed.
-                  </p>
-                </div>
               </div>
 
               {/* Edit mode actions */}
@@ -445,13 +415,14 @@ export default function CustomerProfile() {
                 <Button
                   variant="outline"
                   onClick={() => setIsEditing(false)}
-                  className="flex-1 bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-900 h-12"
+                  className="flex-1 h-12"
                 >
                   Cancel
                 </Button>
                 <Button
+                  variant="primary"
                   onClick={handleSave}
-                  className="flex-1 bg-[#1668D9] text-white hover:bg-[#10316B] h-12"
+                  className="flex-1 h-12"
                 >
                   Save Changes
                 </Button>
@@ -467,7 +438,6 @@ export default function CustomerProfile() {
                 <InfoRow icon={<User className="h-4 w-4" />} label="Last Name" value={formData.lastName} />
                 <InfoRow icon={<Mail className="h-4 w-4" />} label="Email Address" value={formData.email} />
                 <InfoRow icon={<Phone className="h-4 w-4" />} label="Contact Number" value={formData.phone} />
-                <InfoRow icon={<FileText className="h-4 w-4" />} label="Student ID" value={studentIdValue || '—'} />
               </div>
             </div>
           </Card>
@@ -499,9 +469,9 @@ export default function CustomerProfile() {
         {/* Sign Out (destructive, separate from profile content) */}
         <div className="pt-1 pb-4">
           <Button
-            variant="outline"
+            variant="destructive"
             onClick={() => setShowLogoutConfirm(true)}
-            className="h-12 w-full border-red-600 bg-red-600 text-white hover:bg-red-700 hover:border-red-700"
+            className="h-12 w-full"
           >
             <LogOut className="w-4 h-4 mr-2" />
             Sign Out
@@ -528,16 +498,15 @@ export default function CustomerProfile() {
               variant="outline"
               onClick={() => setShowSaveDialog(false)}
               disabled={isSaving}
-              className="bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-900"
             >
               Cancel
             </Button>
             <Button
+              variant="primary"
               onClick={confirmSave}
               disabled={isSaving}
               loading={isSaving}
               loadingText="Saving..."
-              className="bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
             >
               Save Changes
             </Button>
@@ -638,7 +607,6 @@ export default function CustomerProfile() {
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"
-              className="bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-900"
               onClick={() => {
                 setShowChangePasswordDialog(false);
                 setPasswordData({
@@ -651,13 +619,9 @@ export default function CustomerProfile() {
               Cancel
             </Button>
             <Button
+              variant="primary"
               onClick={handleChangePassword}
               disabled={!validatePassword(passwordData.newPassword).isValid || (passwordData.currentPassword === passwordData.newPassword && passwordData.currentPassword !== '')}
-              className={`${
-                validatePassword(passwordData.newPassword).isValid && !(passwordData.currentPassword === passwordData.newPassword && passwordData.currentPassword !== '')
-                  ? "bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
-                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
-              }`}
             >
               Change Password
             </Button>
@@ -677,7 +641,7 @@ export default function CustomerProfile() {
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button onClick={() => setShowSuccessDialog(false)} className="bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white">
+              <Button variant="outline" onClick={() => setShowSuccessDialog(false)}>
                 OK
               </Button>
             </DialogFooter>

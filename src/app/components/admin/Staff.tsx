@@ -225,7 +225,8 @@ export default function Staff() {
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newStaff, setNewStaff] = useState({
-    fullName: "",
+    firstName: "",
+    lastName: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -349,7 +350,8 @@ export default function Staff() {
 
   const resetAddForm = () => {
     setNewStaff({
-      fullName: "",
+      firstName: "",
+      lastName: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -381,12 +383,12 @@ export default function Staff() {
   }, []);
 
   const handleAddStaff = async () => {
-    const name = newStaff.fullName.trim();
+    const name = `${newStaff.firstName.trim()} ${newStaff.lastName.trim()}`.trim();
     const email = newStaff.email.trim();
     const password = newStaff.password;
 
-    if (!name) {
-      toast.error("Please enter the staff member's full name");
+    if (!newStaff.firstName.trim() || !newStaff.lastName.trim()) {
+      toast.error("Please enter the staff member's first and last name");
       return;
     }
 
@@ -584,17 +586,19 @@ export default function Staff() {
           </p>
           <div className="flex flex-col-reverse sm:flex-row gap-3 sm:items-center w-full sm:w-auto">
             <Button
-              className="h-11 sm:h-10 w-full sm:w-auto bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
+              variant="outline"
+              className="h-11 w-full sm:h-10 sm:w-auto"
               onClick={() => setShowSalarySettings(true)}
             >
-              <Wallet className="w-4 h-4 mr-2" />
+              <Wallet className="w-4 h-4" />
               Salary Settings
             </Button>
             <Button
-              className="h-11 sm:h-10 w-full sm:w-auto bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
+              variant="primary"
+              className="h-11 w-full sm:h-10 sm:w-auto"
               onClick={() => setShowAddDialog(true)}
             >
-              <UserPlus className="w-4 h-4 mr-2" />
+              <UserPlus className="w-4 h-4" />
               Add Staff
             </Button>
           </div>
@@ -721,8 +725,8 @@ export default function Staff() {
               />
             </div>
             <Button
-              variant="outline"
-              className="h-9 border border-[#D5DCE6] bg-white text-[#64748B] hover:border-[#B7C3D4] hover:bg-[#FCFDFF] hover:text-[#475467] hover:translate-y-0 hover:shadow-none"
+              variant="ghost"
+              className="h-9"
               onClick={() => { setSearchQuery(""); setFilterStatus("all"); }}
             >
               <X className="h-4 w-4" />
@@ -880,25 +884,23 @@ export default function Staff() {
                         </Button>
                         {member.status === "Active" ? (
                           <Button
-                            variant="ghost"
+                            variant="destructive-outline"
                             size="icon"
                             aria-label={`Deactivate ${member.name}`}
                             title="Deactivate account"
-                            className="group bg-red-50 hover:bg-red-500 hover:text-white transition-all"
                             onClick={() => setDeactivating(member)}
                           >
-                            <Ban className="w-4 h-4 text-red-500 group-hover:text-white" />
+                            <Ban className="w-4 h-4" />
                           </Button>
                         ) : (
                           <Button
-                            variant="ghost"
+                            variant="primary"
                             size="icon"
                             aria-label={`Activate ${member.name}`}
                             title="Activate account"
-                            className="hover:bg-green-50"
                             onClick={() => setActivating(member)}
                           >
-                            <UserCheck className="w-4 h-4 text-green-600" />
+                            <UserCheck className="w-4 h-4" />
                           </Button>
                         )}
                       </div>
@@ -958,14 +960,14 @@ export default function Staff() {
         {selectedStaff && selectedMember && (
           <div className="mx-auto w-full max-w-6xl pb-8">
             <div className="px-6 sm:px-8">
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setSelectedStaff(null)}
-                className="inline-flex items-center gap-2 rounded-lg border-2 border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-[#54606E] transition-all hover:-translate-y-0.5 hover:border-[#1677F2]/60 hover:bg-[#1677F2]/5 hover:text-[#1677F2] hover:shadow-md"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back to Staff Management
-              </button>
+              </Button>
             </div>
                 <h2 className="sr-only">
                   {selectedStaff.name} — Attendance &amp; Salary
@@ -1044,15 +1046,16 @@ export default function Staff() {
                                     </Badge>
                                   )
                                 )}
-                                <button
-                                  type="button"
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
                                   title="Edit attendance status"
                                   aria-label={`Edit attendance status for ${selectedStaff.name}`}
                                   onClick={() => openEdit(selectedStaff)}
-                                  className="p-1 rounded-md text-slate-400 hover:text-[#2F6FD6] hover:bg-blue-50 transition-colors"
+                                  className="h-6 w-6 text-slate-400"
                                 >
                                   <Edit2 className="w-3.5 h-3.5" />
-                                </button>
+                                </Button>
                               </div>
                             </div>
                           ) : null;
@@ -1158,9 +1161,9 @@ export default function Staff() {
                         onClick={() =>
                           setDayTarget({ email: selectedStaff.email, date: todayKey })
                         }
-                        className="h-9 gap-2 rounded-lg px-3 text-xs font-semibold text-[#14213D] hover:bg-[#1677F2]/5 hover:text-[#14213D] hover:border-[#1677F2]/60"
+                        className="h-9 gap-2 rounded-lg px-3 text-xs font-semibold"
                       >
-                        <CalendarClock className="h-4 w-4 text-[#1677F2]" />
+                        <CalendarClock className="h-4 w-4" />
                         View Day Records
                       </Button>
                     </div>
@@ -1378,14 +1381,15 @@ export default function Staff() {
               <span className="text-xs text-[#5C5D6E]">
                 {salaryRecords.length} day{salaryRecords.length === 1 ? "" : "s"}
               </span>
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setHistoryOpen(true)}
-                className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg border-2 border-transparent bg-white px-3 py-2 text-xs font-semibold text-[#14213D] transition-all hover:-translate-y-0.5 hover:border-[#1677F2]/60 hover:bg-[#1677F2]/5 hover:shadow-md"
+                className="text-xs"
               >
-                <History className="h-4 w-4 text-[#1677F2]" />
+                <History className="h-4 w-4" />
                 View All Attendance History
-              </button>
+              </Button>
             </span>
           </div>
                           {salaryRecords.length === 0 ? (
@@ -1463,10 +1467,11 @@ export default function Staff() {
                             </div>
                           </div>
                           <Button
-                            className="h-10 sm:h-11 min-w-[180px] rounded-lg bg-[#1677F2] text-white hover:bg-[#0E63D8] shadow-[0_10px_20px_-8px_rgba(22,119,242,0.6)]"
+                            variant="primary"
+                            className="h-10 min-w-[180px] rounded-lg sm:h-11"
                             onClick={() => setReleasing(selectedStaff)}
                           >
-                            <Wallet className="w-4 h-4 mr-2" />
+                            <Wallet className="w-4 h-4" />
                             Release Salary
                           </Button>
                         </div>
@@ -1506,16 +1511,18 @@ export default function Staff() {
                                 className="min-w-[15rem] flex-1"
                               />
                               {(historyFrom || historyTo) && (
-                                <button
+                                <Button
                                   type="button"
+                                  variant="link"
+                                  size="sm"
                                   onClick={() => {
                                     setHistoryFrom("");
                                     setHistoryTo("");
                                   }}
-                                  className="text-xs font-semibold text-[#1677F2] hover:underline"
+                                  className="h-auto px-0 text-xs font-semibold"
                                 >
                                   Clear Dates
-                                </button>
+                                </Button>
                               )}
                             </div>
                           )}
@@ -1567,16 +1574,18 @@ export default function Staff() {
                                 </div>
                               ))}
                               {filteredHistory.length > 3 && (
-                                <button
+                                <Button
                                   type="button"
+                                  variant="outline"
+                                  size="sm"
                                   onClick={() => setShowAllHistory((v) => !v)}
-                                  className="mx-auto flex items-center gap-1.5 rounded-lg border border-[#DCEBFF] bg-[#F0F6FF] px-3 py-1.5 text-xs font-semibold text-[#1677F2] hover:bg-[#E3EEFF] transition-colors"
+                                  className="mx-auto text-xs font-semibold"
                                 >
                                   {showAllHistory ? "Show Less" : `Show All (${filteredHistory.length})`}
                                   <ChevronDown
                                     className={`w-3.5 h-3.5 transition-transform ${showAllHistory ? "rotate-180" : ""}`}
                                   />
-                                </button>
+                                </Button>
                               )}
                             </div>
                           ) : null}
@@ -1619,14 +1628,15 @@ export default function Staff() {
             </div>
             <DialogFooter>
               <Button
-                className="w-full sm:w-auto bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
+                variant="outline"
+                className="w-full sm:w-auto"
                 onClick={() => {
                   setRateInput(String(salaryStore.getHourlyRate()));
                   setShowSalarySettings(false);
                   setShowRateDialog(true);
                 }}
               >
-                <Edit2 className="w-4 h-4 mr-2" />
+                <Edit2 className="w-4 h-4" />
                 Edit Rate
               </Button>
             </DialogFooter>
@@ -1649,19 +1659,34 @@ export default function Staff() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name <span className="text-red-500">*</span></Label>
-              <Input
-                id="fullName"
-                type="text"
-                value={newStaff.fullName}
-                onChange={(e) =>
-                  setNewStaff({ ...newStaff, fullName: e.target.value })
-                }
-                placeholder="e.g. Maria Santos"
-                className="h-11 bg-white text-sm"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name <span className="text-red-500">*</span></Label>
+                <Input
+                  id="firstName"
+                  type="text"
+                  value={newStaff.firstName}
+                  onChange={(e) =>
+                    setNewStaff({ ...newStaff, firstName: e.target.value })
+                  }
+                  maxLength={50}
+                  placeholder="e.g. Maria"
+                  className="h-11 bg-white text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name <span className="text-red-500">*</span></Label>
+                <Input
+                  id="lastName"
+                  type="text"
+                  value={newStaff.lastName}
+                  onChange={(e) =>
+                    setNewStaff({ ...newStaff, lastName: e.target.value })
+                  }
+                  maxLength={50}
+                  placeholder="e.g. Santos"
+                  className="h-11 bg-white text-sm"
+                />
+              </div>
 
             <div className="space-y-2">
               <Label htmlFor="staffEmail">Email Address <span className="text-red-500">*</span></Label>
@@ -1764,11 +1789,12 @@ export default function Staff() {
               Cancel
             </Button>
             <Button
+              variant="primary"
               data-primary-action
-              className="h-11 w-full sm:w-auto bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
+              className="h-11 w-full sm:w-auto"
               onClick={() => setShowAddConfirm(true)}
             >
-              <UserPlus className="w-4 h-4 mr-2" />
+              <UserPlus className="w-4 h-4" />
               Create Staff Account
             </Button>
           </DialogFooter>
@@ -1915,8 +1941,9 @@ export default function Staff() {
               Cancel
             </Button>
             <Button
+              variant="primary"
               data-primary-action
-              className="h-11 w-full sm:w-auto bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
+              className="h-11 w-full sm:w-auto"
               disabled={
                 !editForm ||
                 (editForm.attendanceStatus === "on-leave" &&
@@ -1972,7 +1999,7 @@ export default function Staff() {
         onOpenChange={setShowAddConfirm}
         onConfirm={handleAddStaff}
         title="Create Staff Account?"
-        description={`${newStaff.fullName.trim() || "This staff member"} (${newStaff.email.trim() || "no email"}) can sign in with the password you set.`}
+        description={`${`${newStaff.firstName.trim()} ${newStaff.lastName.trim()}`.trim() || "This staff member"} (${newStaff.email.trim() || "no email"}) can sign in with the password you set.`}
         confirmLabel="Create Account"
         cancelLabel="Go Back"
         destructive={false}
@@ -2029,8 +2056,9 @@ export default function Staff() {
               Cancel
             </Button>
             <Button
+              variant="primary"
               data-primary-action
-              className="h-11 w-full sm:w-auto bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
+              className="h-11 w-full sm:w-auto"
               onClick={() => {
                 const rate = Number(rateInput);
                 if (Number.isNaN(rate) || rate < 0) {
@@ -2044,7 +2072,7 @@ export default function Staff() {
                 });
               }}
             >
-              <Wallet className="w-4 h-4 mr-2" />
+              <Wallet className="w-4 h-4" />
               Save Rate
             </Button>
           </DialogFooter>

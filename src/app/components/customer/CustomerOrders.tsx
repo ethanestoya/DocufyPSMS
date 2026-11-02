@@ -253,8 +253,9 @@ export default function CustomerOrders() {
                     {/* Clear */}
                     <div className="flex items-end">
                       <Button
+                        variant="outline"
                         onClick={clearFilters}
-                        className="bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white whitespace-nowrap"
+                        className="whitespace-nowrap"
                       >
                         <X className="w-4 h-4 mr-2" />
                         Clear

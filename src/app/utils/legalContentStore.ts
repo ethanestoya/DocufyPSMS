@@ -86,7 +86,7 @@ const defaults: LegalContent = {
     },
     {
       title: "7. PICKUP",
-      body: "Customers are responsible for claiming their completed orders within the pickup period communicated by Docufy.\nCustomers may be asked to provide their order number, name, or other account information when claiming an order.\nFor student accounts, Docufy may also request a valid student ID or other identification when necessary for verification.",
+      body: "Customers are responsible for claiming their completed orders within the pickup period communicated by Docufy.\nCustomers may be asked to provide their order number, name, or other account information when claiming an order.",
     },
     {
       title: "8. REPRINTS & PRINTING ISSUES",

@@ -161,13 +161,10 @@ export default function StaffProfile() {
       // before it counts. A failed upload never falls back to localStorage — the
       // chosen picture stays in the form so the user can retry, clearly surfaced.
       const pictureChanged = (profileImage ?? null) !== (user?.profileImage ?? null);
-      let pictureSynced = !pictureChanged;
+      let pictureError: string | null = null;
       if (pictureChanged) {
-        try {
-          pictureSynced = await updateProfileImage(profileImage ?? null);
-        } catch {
-          pictureSynced = false;
-        }
+        const result = await updateProfileImage(profileImage ?? null);
+        if (!result.ok) pictureError = result.message;
       }
 
       // Push text details to the signed-in user's OWN profiles row. The email is
@@ -176,25 +173,18 @@ export default function StaffProfile() {
         full_name: displayName,
         phone: formData.phone.trim() || null,
       };
-      let detailsSynced = false;
-      try {
-        detailsSynced = await syncProfileDetails(patch);
-      } catch {
-        detailsSynced = false;
-      }
+      const detailsResult = await syncProfileDetails(patch);
+      const detailsError = detailsResult.ok ? null : detailsResult.message;
 
       updateProfile({ name: displayName });
       setSaving(false);
 
-      const failures: string[] = [];
-      if (!detailsSynced) failures.push('saving your details to the server');
-      if (!pictureSynced) failures.push('uploading your profile picture');
-
-      if (failures.length > 0) {
-        toast.error(
-          `Your details were kept on this device, but ${failures.join(' and ')} failed. `
-          + 'Please try again — the form is still open.',
-        );
+      if (detailsError || pictureError) {
+        const problems = [
+          detailsError ? `Your details weren't saved — ${detailsError}` : null,
+          pictureError ? `Your photo wasn't saved — ${pictureError}` : null,
+        ].filter(Boolean).join(' ');
+        toast.error(`Your changes were kept on this device. ${problems}`);
         return;
       }
 

@@ -12,6 +12,7 @@ import {
   isSupabaseAvatarUrl,
 } from '../utils/supabaseAvatar';
 import { refreshAllStores } from '../utils/storeSync';
+import { getErrorDetail } from '../../lib/db/errors';
 import {
   checkEmailAllowed,
   isAllowedEmail,
@@ -57,6 +58,11 @@ export interface PasswordResetUpdateResult {
   code?: string;
 }
 
+// A profile save is two separate writes (text details, then the picture). Each
+// reports its own outcome so a page can name the half that failed and the real
+// reason, instead of one generic sentence blaming the whole save.
+export type ProfileSyncResult = { ok: true } | { ok: false; message: string };
+
 export interface AuthContextType {
   user: User | null;
   authLoading: boolean;
@@ -71,8 +77,8 @@ export interface AuthContextType {
   updateStaffAccount: (currentEmail: string, updates: { email?: string; name?: string; role?: 'staff' | 'admin'; active?: boolean }) => boolean;
   getStaffAccounts: () => { email: string; name: string; role: string; active?: boolean; isAdminRegistered?: boolean }[];
   updateProfile: (data: Partial<User> & { profileImage?: string | null }) => void;
-  updateProfileImage: (image: string | null) => Promise<boolean>;
-  syncProfileDetails: (patch: Database['public']['Tables']['profiles']['Update']) => Promise<boolean>;
+  updateProfileImage: (image: string | null) => Promise<ProfileSyncResult>;
+  syncProfileDetails: (patch: Database['public']['Tables']['profiles']['Update']) => Promise<ProfileSyncResult>;
   logout: () => void;
   resetPassword: (email: string, currentPassword: string, newPassword: string) => Promise<boolean>;
   resetForgottenPassword: (email: string, newPassword: string) => Promise<PasswordResetUpdateResult>;
@@ -649,33 +655,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  // Persist editable profile text fields (name, phone, student/employee id) to
-  // the signed-in user's OWN `profiles` row. Unlike the avatar, these are
-  // local-first: the profile pages already wrote the text to their per-account
-  // localStorage blob before calling this, so a failed push must be surfaced
-  // (return false) for the page to keep the editor open and let the user retry.
-  const syncProfileDetails = async (patch: Database['public']['Tables']['profiles']['Update']): Promise<boolean> => {
-    if (!patch || Object.keys(patch).length === 0) return true;
+  // Persist editable profile text fields (name, phone) to the signed-in user's
+  // OWN `profiles` row. The profile pages have already written the text to their
+  // per-account localStorage blob, so a refused push is reported by the page and
+  // the editor stays open for a retry.
+  const syncProfileDetails = async (
+    patch: Database['public']['Tables']['profiles']['Update'],
+  ): Promise<ProfileSyncResult> => {
+    if (!patch || Object.keys(patch).length === 0) return { ok: true };
     try {
       const { data: authData } = await supabase.auth.getUser();
       const authUserId = authData.user?.id;
-      if (!authUserId) return false;
-      const { error } = await supabase
+      if (!authUserId) return { ok: false, message: 'You are signed out — sign in again to save.' };
+      // `.select('id')` makes the row count visible: RLS refuses an UPDATE by
+      // returning zero rows with no error, which used to be indistinguishable
+      // from success.
+      const { data, error } = await supabase
         .from('profiles')
         .update(patch)
-        .eq('id', authUserId);
+        .eq('id', authUserId)
+        .select('id');
       if (error) {
-        console.warn('[db:profiles] profile details sync failed — changes stay local only:', error.message);
-        return false;
+        console.error('[db:profiles.update]', error);
+        return { ok: false, message: getErrorDetail(error) ?? 'The server rejected the update.' };
+      }
+      if (!data || data.length === 0) {
+        return { ok: false, message: "Your profile record couldn't be updated." };
       }
       const localSync: Partial<User> = {};
       if (typeof patch.full_name === 'string') localSync.name = patch.full_name;
       if (patch.phone !== undefined) localSync.phone = patch.phone ?? undefined;
       if (Object.keys(localSync).length > 0) updateProfile(localSync);
-      return true;
+      return { ok: true };
     } catch (err) {
-      console.warn('[db:profiles] profile details sync threw — changes stay local only:', err);
-      return false;
+      console.error('[db:profiles.update]', err);
+      return { ok: false, message: getErrorDetail(err) ?? 'The request never reached the server.' };
     }
   };
 
@@ -683,49 +697,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // - image (base64 data URL): uploads a new avatar and stores its public URL.
   // - image (already-public URL): no change, nothing to do.
   // - image === null: clears the stored avatar.
-  // Returns true when Supabase was updated; false when the picture could NOT be
-  // saved (no session, offline, or a storage error) — callers should surface the
-  // failure rather than treat the save as complete. Avatars are NEVER stored
-  // locally; Supabase is the only home for profile pictures.
-  const updateProfileImage = async (image: string | null): Promise<boolean> => {
-    if (!user) return false;
-    if ((image ?? null) === (user.profileImage ?? null)) return true;
+  // Both writes are checked: the storage upload AND the `profiles` row. The row
+  // write used to discard its error, so a rejected update still reported success.
+  // Avatars are NEVER stored locally; Supabase is their only home.
+  const updateProfileImage = async (image: string | null): Promise<ProfileSyncResult> => {
+    if (!user) return { ok: false, message: 'You are signed out — sign in again to save.' };
+    if ((image ?? null) === (user.profileImage ?? null)) return { ok: true };
     try {
       const { data: authData } = await supabase.auth.getUser();
       const authUserId = authData.user?.id;
-      if (!authUserId) return false;
+      if (!authUserId) return { ok: false, message: 'You are signed out — sign in again to save.' };
 
       if (image && !isDataUrl(image)) {
         // Already a persisted URL (unchanged picture) — nothing to upload.
-        return true;
+        return { ok: true };
       }
 
       const previous = user.profileImage;
-      if (image) {
-        const path = await uploadAvatar(authUserId, image);
-        const url = getAvatarPublicUrl(path);
-        await supabase
-          .from('profiles')
-          .update({ profile_image_path: url })
-          .eq('id', authUserId);
-        updateProfile({ profileImage: url });
-        if (previous && previous !== url && isSupabaseAvatarUrl(previous)) {
-          void deleteAvatar(previous);
-        }
-      } else {
-        await supabase
-          .from('profiles')
-          .update({ profile_image_path: null })
-          .eq('id', authUserId);
-        updateProfile({ profileImage: undefined });
-        if (previous && isSupabaseAvatarUrl(previous)) {
-          void deleteAvatar(previous);
-        }
+      const url = image ? getAvatarPublicUrl(await uploadAvatar(authUserId, image)) : null;
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ profile_image_path: url })
+        .eq('id', authUserId)
+        .select('id');
+      if (error) {
+        console.error('[db:profiles.avatar]', error);
+        if (url) void deleteAvatar(url); // don't leave an orphan object behind
+        return { ok: false, message: getErrorDetail(error) ?? 'The server rejected the photo.' };
       }
-      return true;
+      if (!data || data.length === 0) {
+        if (url) void deleteAvatar(url);
+        return { ok: false, message: "Your profile record couldn't be updated." };
+      }
+
+      updateProfile({ profileImage: url ?? undefined });
+      if (previous && previous !== url && isSupabaseAvatarUrl(previous)) {
+        void deleteAvatar(previous);
+      }
+      return { ok: true };
     } catch (err) {
-      console.warn('Supabase avatar persistence failed — picture NOT saved:', err);
-      return false;
+      console.error('[db:profiles.avatar]', err);
+      return { ok: false, message: getErrorDetail(err) ?? "The photo couldn't be uploaded." };
     }
   };
 

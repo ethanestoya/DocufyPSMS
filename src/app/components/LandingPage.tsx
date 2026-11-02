@@ -391,7 +391,7 @@ export default function LandingPage({
               <Button
                 variant="outline"
                 onClick={() => navigate("/login")}
-                className="h-9 rounded-lg border-[1.5px] border-[#1668D9] bg-white px-3 text-xs font-medium text-[#1668D9] transition-colors duration-200 hover:translate-y-0 hover:border-[#1668D9] hover:bg-[#1668D9]/5 hover:text-[#1668D9] hover:shadow-none active:translate-y-0 active:border-[#1668D9]/70 active:bg-[#1668D9]/10 sm:h-10 sm:px-4 sm:text-sm"
+                className="h-9 rounded-lg px-3 text-xs sm:h-10 sm:px-4 sm:text-sm"
               >
                 Log In
               </Button>
@@ -512,8 +512,9 @@ export default function LandingPage({
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <Button
+                  variant="primary"
                   size="lg"
-                  className="bg-[#1668D9] text-white hover:bg-[#0f66d9] rounded-lg transition-all duration-200 active:scale-[0.98] active:shadow-sm shadow-md shadow-[#1668D9]/30 hover:shadow-lg hover:shadow-[#1668D9]/35 group"
+                  className="group rounded-lg"
                   onClick={() => navigate("/signup")}
                 >
                   Get Started
@@ -853,9 +854,10 @@ export default function LandingPage({
 <div className="relative mt-8" ref={jobsDropdownRef}>
               <Button
                 type="button"
+                variant="primary"
                 onClick={() => setJobsDropdownOpen((prev) => !prev)}
                 aria-expanded={jobsDropdownOpen}
-                className="h-12 rounded-lg bg-[#1668D9] px-7 text-white shadow-md shadow-[#1668D9]/30 transition-all duration-200 hover:bg-[#0f66d9] hover:shadow-lg hover:shadow-[#1668D9]/35 active:scale-[0.98] active:shadow-sm"
+                className="h-12 rounded-lg px-7"
               >
                 {jobs.length > 0 ? "View Job Openings" : "Join Our Team"}
                 <ChevronDown

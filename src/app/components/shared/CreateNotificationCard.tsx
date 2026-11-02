@@ -62,10 +62,11 @@ export default function CreateNotificationCard() {
     <>
       <Button
         type="button"
+        variant="primary"
         onClick={() => setCreateOpen(true)}
-        className="h-10 bg-[#1668D9] text-white border-2 border-[#1668D9] hover:bg-[#10316B] hover:border-[#10316B] shadow-md px-4 text-sm font-semibold"
+        className="h-10"
       >
-        <Plus className="w-4 h-4 mr-1.5" />
+        <Plus className="w-4 h-4" />
         Create Announcement
       </Button>
 
@@ -139,28 +140,23 @@ export default function CreateNotificationCard() {
           </div>
           <DialogFooter className="gap-2">
             <Button
-              variant="outline"
-              className="h-11 w-full bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-900 sm:w-auto"
+              variant="ghost"
+              className="h-11 w-full sm:w-auto"
               onClick={() => setCreateOpen(false)}
             >
               Cancel
             </Button>
             <Button
-              className={`h-11 w-full sm:w-auto ${
-                priority === "emergency"
-                  ? "bg-red-600 hover:bg-red-700"
-                  : priority === "important"
-                    ? "bg-amber-500 hover:bg-amber-600"
-                    : "bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
-              }`}
+              variant={priority === "emergency" ? "destructive" : "primary"}
+              className="h-11 w-full sm:w-auto"
               onClick={() => setShowSendConfirm(true)}
             >
               {priority === "emergency" ? (
-                <AlertOctagon className="w-4 h-4 mr-2" />
+                <AlertOctagon className="w-4 h-4" />
               ) : priority === "important" ? (
-                <AlertTriangle className="w-4 h-4 mr-2" />
+                <AlertTriangle className="w-4 h-4" />
               ) : (
-                <Megaphone className="w-4 h-4 mr-2" />
+                <Megaphone className="w-4 h-4" />
               )}
               Send {ANNOUNCEMENT_PRIORITY_LABELS[priority]} Announcement
             </Button>

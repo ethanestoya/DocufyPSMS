@@ -210,9 +210,9 @@ export function AttendanceHistoryModal({
 
           <div className="mt-5 flex justify-end">
             <Button
-              variant="outline"
+              variant="primary"
               onClick={() => onOpenChange(false)}
-              className="h-9 rounded-lg px-4 text-xs font-semibold text-[#14213D] hover:bg-[#1677F2]/5 hover:text-[#14213D] hover:border-[#1677F2]/60"
+              className="h-9 rounded-lg px-4 text-xs font-semibold"
             >
               Done
             </Button>

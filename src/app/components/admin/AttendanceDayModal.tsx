@@ -240,51 +240,43 @@ export function AttendanceDayModal({ row, open, onOpenChange }: AttendanceDayMod
               <div className="mt-2 grid grid-cols-2 gap-2.5">
                 <Button
                   variant="outline"
-                  className="h-10 justify-start gap-2 rounded-lg px-3 text-[13px] font-semibold text-[#14213D] hover:bg-[#1677F2]/5 hover:text-[#14213D] hover:border-[#1677F2]/60"
+                  className="h-10 justify-start gap-2 rounded-lg px-3 text-[13px] font-semibold"
                   onClick={() => openAdjust(row, "timeIn")}
                 >
-                  <Pencil className="h-4 w-4 text-[#1677F2]" />
+                  <Pencil className="h-4 w-4" />
                   Adjust Clock-In
                 </Button>
                 <Button
                   variant="outline"
-                  className="h-10 justify-start gap-2 rounded-lg px-3 text-[13px] font-semibold text-[#14213D] hover:bg-[#1677F2]/5 hover:text-[#14213D] hover:border-[#1677F2]/60"
+                  className="h-10 justify-start gap-2 rounded-lg px-3 text-[13px] font-semibold"
                   onClick={() => openAdjust(row, "timeOut")}
                 >
-                  <Clock className="h-4 w-4 text-[#1677F2]" />
+                  <Clock className="h-4 w-4" />
                   Adjust Clock-Out
                 </Button>
                 <Button
-                  variant="outline"
-                  className={`h-10 justify-start gap-2 rounded-lg px-3 text-[13px] font-semibold text-[#14213D] hover:bg-[#1677F2]/5 hover:text-[#14213D] hover:border-[#1677F2]/60 ${
-                    row.absence === "on-leave"
-                      ? "border-amber-300 text-amber-600 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700"
-                      : ""
-                  }`}
+                  variant={row.absence === "on-leave" ? "ghost" : "outline"}
+                  className="h-10 justify-start gap-2 rounded-lg px-3 text-[13px] font-semibold"
                   onClick={() => setAbsenceTarget({ row, type: "on-leave" })}
                 >
-                  <PlaneTakeoff className={`h-4 w-4 ${row.absence === "on-leave" ? "text-amber-500" : "text-[#1677F2]"}`} />
+                  <PlaneTakeoff className="h-4 w-4" />
                   {row.absence === "on-leave" ? "Clear On Leave" : "Mark On Leave"}
                 </Button>
                 <Button
-                  variant="outline"
-                  className={`h-10 justify-start gap-2 rounded-lg px-3 text-[13px] font-semibold text-[#14213D] hover:bg-[#1677F2]/5 hover:text-[#14213D] hover:border-[#1677F2]/60 ${
-                    row.absence === "absent"
-                      ? "border-red-300 text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
-                      : ""
-                  }`}
+                  variant={row.absence === "absent" ? "ghost" : "destructive-outline"}
+                  className="h-10 justify-start gap-2 rounded-lg px-3 text-[13px] font-semibold"
                   onClick={() => setAbsenceTarget({ row, type: "absent" })}
                 >
-                  <UserX className={`h-4 w-4 ${row.absence === "absent" ? "text-red-500" : "text-[#1677F2]"}`} />
+                  <UserX className="h-4 w-4" />
                   {row.absence === "absent" ? "Clear Absent" : "Mark Absent"}
                 </Button>
               </div>
               <Button
-                variant="outline"
-                className="mt-2.5 h-10 w-full justify-start gap-2 rounded-lg px-3 text-[13px] font-semibold text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700 border-red-200 bg-red-50/50"
+                variant="destructive-outline"
+                className="mt-2.5 h-10 w-full justify-start gap-2 rounded-lg px-3 text-[13px] font-semibold"
                 onClick={() => setResetTarget(row)}
               >
-                <Trash2 className="h-4 w-4 text-red-500" />
+                <Trash2 className="h-4 w-4" />
                 Reset Day's Record
               </Button>
             </div>
@@ -323,7 +315,7 @@ export function AttendanceDayModal({ row, open, onOpenChange }: AttendanceDayMod
             <Button variant="outline" onClick={() => setAdjust(null)}>
               Cancel
             </Button>
-            <Button data-primary-action className="bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white" onClick={() => setShowSaveAdjustConfirm(true)}>
+            <Button variant="primary" data-primary-action onClick={() => setShowSaveAdjustConfirm(true)}>
               Save Changes
             </Button>
           </DialogFooter>

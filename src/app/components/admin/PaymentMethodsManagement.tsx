@@ -189,10 +189,11 @@ export default function PaymentMethodsManagement() {
             Changes apply to the customer side immediately.
           </p>
           <Button
-            className="h-11 sm:h-10 w-full sm:w-auto bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
+            variant="primary"
+            className="h-11 w-full sm:h-10 sm:w-auto"
             onClick={openAdd}
           >
-            <Plus className="w-4 h-4 mr-2" />
+            <Plus className="w-4 h-4" />
             Add Payment Method
           </Button>
         </div>
@@ -279,11 +280,10 @@ export default function PaymentMethodsManagement() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-[#2F6FD6] border-[#2F6FD6]/40 hover:bg-[#F2F7FF] h-8"
                     onClick={() => downloadQRCode(method.qrCode, methodQRFilename(method))}
                     disabled={!method.qrCode}
                   >
-                    <Download className="w-3.5 h-3.5 mr-1" />
+                    <Download className="w-3.5 h-3.5" />
                     Download QR
                   </Button>
                   <div className="flex items-center gap-1">
@@ -291,31 +291,30 @@ export default function PaymentMethodsManagement() {
                       variant="ghost"
                       size="icon"
                       title="Edit payment method"
+                      className="text-slate-400"
                       onClick={() => openEdit(method)}
                     >
-                      <Edit2 className="w-4 h-4 text-[#2F6FD6]" />
+                      <Edit2 className="w-4 h-4" />
                     </Button>
                     <Button
-                      variant="ghost"
+                      variant={method.active ? "destructive-outline" : "primary"}
                       size="icon"
                       title={method.active ? "Deactivate" : "Activate"}
-                      className={method.active ? "group bg-red-50 hover:bg-red-500 text-red-500 hover:text-white transition-all" : "hover:bg-green-50"}
                       onClick={() => setToggleMethod(method)}
                     >
                       {method.active ? (
-                        <Ban className="w-4 h-4 text-red-500 group-hover:text-white" />
+                        <Ban className="w-4 h-4" />
                       ) : (
-                        <UserCheck className="w-4 h-4 text-green-600" />
+                        <UserCheck className="w-4 h-4" />
                       )}
                     </Button>
                     <Button
-                      variant="ghost"
+                      variant="destructive-outline"
                       size="icon"
                       title="Delete payment method"
-                      className="group bg-red-50 hover:bg-red-500 text-red-500 hover:text-white transition-all"
                       onClick={() => setDeleting(method)}
                     >
-                      <Trash2 className="w-4 h-4 text-red-500 group-hover:text-white" />
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
@@ -412,11 +411,11 @@ export default function PaymentMethodsManagement() {
                     </p>
                   </div>
                   <Button
-                    variant="ghost"
+                    variant="destructive-outline"
                     size="icon"
+                    className="h-7 w-7"
                     title="Remove QR"
-                   className="text-red-500 hover:bg-red-500 hover:text-white rounded p-0.5 transition-all"
-                   onClick={() => setForm({ ...form, qrCode: undefined })}
+                    onClick={() => setForm({ ...form, qrCode: undefined })}
                   >
                     <X className="w-4 h-4" />
                   </Button>
@@ -458,17 +457,18 @@ export default function PaymentMethodsManagement() {
               Cancel
             </Button>
             <Button
+              variant="primary"
               data-primary-action
-              className="h-11 w-full sm:w-auto bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
+              className="h-11 w-full sm:w-auto"
               onClick={() => setShowSaveConfirm(true)}
             >
               {editingId ? (
                 <>
-                  <Edit2 className="w-4 h-4 mr-2" /> Save Changes
+                  <Edit2 className="w-4 h-4" /> Save Changes
                 </>
               ) : (
                 <>
-                  <Plus className="w-4 h-4 mr-2" /> Add Payment Method
+                  <Plus className="w-4 h-4" /> Add Payment Method
                 </>
               )}
             </Button>

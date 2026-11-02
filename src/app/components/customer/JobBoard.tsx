@@ -8,10 +8,10 @@ import {
   MapPin,
   Package,
   Calendar,
+  CalendarClock,
+  Banknote,
   Info,
   User,
-  Mail,
-  Phone,
   Link2,
   MessageSquare,
   ChevronDown,
@@ -25,6 +25,7 @@ import Layout from '../Layout';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+import { PersonAvatar } from '../ui/person-avatar';
 import {
   Dialog,
   DialogContent,
@@ -40,8 +41,10 @@ import {
 } from '../../utils/applicationsStore';
 import { CardSkeleton } from '../ui/card-skeleton';
 import { useHydrating } from '../../utils/useHydrating';
-import { jobsStore } from '../../utils/jobsStore';
-import { formatPHDate } from '../../utils/pht';
+import { jobsStore, type JobType } from '../../utils/jobsStore';
+import { applicationStatusStyle } from '../../utils/applicationStatus';
+import { landingContentStore } from '../../utils/landingContentStore';
+import { formatClockTime, formatPHDate } from '../../utils/pht';
 
 const menuItems = [
   { label: 'Dashboard', path: '/customer/dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
@@ -50,24 +53,25 @@ const menuItems = [
   { label: 'Job Board', path: '/customer/job-board', icon: <Briefcase className="w-5 h-5" /> },
 ];
 
-const STATUS_COLORS: Record<string, string> = {
-  Pending: 'bg-gray-100 text-gray-700 border-gray-200',
-  'Under Review': 'bg-white border-2 border-blue-200 text-blue-700 border-blue-200',
-  'For Interview': 'bg-blue-50 text-blue-700 border-blue-200',
-  Approved: 'bg-white border-2 border-blue-200 text-blue-700 border-blue-200',
-  Rejected: 'bg-white border-2 border-blue-200 text-red-500 border-blue-200',
-};
+// `appliedDateTime` holds "YYYY-MM-DD h:mm AM/PM"; the date half is re-rendered
+// in the reader's locale, so only the time is reused from it.
+function appliedTime(value: string): string {
+  return value.length > 11 ? value.slice(11).trim() : "";
+}
 
 export default function JobBoard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const hydrating = useHydrating();
   const [tab, setTab] = useState<'listings' | 'applications'>('listings');
-  const [jobs, setJobs] = useState<any[]>([]);
+  const [jobs, setJobs] = useState<JobType[]>([]);
   const [applications, setApplications] = useState<ApplicationType[]>([]);
   const [selectedApp, setSelectedApp] = useState<ApplicationType | null>(null);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [shopAddress, setShopAddress] = useState(() =>
+    landingContentStore.getContent().locationLines.filter(Boolean).join(', '),
+  );
 
   useEffect(() => {
     // Load active jobs from centralized store (exclude archived jobs)
@@ -82,9 +86,15 @@ export default function JobBoard() {
       setApplications(applicationsStore.getApplications());
     });
 
+    // The shop address is admin-editable, so it must not be typed into this page.
+    const unsubContent = landingContentStore.subscribe(() => {
+      setShopAddress(landingContentStore.getContent().locationLines.filter(Boolean).join(', '));
+    });
+
     return () => {
       unsubJobs();
       unsubApps();
+      unsubContent();
     };
   }, []);
 
@@ -143,7 +153,7 @@ export default function JobBoard() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div>
             <p className="text-sm text-gray-500 sm:text-base">
-              Browse opportunities at Docufy PSMS · Room 4, TBI Building, Palawan State University
+              Browse opportunities at Docufy PSMS{shopAddress ? ` Â· ${shopAddress}` : ""}
             </p>
           </div>
           <div className="flex w-full flex-row gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-2">
@@ -213,14 +223,14 @@ export default function JobBoard() {
                               </Badge>
                               {job.department && (
                                 <>
-                                  <span className="text-xs text-gray-500">·</span>
+                                  <span className="text-xs text-gray-500">Â·</span>
                                   <span className="text-xs text-gray-500">{job.department}</span>
                                 </>
                               )}
-                              <span className="text-xs text-gray-500">·</span>
+                              <span className="text-xs text-gray-500">Â·</span>
                               <span className="text-xs text-gray-500">Posted {job.posted}</span>
                               {application && (
-                                <Badge className={`text-xs border ${STATUS_COLORS[application.status]}`}>
+                                <Badge className={`text-xs border ${applicationStatusStyle(application.status).badge}`}>
                                   {application.status}
                                 </Badge>
                               )}
@@ -230,6 +240,7 @@ export default function JobBoard() {
                           <div className="order-3 flex w-full flex-col gap-2 sm:order-2 sm:w-auto sm:flex-row sm:items-center">
                             <button
                               onClick={() => setExpandedJobId(isExpanded ? null : job.id)}
+                              aria-expanded={isExpanded}
                               className="flex items-center justify-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50"
                             >
                               {isExpanded ? (
@@ -238,25 +249,27 @@ export default function JobBoard() {
                                 <><ChevronDown className="h-3.5 w-3.5" /> Details</>
                               )}
                             </button>
-                            {application && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled
-                                className="w-full text-xs sm:w-auto"
-                              >
-                                Applied
-                              </Button>
-                            )}
                           </div>
 
-                          <div className="order-2 flex flex-col gap-2 text-xs text-gray-500 sm:order-3 sm:basis-full sm:flex-row sm:items-center sm:gap-5">
+                          <div className="order-2 flex flex-col gap-2 text-xs text-gray-500 sm:order-3 sm:basis-full sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5 sm:gap-y-2">
+                            {job.salary && (
+                              <span className="flex items-center gap-1.5">
+                                <Banknote className="h-3.5 w-3.5" /> {job.salary}
+                              </span>
+                            )}
+                            {job.schedule && (
+                              <span className="flex items-center gap-1.5">
+                                <CalendarClock className="h-3.5 w-3.5" /> {job.schedule}
+                              </span>
+                            )}
                             <span className="flex items-center gap-1.5">
-                              <Clock className="h-3.5 w-3.5" /> {job.duration}
+                              <MapPin className="h-3.5 w-3.5" /> {job.location || shopAddress || "Ask at the shop"}
                             </span>
-                            <span className="flex items-center gap-1.5">
-                              <MapPin className="h-3.5 w-3.5" /> Room 4, PSU Main Campus, TBI Building
-                            </span>
+                            {job.duration && (
+                              <span className="flex items-center gap-1.5">
+                                <Clock className="h-3.5 w-3.5" /> {job.duration}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -267,12 +280,46 @@ export default function JobBoard() {
                     className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
                   >
                     <div className="min-h-0 overflow-hidden">
-                      <div className="border-t border-gray-100 bg-gray-50/50 px-4 pt-2 pb-4 sm:px-6 sm:pt-2 sm:pb-5">
+                      <div className="border-t border-gray-100 bg-gray-50/50 px-4 pt-3 pb-4 sm:px-6 sm:pt-4 sm:pb-5">
                         <p className="text-sm leading-relaxed text-gray-700">{job.description}</p>
+
+                        {job.responsibilities && job.responsibilities.length > 0 && (
+                          <div className="mt-4">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                              What you'll be doing
+                            </p>
+                            <ul className="mt-2 space-y-1.5">
+                              {job.responsibilities.map((item, idx) => (
+                                <li key={idx} className="flex gap-2 text-sm text-gray-700 leading-relaxed">
+                                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#1668D9]" />
+                                  <span>{item}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {job.requirements && job.requirements.length > 0 && (
+                          <div className="mt-4">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                              What we're looking for
+                            </p>
+                            <ul className="mt-2 space-y-1.5">
+                              {job.requirements.map((item, idx) => (
+                                <li key={idx} className="flex gap-2 text-sm text-gray-700 leading-relaxed">
+                                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#1668D9]" />
+                                  <span>{item}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
                         {!application && (
                           <div className="mt-4">
                             <Button
-                              className="w-full h-11 text-sm bg-[#1668D9] text-white border-2 border-[#1668D9] hover:bg-[#10316B] sm:w-auto"
+                              variant="primary"
+                              className="w-full h-11 text-sm sm:w-auto"
                               onClick={() => navigate(`/customer/job-apply/${job.id}`)}
                             >
                               Apply for this Position
@@ -300,9 +347,10 @@ export default function JobBoard() {
                   <Briefcase className="w-8 h-8 text-gray-300" />
                 </div>
                 <p className="font-semibold text-gray-500 text-lg">No applications yet</p>
-                <p className="text-smm text-gray-500 mt-1">Browse job listings and apply to get started.</p>
+                <p className="text-sm text-gray-500 mt-1">Browse job listings and apply to get started.</p>
                 <Button
-                  className="mt-6 w-fit mx-auto bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white px-3"
+                  variant="outline"
+                  className="mt-6 w-fit mx-auto px-3"
                   onClick={() => setTab('listings')}
                 >
                   Browse Listings
@@ -324,9 +372,10 @@ export default function JobBoard() {
                             <h3 className="text-base font-bold text-[#1c1f26] sm:text-lg">{app.jobTitle}</h3>
                             <p className="mt-0.5 text-sm text-gray-500">
                               Applied on {formatPHDate(app.appliedDate, "long")}
+                              {appliedTime(app.appliedDateTime) ? ` Â· ${appliedTime(app.appliedDateTime)}` : ""}
                             </p>
                             <div className="mt-2 flex flex-wrap items-center gap-2">
-                              <Badge className={`text-xs border ${STATUS_COLORS[app.status]}`}>
+                              <Badge className={`text-xs border ${applicationStatusStyle(app.status).badge}`}>
                                 {app.status}
                               </Badge>
                               <span className="text-xs text-gray-500">{applicationDisplayId(app.id)}</span>
@@ -337,7 +386,7 @@ export default function JobBoard() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="w-full border-[#1668D9] text-xs text-[#1668D9] hover:bg-[#1668D9] hover:text-white sm:w-auto"
+                          className="w-full text-xs sm:w-auto"
                           onClick={() => setSelectedApp(app)}
                         >
                           <Eye className="mr-1.5 h-3.5 w-3.5" />
@@ -359,7 +408,7 @@ export default function JobBoard() {
                             </div>
                             <div>
                               <span className="font-medium">Time: </span>
-                              {app.interviewTime}
+                              {formatClockTime(app.interviewTime)}
                             </div>
                             <div className="col-span-2">
                               <span className="font-medium">Location: </span>
@@ -370,25 +419,25 @@ export default function JobBoard() {
                       )}
 
                       {app.status === 'Under Review' && (
-                        <div className="mt-4 p-4 bg-white border-2 border-blue-200 border border-blue-200 rounded-xl flex items-start gap-3">
-                          <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                          <p className="text-sm text-blue-900">
+                        <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+                          <Info className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                          <p className="text-sm text-amber-900">
                             Your application is currently being reviewed by our team. We'll notify you of any updates soon.
                           </p>
                         </div>
                       )}
 
                       {app.status === 'Approved' && (
-                        <div className="mt-4 p-4 bg-white border-2 border-blue-200 border border-blue-200 rounded-xl flex items-start gap-3">
-                          <CheckCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                          <p className="text-sm text-blue-900 font-medium">
+                        <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3">
+                          <CheckCircle className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                          <p className="text-sm text-emerald-900 font-medium">
                             Congratulations! Your application has been approved. We'll contact you soon with next steps.
                           </p>
                         </div>
                       )}
 
                       {app.status === 'Rejected' && (
-                        <div className="mt-4 p-4 bg-white border-2 border-blue-200 border border-blue-200 rounded-xl">
+                        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
                           <p className="text-sm text-red-900">
                             We appreciate your interest. Unfortunately, we've decided to move forward with other candidates at this time.
                           </p>
@@ -410,10 +459,10 @@ export default function JobBoard() {
             <div>
               <h3 className="mb-2 font-semibold text-[#10316B]">Why Work With Docufy?</h3>
               <ul className="space-y-1 text-sm text-gray-700">
-                <li>• Flexible schedules perfect for students</li>
-                <li>• Gain valuable work experience in printing & admin</li>
-                <li>• Competitive compensation</li>
-                <li>• Supportive team environment at Palawan State University</li>
+                <li>â€¢ Flexible schedules perfect for students</li>
+                <li>â€¢ Gain valuable work experience in printing & admin</li>
+                <li>â€¢ Competitive compensation</li>
+                <li>â€¢ Supportive team environment at Palawan State University</li>
               </ul>
             </div>
           </div>
@@ -436,15 +485,22 @@ export default function JobBoard() {
           {selectedApp && (
             <div className="space-y-5 pt-2">
 
-              {/* Status + ID Row */}
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
-                <div>
-                  <p className="text-xs text-gray-500 font-medium">Application ID</p>
-                  <p className="font-bold text-gray-900 font-mono">{applicationDisplayId(selectedApp.id)}</p>
+              {/* Applicant + status */}
+              <div className="flex items-start justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <PersonAvatar
+                    name={selectedApp.name}
+                    src={selectedApp.applicantProfileImage}
+                    className="h-12 w-12 text-sm"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-gray-900">{selectedApp.name}</p>
+                    <p className="font-mono text-xs text-gray-500">{applicationDisplayId(selectedApp.id)}</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs text-gray-500 font-medium mb-1">Status</p>
-                  <Badge className={`text-sm border ${STATUS_COLORS[selectedApp.status]}`}>
+                <div className="shrink-0 text-right">
+                  <p className="mb-1 text-xs font-medium text-gray-500">Status</p>
+                  <Badge className={`border text-sm ${applicationStatusStyle(selectedApp.status).badge}`}>
                     {selectedApp.status}
                   </Badge>
                 </div>
@@ -484,6 +540,7 @@ export default function JobBoard() {
                   <p className="font-bold text-[#1668D9] text-base">{selectedApp.position}</p>
                   <p className="text-xs text-gray-500 mt-0.5">
                     Submitted on {formatPHDate(selectedApp.appliedDate, "long")}
+                    {appliedTime(selectedApp.appliedDateTime) ? ` Â· ${appliedTime(selectedApp.appliedDateTime)}` : ""}
                   </p>
                 </div>
               </div>
@@ -568,7 +625,7 @@ export default function JobBoard() {
                     </div>
                     <div>
                       <p className="text-xs text-blue-600 mb-0.5">Time</p>
-                      <p className="font-semibold">{selectedApp.interviewTime}</p>
+                      <p className="font-semibold">{formatClockTime(selectedApp.interviewTime)}</p>
                     </div>
                     <div className="col-span-2">
                       <p className="text-xs text-blue-600 mb-0.5">Location</p>
@@ -615,17 +672,18 @@ export default function JobBoard() {
               </div>
               <DialogTitle className="text-2xl">Application Submitted!</DialogTitle>
               <DialogDescription className="text-base">
-                Your application has been successfully submitted. Our team will review your application and contact you within 3–5 business days.
+                Your application has been successfully submitted. Our team will review your application and contact you within 3â€“5 business days.
               </DialogDescription>
             </div>
           </DialogHeader>
           <div className="flex flex-col gap-2 mt-4">
             <Button
+              variant="primary"
               onClick={() => {
                 setShowSuccessDialog(false);
                 setTab('applications');
               }}
-              className="w-full bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
+              className="w-full"
             >
               View My Applications
             </Button>

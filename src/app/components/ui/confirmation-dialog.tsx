@@ -203,18 +203,16 @@ export function ConfirmationDialog({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={busy}
-                className="bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200 hover:text-gray-900"
               >
                 {cancelLabel}
               </Button>
             )}
             <Button
               type="submit"
-              variant={destructive ? "destructive" : "default"}
+              variant={destructive ? "destructive" : "primary"}
               disabled={!canConfirm || busy}
               loading={busy}
               loadingText={loadingText ?? confirmLabel}
-              className={destructive ? "bg-red-600 hover:bg-red-700" : "bg-[#2F6FD6] text-white hover:bg-[#2557b8]"}
             >
               {confirmLabel}
             </Button>

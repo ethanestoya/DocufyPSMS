@@ -118,13 +118,10 @@ export default function AdminProfile() {
       // before it counts. A failed upload never falls back to localStorage — the
       // chosen picture stays in the form so the user can retry, clearly surfaced.
       const pictureChanged = (profileImage ?? null) !== (user?.profileImage ?? null);
-      let pictureSynced = !pictureChanged;
+      let pictureError: string | null = null;
       if (pictureChanged) {
-        try {
-          pictureSynced = await updateProfileImage(profileImage ?? null);
-        } catch {
-          pictureSynced = false;
-        }
+        const result = await updateProfileImage(profileImage ?? null);
+        if (!result.ok) pictureError = result.message;
       }
 
       // Push text details to the signed-in user's OWN profiles row. The email is
@@ -133,25 +130,18 @@ export default function AdminProfile() {
         full_name: displayName,
         phone: sanitizedPhone.trim() || null,
       };
-      let detailsSynced = false;
-      try {
-        detailsSynced = await syncProfileDetails(patch);
-      } catch {
-        detailsSynced = false;
-      }
+      const detailsResult = await syncProfileDetails(patch);
+      const detailsError = detailsResult.ok ? null : detailsResult.message;
 
       updateProfile({ name: displayName, phone: sanitizedPhone.trim() || undefined });
       setSaving(false);
 
-      const failures: string[] = [];
-      if (!detailsSynced) failures.push('saving your details to the server');
-      if (!pictureSynced) failures.push('uploading your profile picture');
-
-      if (failures.length > 0) {
-        toast.error(
-          `Your details were kept on this device, but ${failures.join(' and ')} failed. `
-          + 'Please try again — the form is still open.',
-        );
+      if (detailsError || pictureError) {
+        const problems = [
+          detailsError ? `Your details weren't saved — ${detailsError}` : null,
+          pictureError ? `Your photo wasn't saved — ${pictureError}` : null,
+        ].filter(Boolean).join(' ');
+        toast.error(`Your changes were kept on this device. ${problems}`);
         return;
       }
 
@@ -217,8 +207,8 @@ export default function AdminProfile() {
               <h2 className="text-3xl font-bold text-gray-900 mb-2">Administrator Profile</h2>
               <p className="text-gray-600">Manage your admin account and system settings</p>
             </div>
-            <Button variant="outline" className="hidden md:inline-flex bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-900" onClick={() => navigate('/admin/dashboard')}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
+            <Button variant="ghost" className="hidden md:inline-flex" onClick={() => navigate('/admin/dashboard')}>
+              <ArrowLeft className="w-4 h-4" />
               Back
             </Button>
           </div>
@@ -246,7 +236,7 @@ export default function AdminProfile() {
                   </label>
                 )}
                 {isEditing && profileImage && (
-                  <button type="button" onClick={() => setProfileImage(null)} className="absolute -bottom-9 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-medium text-red-600 hover:underline">Remove photo</button>
+                  <Button type="button" variant="link" size="sm" onClick={() => setProfileImage(null)} className="absolute -bottom-9 left-1/2 h-auto -translate-x-1/2 whitespace-nowrap px-0 text-xs text-red-600 hover:text-red-700">Remove photo</Button>
                 )}
               </div>
               {!isEditing && profileImage && isDataUrl(profileImage) && (
@@ -270,10 +260,10 @@ export default function AdminProfile() {
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <Button
+                    variant={isEditing ? "primary" : "outline"}
                     onClick={() => isEditing ? handleSave() : setIsEditing(true)}
                     loading={saving && isEditing}
                     loadingText="Saving..."
-                    className="bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
                   >
                     {!saving || !isEditing ? <Save className="w-4 h-4 mr-2" /> : null}
                     {isEditing ? 'Save Changes' : 'Edit Profile'}
@@ -402,16 +392,16 @@ export default function AdminProfile() {
           <h3 className="text-xl font-bold text-gray-900 mb-4">Security Settings</h3>
           <div className="space-y-4">
             <Button
-              variant="outline"
+              variant="primary"
               onClick={() => setShowChangePasswordDialog(true)}
-              className="w-full md:w-auto border-[#2F6FD6] text-[#2F6FD6] hover:bg-[#2F6FD6] hover:text-white"
+              className="w-full md:w-auto"
             >
               <Key className="w-4 h-4 mr-2" />
               Change Password
             </Button>
           </div>
         </Card>
-        <Button variant="outline" onClick={() => setShowLogoutConfirm(true)} className="w-full border-red-600 bg-red-600 text-white hover:bg-red-700">Sign Out</Button>
+        <Button variant="destructive" onClick={() => setShowLogoutConfirm(true)} className="w-full">Sign Out</Button>
       </div>
 
       {/* Change Password Dialog */}
@@ -519,14 +509,10 @@ export default function AdminProfile() {
               Cancel
             </Button>
             <Button
+              variant="primary"
               data-primary-action
               onClick={handleChangePassword}
               disabled={!validatePassword(passwordData.newPassword).isValid || (passwordData.currentPassword === passwordData.newPassword && passwordData.currentPassword !== '')}
-              className={`${
-                validatePassword(passwordData.newPassword).isValid && !(passwordData.currentPassword === passwordData.newPassword && passwordData.currentPassword !== '')
-                  ? "bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white"
-                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
-              }`}
             >
               Change Password
             </Button>
@@ -546,7 +532,7 @@ export default function AdminProfile() {
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button onClick={() => setShowSuccessDialog(false)} className="bg-white text-[#1668D9] border-2 border-blue-200 hover:bg-[#1668D9] hover:text-white">
+              <Button variant="outline" onClick={() => setShowSuccessDialog(false)}>
                 OK
               </Button>
             </DialogFooter>

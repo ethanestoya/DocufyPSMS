@@ -91,8 +91,6 @@ export async function saveJob(input: SaveJobInput): Promise<JobDto> {
   return toDto(data);
 }
 
-// Flip a job's lifecycle status (active ⇄ closed/archived).
-export async function setJobStatus(id: string, status: JobStatus): Promise<void> {
-  const { error } = await supabase.from('jobs').update({ status }).eq('id', id);
-  if (error) throw error;
-}
+// A job's lifecycle status is part of its row, so it is written through
+// saveJob() like every other field — one call, one row count, and a missing or
+// hidden row surfaces as an error instead of a silent no-op.

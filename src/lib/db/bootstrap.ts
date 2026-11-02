@@ -149,6 +149,11 @@ const DEFAULT_JOB_SEEDS: Array<{
   type: string;
   duration: string;
   department: string;
+  location: string;
+  salary: string;
+  schedule: string;
+  responsibilities: string[];
+  requirements: string[];
   postedDate: string;
 }> = [
   {
@@ -157,7 +162,22 @@ const DEFAULT_JOB_SEEDS: Array<{
       'Assist customers with print requests, handle document processing, operate printing and binding equipment, and help maintain the print shop. Ideal for students looking to gain hands-on experience in a fast-paced environment.',
     type: 'Part-Time',
     duration: '15-20 hours/week',
-    department: 'General',
+    department: 'Print Operations',
+    location: 'Room 4, TBI Building, Palawan State University',
+    salary: '₱80–₱100 per hour',
+    schedule: 'Mon–Fri · 3–4 hour shifts',
+    responsibilities: [
+      'Take print requests at the counter and check each file before printing',
+      'Run and monitor the printers, then check every job for quality',
+      'Prepare binding, lamination and other finishing work',
+      'Record released orders and keep the counter area tidy',
+    ],
+    requirements: [
+      'Currently enrolled at PSU (any course)',
+      'Comfortable opening and checking Word, Excel and PDF files',
+      'Can commit to at least 15 hours a week',
+      'No shop experience needed — we train you',
+    ],
     postedDate: '2026-08-26',
   },
   {
@@ -166,7 +186,22 @@ const DEFAULT_JOB_SEEDS: Array<{
       'Handle document formatting, encoding, and layout design for customer print jobs. Requires attention to detail and basic familiarity with office/document software.',
     type: 'Part-Time',
     duration: '10-15 hours/week',
-    department: 'General',
+    department: 'Customer Support',
+    location: 'Room 4, TBI Building, Palawan State University',
+    salary: '₱75–₱95 per hour',
+    schedule: 'Mon–Sat · flexible 2–4 hour shifts',
+    responsibilities: [
+      'Re-type and format customer documents before printing',
+      'Fix page layout, margins and spacing on submitted files',
+      'Check encoded work against the original for typos',
+      'Send finished files back to the counter for printing',
+    ],
+    requirements: [
+      'Currently enrolled at PSU (any course)',
+      'Fast and accurate typing',
+      'Working knowledge of Word, Excel and Google Docs',
+      'Can work in short afternoon shifts',
+    ],
     postedDate: '2026-08-23',
   },
 ];
@@ -184,11 +219,11 @@ async function ensureJobs(): Promise<void> {
       job_type: seed.type,
       duration: seed.duration,
       department: seed.department,
-      location: null,
-      salary: null,
-      schedule: null,
-      requirements: [],
-      responsibilities: [],
+      location: seed.location,
+      salary: seed.salary,
+      schedule: seed.schedule,
+      requirements: seed.requirements,
+      responsibilities: seed.responsibilities,
       status: 'active',
       posted_date: seed.postedDate,
     }));

@@ -325,18 +325,14 @@ export default function PickupMonitoring({
                       key={key}
                       type="button"
                       size="sm"
-                      variant="outline"
+                      variant={active ? "primary" : "outline"}
                       onClick={() => setFilter(key)}
-                      className={
-                        active
-                          ? "h-8 rounded-lg border-2 border-[#2F6FD6] bg-[#2F6FD6] text-white hover:bg-[#2557b8] hover:text-white"
-                          : "h-8 rounded-lg border border-gray-200 bg-white text-slate-600 hover:bg-[#F2F7FF] hover:text-[#2F6FD6] hover:border-[#2F6FD6]"
-                      }
+                      className="group h-8 rounded-lg"
                     >
                       {label}
                       <span
                         className={`ml-1.5 text-[11px] font-semibold ${
-                          active ? "text-white/80" : "text-slate-400"
+                          active ? "text-white/80" : "text-slate-400 group-hover:text-white/80"
                         }`}
                       >
                         {count}
@@ -459,9 +455,9 @@ export default function PickupMonitoring({
                                 e.stopPropagation();
                                 setSelected(order);
                               }}
-                              className="h-8 bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
+                              className="h-8"
                             >
-                              <Eye className="h-3.5 w-3.5 mr-1.5" />
+                              <Eye className="h-3.5 w-3.5" />
                               View
                             </Button>
                           </td>
@@ -497,20 +493,17 @@ export default function PickupMonitoring({
                     variant="outline"
                     disabled={currentPage === 1}
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    className="h-9 rounded-md border border-gray-200 bg-white px-3 text-slate-600 hover:border-[#2F6FD6] hover:bg-[#F2F7FF] hover:text-[#2F6FD6] disabled:opacity-40 disabled:pointer-events-none"
+                    className="h-9 px-3"
                   >
-                    <ChevronLeft className="h-4 w-4 mr-1" /> Prev
+                    <ChevronLeft className="h-4 w-4" /> Prev
                   </Button>
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
                     <Button
                       key={pg}
                       type="button"
+                      variant={pg === currentPage ? "primary" : "outline"}
+                      size="icon"
                       onClick={() => setCurrentPage(pg)}
-                      className={
-                        pg === currentPage
-                          ? "h-9 w-9 rounded-md bg-[#2F6FD6] text-white shadow-sm shadow-[#2F6FD6]/30 hover:bg-[#2557b8]"
-                          : "h-9 w-9 rounded-md border border-gray-200 bg-white text-slate-600 hover:border-[#2F6FD6] hover:bg-[#F2F7FF] hover:text-[#2F6FD6]"
-                      }
                     >
                       {pg}
                     </Button>
@@ -522,9 +515,9 @@ export default function PickupMonitoring({
                     onClick={() =>
                       setCurrentPage((p) => Math.min(totalPages, p + 1))
                     }
-                    className="h-9 rounded-md border border-gray-200 bg-white px-3 text-slate-600 hover:border-[#2F6FD6] hover:bg-[#F2F7FF] hover:text-[#2F6FD6] disabled:opacity-40 disabled:pointer-events-none"
+                    className="h-9 px-3"
                   >
-                    Next <ChevronRight className="h-4 w-4 ml-1" />
+                    Next <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
               )}

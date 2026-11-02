@@ -1395,7 +1395,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="rounded-lg border-[1.5px] border-[#D5DCE6] bg-white px-[13px] text-[11.5px] font-semibold text-[#344054] transition-colors hover:border-[#1668D9] hover:bg-[#1668D9] hover:text-white"
+                                  className="rounded-lg px-[13px] text-[11.5px] font-semibold"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleOpenDetails(order);
@@ -1449,20 +1449,17 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                   variant="outline"
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  className="bg-white text-slate-600 border border-gray-200 hover:bg-[#F2F7FF] hover:text-[#2F6FD6] hover:border-[#2F6FD6] disabled:opacity-40 disabled:pointer-events-none rounded-md px-3 h-9"
+                  className="h-9 px-3"
                 >
-                  <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+                  <ChevronLeft className="h-4 w-4" /> Previous
                 </Button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
                   <Button
                     key={pg}
                     type="button"
+                    variant={pg === currentPage ? "primary" : "outline"}
+                    size="icon"
                     onClick={() => setCurrentPage(pg)}
-                    className={
-                      pg === currentPage
-                        ? "bg-[#2F6FD6] text-white hover:bg-[#2557b8] rounded-md shadow-sm shadow-[#2F6FD6]/30 h-9 w-9"
-                        : "bg-white text-slate-600 border border-gray-200 hover:bg-[#F2F7FF] hover:text-[#2F6FD6] hover:border-[#2F6FD6] rounded-md h-9 w-9"
-                    }
                   >
                     {pg}
                   </Button>
@@ -1472,9 +1469,9 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                   variant="outline"
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  className="bg-white text-slate-600 border border-gray-200 hover:bg-[#F2F7FF] hover:text-[#2F6FD6] hover:border-[#2F6FD6] disabled:opacity-40 disabled:pointer-events-none rounded-md px-3 h-9"
+                  className="h-9 px-3"
                 >
-                  Next <ChevronRight className="h-4 w-4 ml-1" />
+                  Next <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             )}
@@ -1707,8 +1704,11 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                     </span>
                     <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-1">
                       {!selectedOrder.paymentVerified && (
-                        <button
+                        <Button
                           type="button"
+                          variant="link"
+                          size="sm"
+                          className="h-auto px-0 text-[13px] font-medium"
                           onClick={() =>
                             navigate(
                               `${userRole === "admin" ? "/admin" : "/staff"}/payment-verification?orderId=${encodeURIComponent(
@@ -1716,18 +1716,19 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                               )}`,
                             )
                           }
-                          className="rounded text-[13px] font-medium text-[#4B5563] transition-colors hover:text-[#111827] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8] focus-visible:ring-offset-2"
                         >
                           Verify payment
-                        </button>
+                        </Button>
                       )}
-                      <button
+                      <Button
                         type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto px-0 text-[13px] font-medium"
                         onClick={() => setShowReceipt(true)}
-                        className="rounded text-[13px] font-medium text-[#1D4ED8] underline underline-offset-2 transition-colors hover:text-[#1E40AF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8] focus-visible:ring-offset-2"
                       >
                         View receipt
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </section>
@@ -1837,7 +1838,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                     {(selectedOrder.status === "inQueue" ||
                       selectedOrder.status === "awaitingPayment") && (
                       <Button
-                        variant="outline"
+                        variant="destructive-outline"
                         disabled={!canActOnOrder}
                         title={
                           !canActOnOrder && lockHolder
@@ -1845,7 +1846,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                             : undefined
                         }
                         onClick={() => handleUpdateStatus("canceled")}
-                        className="h-10 rounded-[10px] border-[1.5px] border-[#B91C1C] bg-white px-5 text-[14px] font-semibold text-[#B91C1C] hover:-translate-y-0 hover:border-[#991B1B] hover:bg-[#B91C1C] hover:text-white hover:shadow-none disabled:pointer-events-none disabled:opacity-40"
+                        className="h-10 rounded-[10px] px-5 text-[14px] font-semibold"
                       >
                         Cancel order
                       </Button>
@@ -1854,6 +1855,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                     <div className="ml-auto flex items-center">
                       {selectedOrder.status === "inQueue" && (
                         <Button
+                          variant="primary"
                           data-primary-action
                           disabled={!canActOnOrder}
                           title={
@@ -1862,7 +1864,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                               : undefined
                           }
                           onClick={() => handleUpdateStatus("printing")}
-                          className="h-10 rounded-[10px] border-transparent bg-[#1D4ED8] px-5 text-[14px] font-semibold text-white hover:-translate-y-0 hover:bg-[#1E40AF] hover:text-white hover:shadow-none disabled:pointer-events-none disabled:opacity-40"
+                          className="h-10 rounded-[10px] px-5 text-[14px] font-semibold"
                         >
                           <Printer className="size-4" aria-hidden="true" />
                           Start printing
@@ -1871,6 +1873,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
 
                       {selectedOrder.status === "printing" && (
                         <Button
+                          variant="primary"
                           data-primary-action
                           disabled={!canActOnOrder}
                           title={
@@ -1879,7 +1882,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                               : undefined
                           }
                           onClick={() => handleUpdateStatus("completed")}
-                          className="h-10 rounded-[10px] border-transparent bg-[#1D4ED8] px-5 text-[14px] font-semibold text-white hover:-translate-y-0 hover:bg-[#1E40AF] hover:text-white hover:shadow-none disabled:pointer-events-none disabled:opacity-40"
+                          className="h-10 rounded-[10px] px-5 text-[14px] font-semibold"
                         >
                           <Check className="size-4" aria-hidden="true" />
                           Mark as done
@@ -1888,6 +1891,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
 
                       {selectedOrder.status === "completed" && (
                         <Button
+                          variant="primary"
                           data-primary-action
                           disabled={
                             (selectedOrder.paymentMethod === "Cash" &&
@@ -1895,7 +1899,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                             !canActOnOrder
                           }
                           onClick={() => handleUpdateStatus("released")}
-                          className="h-10 rounded-[10px] border-transparent bg-[#1D4ED8] px-5 text-[14px] font-semibold text-white hover:-translate-y-0 hover:bg-[#1E40AF] hover:text-white hover:shadow-none disabled:pointer-events-none disabled:opacity-40"
+                          className="h-10 rounded-[10px] px-5 text-[14px] font-semibold"
                         >
                           <Package className="size-4" aria-hidden="true" />
                           Release order
@@ -1905,8 +1909,9 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                       {selectedOrder.status === "awaitingPayment" &&
                         !selectedOrder.paymentVerified && (
                           <Button
+                            variant="primary"
                             disabled
-                            className="h-10 rounded-[10px] border-transparent bg-[#1D4ED8] px-5 text-[14px] font-semibold text-white hover:-translate-y-0 hover:bg-[#1E40AF] hover:text-white hover:shadow-none disabled:pointer-events-none disabled:opacity-40"
+                            className="h-10 rounded-[10px] px-5 text-[14px] font-semibold"
                           >
                             <Printer className="size-4" aria-hidden="true" />
                             Start printing
@@ -1979,12 +1984,13 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
 
           <DialogFooter className="gap-2">
             <Button
+              variant="outline"
               onClick={() => setShowStatusForm(false)}
-              className="bg-white hover:-translate-y-0.5 hover:shadow-md hover:bg-red-50 border-2 border-gray-300 text-gray-700 hover:border-red-300 hover:text-red-600"
             >
               Cancel
             </Button>
             <Button
+              variant={pendingStatus === "canceled" ? "destructive" : "primary"}
               onClick={() =>
                 pendingStatus === "completed"
                   ? openPaperConfirm()
@@ -1992,11 +1998,6 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
               }
               loading={statusSaving}
               loadingText="Updating..."
-              className={
-                pendingStatus === "canceled"
-                  ? "bg-red-600 text-white hover:bg-red-700"
-                  : "bg-[#2F6FD6] text-white hover:bg-[#2557b8]"
-              }
               disabled={
                 statusSaving ||
                 (pendingStatus === "canceled" &&
@@ -2111,9 +2112,9 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
               No Errors
             </Button>
             <Button
+              variant="primary"
               onClick={() => confirmPaperUsage(false)}
               disabled={!paperFormData.reason}
-              className="bg-[#2F6FD6] text-white hover:bg-[#2557b8]"
             >
               Confirm Error Usage
             </Button>

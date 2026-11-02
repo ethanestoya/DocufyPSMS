@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import Layout from "../Layout";
 import { Card } from "../ui/card";
+import { Button } from "../ui/button";
 import { CardSkeleton, DetailSkeleton } from "../ui/card-skeleton";
 import { useHydrating } from "../../utils/useHydrating";
 import { DateRangeFilter } from "../ui/date-range-filter";
@@ -358,9 +359,9 @@ function SectionCard({
         {headerRight ? (
           <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:shrink-0">{headerRight}</div>
         ) : action && actionLabel ? (
-          <button onClick={action} className="text-[13px] font-semibold text-[#2F6FD6] hover:underline flex items-center gap-1 shrink-0">
+          <Button variant="link" size="sm" onClick={action} className="h-auto shrink-0 gap-1 px-0 text-[13px] font-semibold">
             {actionLabel} <ChevronRight className="w-3.5 h-3.5" />
-          </button>
+          </Button>
         ) : null}
       </div>
       <div className={`px-5 pb-5 ${bodyClassName}`}>{children}</div>
@@ -490,7 +491,7 @@ function DateRangeSelector({ selectedLabel, rangeId, onSelect, customStart, cust
                   toLabel="To"
                   compact
                 />
-                <button onClick={() => setOpen(false)} className="w-full py-1.5 bg-[#2F6FD6] text-white rounded-lg text-xs font-semibold hover:bg-[#1e5bb8]">Apply</button>
+                <Button variant="primary" size="sm" onClick={() => setOpen(false)} className="w-full">Apply</Button>
               </div>
             )}
           </div>
@@ -861,13 +862,15 @@ function ServicesTab({ navigate }: { navigate: ReturnType<typeof useNavigate> })
                             <StatusBadge label="Active" />
                           </td>
                           <td className="py-3 pr-1 text-right">
-                            <button
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={() => navigate("/admin/pricing")}
                               title={`Manage ${s.name} pricing`}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-[#2F6FD6] hover:bg-blue-50 transition-colors"
+                              className="text-slate-400"
                             >
                               <MoreHorizontal className="w-4 h-4" />
-                            </button>
+                            </Button>
                           </td>
                         </tr>
                       );
@@ -879,12 +882,9 @@ function ServicesTab({ navigate }: { navigate: ReturnType<typeof useNavigate> })
           </div>
           <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100">
             <p className="text-xs text-slate-500">Showing {serviceStats.length} services</p>
-            <button
-              onClick={() => navigate("/admin/pricing")}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-[#2F6FD6] hover:underline"
-            >
+            <Button variant="link" size="sm" onClick={() => navigate("/admin/pricing")} className="h-auto gap-1 px-0 text-xs font-semibold">
               View detailed report <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+            </Button>
           </div>
         </Card>
 
@@ -951,12 +951,9 @@ function ServicesTab({ navigate }: { navigate: ReturnType<typeof useNavigate> })
                   })}
                 </div>
                 <div className="mt-auto pt-5 flex justify-end">
-                  <button
-                    onClick={() => navigate("/admin/pricing")}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-[#2F6FD6] hover:underline"
-                  >
+                  <Button variant="link" size="sm" onClick={() => navigate("/admin/pricing")} className="h-auto gap-1 px-0 text-xs font-semibold">
                     View detailed report <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
+                  </Button>
                 </div>
               </>
             )}
@@ -970,12 +967,9 @@ function ServicesTab({ navigate }: { navigate: ReturnType<typeof useNavigate> })
           <div>
             <h3 className="text-base font-semibold text-slate-800">Manage Services</h3>
           </div>
-          <button
-            onClick={() => navigate("/admin/pricing")}
-            className="inline-flex items-center gap-1.5 px-4 h-9 rounded-lg bg-white border-2 border-blue-200 text-sm font-semibold text-[#1668D9] hover:bg-[#1668D9] hover:text-white transition-all hover:-translate-y-0.5 hover:shadow-md"
-          >
+          <Button variant="primary" onClick={() => navigate("/admin/pricing")}>
             <Plus className="w-4 h-4" /> Add Service
-          </button>
+          </Button>
         </div>
         <div className="px-5 pb-4 overflow-x-auto">
           <table className="w-full">
@@ -1006,20 +1000,23 @@ function ServicesTab({ navigate }: { navigate: ReturnType<typeof useNavigate> })
                   </td>
                   <td className="py-3 pr-1">
                     <div className="flex items-center justify-end gap-1">
-                      <button
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => navigate("/admin/pricing")}
                         title={`Edit ${s.name}`}
-                        className="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium text-slate-600 bg-white border border-slate-200 hover:border-[#2F6FD6] hover:text-[#2F6FD6] transition-colors"
                       >
                         <Pencil className="w-3.5 h-3.5" /> Edit
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => navigate("/admin/pricing")}
                         title="More options"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-[#2F6FD6] hover:bg-blue-50 transition-colors"
+                        className="text-slate-400"
                       >
                         <MoreHorizontal className="w-4 h-4" />
-                      </button>
+                      </Button>
                     </div>
                   </td>
                 </tr>

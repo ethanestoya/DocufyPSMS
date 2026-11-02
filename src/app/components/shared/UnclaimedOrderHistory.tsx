@@ -128,12 +128,12 @@ export default function UnclaimedOrderHistory({
       <StaffTimeInGate>
         <div className="flex flex-col space-y-5">
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={() => navigate(base)}
-            className="w-fit bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
+            className="w-fit"
           >
-            <ArrowLeft className="h-4 w-4 mr-1.5" />
+            <ArrowLeft className="h-4 w-4" />
             Back to Unclaimed Orders
           </Button>
           <p className="max-w-2xl text-sm text-slate-500">
@@ -344,9 +344,9 @@ export default function UnclaimedOrderHistory({
                                   e.stopPropagation();
                                   setSelectedRecord(record);
                                 }}
-                                className="h-8 bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
+                                className="h-8"
                               >
-                                <Eye className="h-3.5 w-3.5 mr-1.5" />
+                                <Eye className="h-3.5 w-3.5" />
                                 View
                               </Button>
                             </td>

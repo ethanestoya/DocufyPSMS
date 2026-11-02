@@ -299,9 +299,9 @@ export default function AuditLogManagement() {
             variant="outline"
             disabled={filtered.length === 0}
             onClick={() => exportAuditCsv(filtered)}
-            className="h-10 rounded-md border border-gray-200 bg-white px-4 text-slate-600 hover:border-[#2F6FD6] hover:bg-[#2F6FD6] hover:text-white disabled:pointer-events-none disabled:opacity-40"
+            className="h-10"
           >
-            <Download className="mr-2 h-4 w-4" />
+            <Download className="h-4 w-4" />
             Export CSV{filtered.length > 0 ? ` (${filtered.length})` : ""}
           </Button>
         </div>
@@ -424,9 +424,9 @@ export default function AuditLogManagement() {
             <div className="mt-3 flex justify-end">
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 onClick={clearFilters}
-                className="h-9 rounded-md border border-gray-200 bg-white px-4 text-slate-600 hover:border-[#2F6FD6] hover:bg-[#F2F7FF] hover:text-[#2F6FD6]"
+                className="h-9"
               >
                 Clear Filters
               </Button>
@@ -537,10 +537,10 @@ export default function AuditLogManagement() {
                         <Button
                           type="button"
                           variant="outline"
+                          size="sm"
                           onClick={() => setSelected(entry)}
-                          className="h-8 rounded-md border border-gray-200 bg-white px-3 text-slate-600 hover:border-[#2F6FD6] hover:bg-[#2F6FD6] hover:text-white"
                         >
-                          <Eye className="mr-1.5 h-3.5 w-3.5" />
+                          <Eye className="h-3.5 w-3.5" />
                           View Details
                         </Button>
                       </td>
@@ -566,9 +566,9 @@ export default function AuditLogManagement() {
                 variant="outline"
                 disabled={page === 1}
                 onClick={() => setPage((current) => Math.max(1, current - 1))}
-                className="h-9 rounded-md border border-gray-200 bg-white px-3 text-slate-600 hover:border-[#2F6FD6] hover:bg-[#F2F7FF] hover:text-[#2F6FD6] disabled:pointer-events-none disabled:opacity-40"
+                className="h-9 px-3"
               >
-                <ChevronLeft className="mr-1 h-4 w-4" /> Previous
+                <ChevronLeft className="h-4 w-4" /> Previous
               </Button>
               <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[#2F6FD6] font-medium text-white shadow-sm shadow-[#2F6FD6]/30">
                 {page}
@@ -578,9 +578,9 @@ export default function AuditLogManagement() {
                 variant="outline"
                 disabled={page === pageCount}
                 onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
-                className="h-9 rounded-md border border-gray-200 bg-white px-3 text-slate-600 hover:border-[#2F6FD6] hover:bg-[#F2F7FF] hover:text-[#2F6FD6] disabled:pointer-events-none disabled:opacity-40"
+                className="h-9 px-3"
               >
-                Next <ChevronRight className="ml-1 h-4 w-4" />
+                Next <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           </div>

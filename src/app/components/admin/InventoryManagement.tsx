@@ -349,7 +349,7 @@ function InventoryReports() {
                         toLabel="To"
                         compact
                       />
-                      <button onClick={() => setDropdownOpen(false)} className="w-full py-1.5 bg-[#2F6FD6] text-white rounded-lg text-xs font-semibold hover:bg-[#1e5bb8]">Apply</button>
+                      <Button variant="primary" size="sm" onClick={() => setDropdownOpen(false)} className="w-full">Apply</Button>
                     </div>
                   )}
                 </div>
@@ -1004,27 +1004,23 @@ export default function InventoryManagement({
           <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
+              variant={!showArchived ? "primary" : "outline"}
               onClick={() => setShowArchived(false)}
-              className={!showArchived
-                ? "bg-[#2F6FD6] text-white hover:bg-[#2557b8] rounded-md shadow-md shadow-[#2F6FD6]/25"
-                : "bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white rounded-md"}
             >
               Active
             </Button>
             <Button
               type="button"
+              variant={showArchived ? "primary" : "outline"}
               onClick={() => setShowArchived(true)}
-              className={showArchived
-                ? "bg-[#2F6FD6] text-white hover:bg-[#2557b8] rounded-md shadow-md shadow-[#2F6FD6]/25"
-                : "bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white rounded-md"}
             >
               Archived
             </Button>
             <Button
+              variant="primary"
               onClick={openAdd}
-              className="bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
             >
-              <Plus className="h-4 w-4 mr-2" /> Add Item
+              <Plus className="h-4 w-4" /> Add Item
             </Button>
           </div>
         </div>
@@ -1138,10 +1134,9 @@ export default function InventoryManagement({
                         <div className="flex items-center justify-end gap-1">
                           <Button
                             type="button"
-                            variant="outline"
-                            size="sm"
+                            variant="primary"
+                            size="icon"
                             title="Stock In"
-                            className="border-2 border-green-600 text-green-700 hover:bg-green-600 hover:text-white hover:border-green-700"
                             onClick={() => openStock("in", item)}
                           >
                             <PackagePlus className="h-4 w-4" />
@@ -1149,9 +1144,8 @@ export default function InventoryManagement({
                           <Button
                             type="button"
                             variant="outline"
-                            size="sm"
+                            size="icon"
                             title="Stock Out"
-                            className="border-2 border-red-300 text-red-600 hover:bg-red-500 hover:text-white hover:border-red-500"
                             onClick={() => openStock("out", item)}
                           >
                             <PackageMinus className="h-4 w-4" />
@@ -1159,19 +1153,17 @@ export default function InventoryManagement({
                           <Button
                             type="button"
                             variant="outline"
-                            size="sm"
+                            size="icon"
                             title="Edit"
-                            className="border-2 border-[#2F6FD6]/30 text-[#2F6FD6] hover:bg-[#2F6FD6] hover:border-[#2F6FD6]"
                             onClick={() => openEdit(item)}
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <Button
                             type="button"
-                            variant="outline"
-                            size="sm"
+                            variant={item.archived ? "outline" : "destructive-outline"}
+                            size="icon"
                             title={item.archived ? "Restore" : "Archive"}
-                            className="border-2 border-[#2F6FD6]/30 text-[#2F6FD6] hover:bg-[#2F6FD6] hover:border-[#2F6FD6]"
                             onClick={() => { setArchiveTarget(item); setConfirmType(item.archived ? "restore" : "archive"); }}
                           >
                             {item.archived ? (
@@ -1199,13 +1191,14 @@ export default function InventoryManagement({
                     variant="outline"
                     disabled={page === 1}
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    className="bg-white text-slate-600 border border-gray-200 hover:bg-[#F2F7FF] hover:text-[#2F6FD6] hover:border-[#2F6FD6] disabled:opacity-40 disabled:pointer-events-none rounded-md px-3 h-9"
+                    className="h-9 px-3"
                   >
-                    <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+                    <ChevronLeft className="h-4 w-4" /> Previous
                   </Button>
                   <Button
                     type="button"
-                    className="bg-[#2F6FD6] text-white hover:bg-[#2557b8] rounded-md shadow-sm shadow-[#2F6FD6]/30 h-9 w-9"
+                    variant="primary"
+                    size="icon"
                   >
                     {page}
                   </Button>
@@ -1214,9 +1207,9 @@ export default function InventoryManagement({
                     variant="outline"
                     disabled={page === pageCount}
                     onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-                    className="bg-white text-slate-600 border border-gray-200 hover:bg-[#F2F7FF] hover:text-[#2F6FD6] hover:border-[#2F6FD6] disabled:opacity-40 disabled:pointer-events-none rounded-md px-3 h-9"
+                    className="h-9 px-3"
                   >
-                    Next <ChevronRight className="h-4 w-4 ml-1" />
+                    Next <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
               )}
@@ -1369,9 +1362,9 @@ export default function InventoryManagement({
               Cancel
             </Button>
             <Button
+              variant="primary"
               data-primary-action
               onClick={() => setConfirmType("save")}
-              className="bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
             >
               {editItem ? "Save Changes" : "Add Item"}
             </Button>
@@ -1475,13 +1468,9 @@ export default function InventoryManagement({
                   Cancel
                 </Button>
                 <Button
+                  variant={stockDialog.type === "in" ? "primary" : "outline"}
                   data-primary-action
                   onClick={() => setConfirmType(stockDialog.type === "in" ? "stockIn" : "stockOut")}
-                  className={
-                    stockDialog.type === "in"
-                      ? "bg-green-600 text-white hover:bg-green-700"
-                      : "bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
-                  }
                 >
                   {stockDialog.type === "in" ? "Stock In" : "Stock Out"}
                 </Button>

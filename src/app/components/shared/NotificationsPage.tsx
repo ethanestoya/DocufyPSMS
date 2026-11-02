@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Layout from "../Layout";
+import { Button } from "../ui/button";
 import { ConfirmationDialog } from "../ui/confirmation-dialog";
 import { TableSkeleton } from "../ui/table-skeleton";
 import { useHydrating } from "../../utils/useHydrating";
@@ -503,9 +504,11 @@ export default function NotificationsPage() {
               {formatPHTime(item.timestamp)}
             </span>
             {item.action && (
-              <button
+              <Button
                 type="button"
-                className="text-[11px] font-semibold text-[#1668D9] hover:underline"
+                variant="link"
+                size="sm"
+                className="h-auto px-0 text-[11px] font-semibold"
                 onClick={(e) => {
                   e.stopPropagation();
                   item.markRead();
@@ -513,7 +516,7 @@ export default function NotificationsPage() {
                 }}
               >
                 {item.action.label}
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -524,18 +527,20 @@ export default function NotificationsPage() {
             />
           )}
           {isAdmin && item.kind === "announcement" && (
-            <button
+            <Button
               type="button"
+              variant="destructive-outline"
+              size="icon"
               title="Delete notification"
               aria-label={`Delete ${item.title}`}
-              className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
               onClick={(e) => {
                 e.stopPropagation();
                 setDeleteTarget(item.source as Announcement);
               }}
             >
               <Trash2 className="w-3.5 h-3.5" />
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -550,15 +555,17 @@ export default function NotificationsPage() {
     >
       <div className="mx-auto max-w-3xl space-y-5 pb-10">
         {/* Mobile Back — sits directly under the header, same spot a sidebar item would */}
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={() => navigate(-1)}
           aria-label="Go back"
-          className="md:hidden inline-flex items-center gap-1 rounded-xl p-2 pl-0 text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
+          className="md:hidden"
         >
           <ArrowLeft className="h-5 w-5" />
-          <span className="text-sm font-medium">Back</span>
-        </button>
+          Back
+        </Button>
         {/* Header */}
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
           <div>
@@ -580,14 +587,15 @@ export default function NotificationsPage() {
             unread notification{unread === 1 ? "" : "s"}
           </p>
           {unread > 0 && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={handleMarkAllRead}
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#2F6FD6] hover:text-[#1668D9] transition-colors"
             >
               <CheckCheck className="w-4 h-4" />
               Mark all as read
-            </button>
+            </Button>
           )}
         </div>
 

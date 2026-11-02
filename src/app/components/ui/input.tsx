@@ -8,7 +8,6 @@ import {
   alphaNumericSpaces,
   moneyInput,
   integersOnly,
-  sanitizePhone,
   sanitizeEmail,
 } from "../../utils/inputSanitizers";
 
@@ -56,10 +55,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       let value = e.target.value;
 
       if (phoneOnly || (type === "tel" && maxDigits)) {
-        value = sanitizePhone(value);
-        if (maxDigits) {
-          value = digitsOnly(value, maxDigits);
-        }
+        // Phones default to 11 digits (PH mobile). Other numeric identifiers
+        // (e.g. a payment account number) pass their own cap in `maxDigits`.
+        value = digitsOnly(value, maxDigits ?? 11);
       } else if (digitsOnlyProp) {
         value = digitsOnly(value, maxDigits);
       } else if (lettersOnly) {

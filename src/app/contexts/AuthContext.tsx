@@ -30,8 +30,6 @@ export interface User {
   // Contact number from the profiles table (loaded on sign-in so the customer
   // profile form can prefill it instead of leaking demo defaults).
   phone?: string;
-  // PSU student ID derived from the email local-part (psu.palawan.edu.ph only).
-  studentId?: string;
   // Supabase auth uid (set when a real Supabase session is loaded; absent for
   // local mock accounts).
   id?: string;
@@ -205,7 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loadProfile = async (authUser: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }) => {
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select('full_name, email, role, phone, profile_image_path, active, suspended, student_id')
+      .select('full_name, email, role, phone, profile_image_path, active, suspended')
       .eq('id', authUser.id)
       .maybeSingle();
 
@@ -227,19 +225,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       profile.phone = metadataPhone;
     }
 
-    const email = (profile?.email || authUser.email || '').toLowerCase();
-    // Auto-derive Student ID from PSU email local-part only (leave existing values untouched).
-    if (profile && !profile.student_id && email.endsWith('@psu.palawan.edu.ph')) {
-      const localPart = email.split('@')[0];
-      if (localPart) {
-        await supabase
-          .from('profiles')
-          .update({ student_id: localPart })
-          .eq('id', authUser.id);
-        profile.student_id = localPart;
-      }
-    }
-
     const role = profile?.role === 'admin' || profile?.role === 'staff'
       ? profile.role
       : 'customer';
@@ -251,7 +236,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       role,
       profileImage: profile?.profile_image_path || undefined,
       phone: profile?.phone || undefined,
-      studentId: profile?.student_id || undefined,
       active: profile?.active !== false && profile?.suspended !== true,
       id: authUser.id,
     });
@@ -458,24 +442,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .from('profiles')
           .update(profileUpdates)
           .eq('id', result.user.id);
-      }
-      // Ensure Student ID is derived for PSU customers (leave existing values untouched).
-      const signupEmail = (data.email || '').toLowerCase();
-      if (signupEmail.endsWith('@psu.palawan.edu.ph')) {
-        const { data: existingProfile } = await supabase
-          .from('profiles')
-          .select('student_id')
-          .eq('id', result.user.id)
-          .maybeSingle();
-        if (existingProfile && !existingProfile.student_id) {
-          const localPart = signupEmail.split('@')[0];
-          if (localPart) {
-            await supabase
-              .from('profiles')
-              .update({ student_id: localPart })
-              .eq('id', result.user.id);
-          }
-        }
       }
       await loadProfile(result.user);
       void refreshAllStores();

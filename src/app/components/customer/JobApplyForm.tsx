@@ -714,56 +714,57 @@ export default function JobApplyForm() {
                   <Label htmlFor="firstName" className="text-sm font-medium text-slate-700 mb-1.5">
                     First Name <span className="text-red-500">*</span>
                   </Label>
-                <Input
-                  id="firstName"
-                  type="text"
-                  lettersOnly
-                  maxDigits={50}
-                  value={formData.firstName}
-                  onChange={(e) => setFormData((p) => ({ ...p, firstName: e.target.value }))}
-                  onBlur={() => handleBlur("firstName")}
-                  placeholder="e.g. Maria"
-                  className={inputClass("firstName")}
-                  maxLength={50}
-                />
+                  <Input
+                    id="firstName"
+                    type="text"
+                    lettersOnly
+                    maxDigits={50}
+                    value={formData.firstName}
+                    onChange={(e) => setFormData((p) => ({ ...p, firstName: e.target.value }))}
+                    onBlur={() => handleBlur("firstName")}
+                    placeholder="e.g. Maria"
+                    className={inputClass("firstName")}
+                    maxLength={50}
+                  />
                   {fieldError("firstName")}
                 </div>
                 <div>
                   <Label htmlFor="lastName" className="text-sm font-medium text-slate-700 mb-1.5">
                     Last Name <span className="text-red-500">*</span>
                   </Label>
-                <Input
-                  id="lastName"
-                  type="text"
-                  lettersOnly
-                  maxDigits={50}
-                  value={formData.lastName}
-                  onChange={(e) => setFormData((p) => ({ ...p, lastName: e.target.value }))}
-                  onBlur={() => handleBlur("lastName")}
-                  placeholder="e.g. Santos"
-                  className={inputClass("lastName")}
-                  maxLength={50}
-                />
+                  <Input
+                    id="lastName"
+                    type="text"
+                    lettersOnly
+                    maxDigits={50}
+                    value={formData.lastName}
+                    onChange={(e) => setFormData((p) => ({ ...p, lastName: e.target.value }))}
+                    onBlur={() => handleBlur("lastName")}
+                    placeholder="e.g. Santos"
+                    className={inputClass("lastName")}
+                    maxLength={50}
+                  />
                   {fieldError("lastName")}
                 </div>
                 <div>
                   <Label htmlFor="contact" className="text-sm font-medium text-slate-700 mb-1.5">
                     Contact Number <span className="text-red-500">*</span>
                   </Label>
-                <Input
-                  id="contact"
-                  type="tel"
-                  phoneOnly
-                  maxDigits={11}
+                  <Input
+                    id="contact"
+                    type="tel"
+                    phoneOnly
+                    maxDigits={11}
                     inputMode="numeric"
                     autoComplete="tel-national"
-                  value={formData.contact}
-                  onChange={(e) => setFormData((p) => ({ ...p, contact: e.target.value }))}
-                  onBlur={() => handleBlur("contact")}
-                  placeholder="09XXXXXXXXX"
-                  className={inputClass("contact")}
-                  maxLength={11}
-                />
+                    value={formData.contact}
+                    onChange={(e) => setFormData((p) => ({ ...p, contact: e.target.value }))}
+                    onBlur={() => handleBlur("contact")}
+                    placeholder="09XXXXXXXXX"
+                    aria-invalid={!!(errors.contact && touched.has("contact"))}
+                    className={inputClass("contact")}
+                    maxLength={11}
+                  />
                   {fieldError("contact")}
                 </div>
                 <div>

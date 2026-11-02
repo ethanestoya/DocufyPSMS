@@ -1425,3 +1425,15 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Added an optional photo to job applications, defaulting to the applicant's account picture, stored privately and shown on the admin applicant list and detail; the new database column must be added or the application still saves without the photo.
 - Kept the dashboard at the adviser's layout and resized what remained: the Sales Trend chart now fills its card at every width with the empty state matching that height, and the Inventory Snapshot can no longer stretch the row beside it.
 - Typecheck and production build pass; the signed-in sidebar, job board and apply flow are structure-verified only because this session had no admin, staff or customer login and the browser exposes no screenshot surface. The new photo column (`job_applications.photo_storage_path`) still needs to be added in Supabase.
+
+## 2026-11-02 - Prans (11:50 PM PHT)
+
+- Merged the two outstanding collaborator pushes into the local `frontend-dev` work: Ethan's `deployment` updates (input-field restrictions) and aeprnts' `frontend-dev` update (sidebar regroup and job-application guards), so the branch now carries both on top of the dashboard, inventory and job-board work.
+- Brought in the system-wide field restrictions: names, phone numbers, payment reference numbers and account numbers are now filtered as they are typed and cleaned again before saving, so each field keeps its own rule no matter which page it appears on.
+- Kept student ID out of the app after that merge tried to bring it back: it had already been removed from the profile screens, and the revived code read and wrote a profile field the app's schema does not define, which broke the profile load and the type check.
+- Fixed payment account numbers being cut to 11 digits: the new phone rule was being applied before the field's own limit, so longer bank and e-wallet account numbers lost characters; phone fields still stop at 11.
+- Restored the invalid-format highlight on the job application's contact number and tidied the three identity fields the merge had left misaligned.
+- Brought in the sidebar regroup: navigation now follows the work being done (Work / Team / Settings), New walk-in is a pinned action instead of a nav row, the footer is Help plus a confirmed Sign out, and there is a new Help & Support dialog and a collapse chevron on the rail's edge.
+- Brought in the job-application guards: one application per posting (refused before anything is uploaded or saved), no application form for a posting that is gone or closed, and an optional applicant photo carried through to the admin review screens.
+- Typecheck and production build pass, and the dev server serves the app. The applicant photo still needs the `job_applications.photo_storage_path` column added in Supabase, otherwise the application saves without a photo.
+

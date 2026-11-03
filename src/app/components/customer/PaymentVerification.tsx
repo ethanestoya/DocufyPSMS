@@ -707,13 +707,7 @@ export default function PaymentVerification() {
                   Selected Payment Method
                 </p>
                 <div className="flex items-center gap-3">
-                  <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                      isOnline
-                        ? "bg-[#007DFF]"
-                        : "bg-blue-600"
-                    }`}
-                  >
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-[#1668D9]">
                     {isOnline ? (
                       <Smartphone className="w-6 h-6 text-white" />
                     ) : (
@@ -762,101 +756,110 @@ export default function PaymentVerification() {
                 </Button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div
+                role="radiogroup"
+                aria-label="Select payment method"
+                className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4"
+              >
                 {/* Online Payment Options (managed by admin) */}
                 {onlineMethods.map((method) => {
                   const isSelected = paymentMethod === method.name;
                   return (
                     <button
                       key={method.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
                       onClick={() => selectMethod(method.name)}
-                      className={`p-3 rounded-lg border-2 transition-all hover:shadow-sm ${
+                      className={`flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]/40 ${
                         isSelected
-                          ? "border-[#007DFF] bg-white border-2 border-blue-200"
-                          : "border-gray-200 hover:border-blue-300"
+                          ? "border-[#1668D9] bg-[#EAF2FF] shadow-[0_8px_20px_rgba(22,104,217,0.14)]"
+                          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-slate-50/60"
                       }`}
                     >
-                      <div className="flex flex-col items-center gap-2">
-                        <div
-                          className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            isSelected
-                              ? "bg-[#007DFF]"
-                              : "bg-gray-100"
+                      {/* 22px bullseye: brand ring → white gap → brand core */}
+                      <span
+                        aria-hidden="true"
+                        className={`flex size-[22px] shrink-0 items-center justify-center rounded-full border-2 bg-white ${
+                          isSelected ? "border-[#1668D9]" : "border-slate-300"
+                        }`}
+                      >
+                        {isSelected && (
+                          <span className="size-[10px] rounded-full bg-[#1668D9]" />
+                        )}
+                      </span>
+                      <span
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                          isSelected ? "bg-[#1668D9]" : "bg-blue-100"
+                        }`}
+                      >
+                        <Smartphone
+                          className={`h-5 w-5 ${
+                            isSelected ? "text-white" : "text-[#2F6FD6]"
+                          }`}
+                        />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span
+                          className={`block truncate text-sm font-semibold ${
+                            isSelected ? "text-[#10316B]" : "text-gray-900"
                           }`}
                         >
-                          <Smartphone
-                            className={`w-5 h-5 ${
-                              isSelected
-                                ? "text-white"
-                                : "text-gray-600"
-                            }`}
-                          />
-                        </div>
-                        <div className="text-center">
-                          <p
-                            className={`text-xs font-semibold ${
-                              isSelected
-                                ? "text-[#007DFF]"
-                                : "text-gray-900"
-                            }`}
-                          >
-                            {method.name}
-                          </p>
-                          <p className="text-[9px] text-gray-500">
-                            Mobile wallet
-                          </p>
-                        </div>
-                        {isSelected && (
-                          <CheckCircle2 className="w-4 h-4 text-[#007DFF]" />
-                        )}
-                      </div>
+                          {method.name}
+                        </span>
+                        <span className="block text-xs text-gray-500">
+                          Pay via {method.name} mobile wallet
+                        </span>
+                      </span>
                     </button>
                   );
                 })}
 
                 {/* Cash on Pickup Button */}
                 <button
+                  type="button"
+                  role="radio"
+                  aria-checked={paymentMethod === "cash"}
                   onClick={() => selectMethod("cash")}
-                  className={`p-3 rounded-lg border-2 transition-all hover:shadow-sm ${
+                  className={`flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]/40 ${
                     paymentMethod === "cash"
-                      ? "border-blue-600 bg-white border-2 border-blue-200"
-                      : "border-gray-200 hover:border-blue-300"
+                      ? "border-[#1668D9] bg-[#EAF2FF] shadow-[0_8px_20px_rgba(22,104,217,0.14)]"
+                      : "border-gray-200 bg-white hover:border-gray-300 hover:bg-slate-50/60"
                   }`}
                 >
-                  <div className="flex flex-col items-center gap-2">
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        paymentMethod === "cash"
-                          ? "bg-blue-600"
-                          : "bg-gray-100"
+                  <span
+                    aria-hidden="true"
+                    className={`flex size-[22px] shrink-0 items-center justify-center rounded-full border-2 bg-white ${
+                      paymentMethod === "cash" ? "border-[#1668D9]" : "border-slate-300"
+                    }`}
+                  >
+                    {paymentMethod === "cash" && (
+                      <span className="size-[10px] rounded-full bg-[#1668D9]" />
+                    )}
+                  </span>
+                  <span
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                      paymentMethod === "cash" ? "bg-[#1668D9]" : "bg-blue-100"
+                    }`}
+                  >
+                    <Banknote
+                      className={`h-5 w-5 ${
+                        paymentMethod === "cash" ? "text-white" : "text-[#2F6FD6]"
+                      }`}
+                    />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span
+                      className={`block truncate text-sm font-semibold ${
+                        paymentMethod === "cash" ? "text-[#10316B]" : "text-gray-900"
                       }`}
                     >
-                      <Banknote
-                        className={`w-5 h-5 ${
-                          paymentMethod === "cash"
-                            ? "text-white"
-                            : "text-gray-600"
-                        }`}
-                      />
-                    </div>
-                    <div className="text-center">
-                      <p
-                        className={`text-xs font-semibold ${
-                          paymentMethod === "cash"
-                            ? "text-blue-600"
-                            : "text-gray-900"
-                        }`}
-                      >
-                        Cash on Pickup
-                      </p>
-                      <p className="text-[9px] text-gray-500">
-                        Pay on collect
-                      </p>
-                    </div>
-                    {paymentMethod === "cash" && (
-                      <CheckCircle2 className="w-4 h-4 text-blue-600" />
-                    )}
-                  </div>
+                      Cash on Pickup
+                    </span>
+                    <span className="block text-xs text-gray-500">
+                      Pay when you collect your order
+                    </span>
+                  </span>
                 </button>
               </div>
             </>

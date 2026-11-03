@@ -81,8 +81,8 @@ function plural(n: number, one: string, many = `${one}s`): string {
 }
 
 /**
- * Bottom-sheet shell used by the mobile Order Tracking layout: a panel pinned to
- * the bottom of the screen with a grabber, an icon + title header, its own close
+ * Floating window used by the mobile Order Tracking layout: a centred card that
+ * leaves the page visible around it, with an icon + title header, its own close
  * button, and a single scrolling body. The shared Dialog supplies the portal,
  * focus trap and Escape handling, so only the surface is restyled here.
  */
@@ -101,8 +101,8 @@ function MobileSheet({
   subtitle?: string;
   children: React.ReactNode;
 }) {
-  // Focus the panel itself when the sheet opens (instead of the close button, as
-  // Radix would), so the sheet announces its title and no focus ring lands on X.
+  // Focus the panel itself when the window opens (instead of the close button,
+  // as Radix would), so it announces its title and no focus ring lands on X.
   const panelRef = React.useRef<HTMLDivElement | null>(null);
 
   return (
@@ -115,35 +115,31 @@ function MobileSheet({
           panelRef.current?.focus({ preventScroll: true });
         }}
         aria-describedby={undefined}
-        className="fixed inset-x-0 top-[4vh] bottom-0 z-50 flex max-h-[96vh] w-full max-w-full translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-t-[28px] rounded-b-none border-0 bg-white p-0 shadow-[0_-10px_40px_rgba(15,23,42,0.18)] outline-none data-[state=open]:slide-in-from-bottom-full data-[state=open]:duration-300 data-[state=closed]:slide-out-to-bottom-full data-[state=closed]:duration-200 sm:max-w-full [&>[data-slot=dialog-close]]:hidden"
+        className="fixed left-1/2 top-1/2 z-50 flex max-h-[94vh] w-[calc(100vw-1.5rem)] max-w-[660px] -translate-x-1/2 -translate-y-1/2 flex-col gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-[0_24px_60px_rgba(15,23,42,0.28)] outline-none data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:max-w-[660px] [&>[data-slot=dialog-close]]:hidden"
       >
-        <div className="flex flex-shrink-0 justify-center pb-1 pt-2.5">
-          <span className="h-1.5 w-10 rounded-full bg-slate-300" aria-hidden="true" />
-        </div>
-
-        <div className="flex flex-shrink-0 items-start gap-3 px-4 pb-3">
-          <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#EEF4FF] text-[#1668D9]">
+        <div className="flex flex-shrink-0 items-start gap-3 border-b border-slate-100 px-6 pb-4 pt-5">
+          <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-[#EEF4FF] text-[#1668D9]">
             {icon}
           </span>
           <div className="min-w-0 flex-1">
-            <DialogTitle className="text-[17px] font-bold leading-tight text-slate-900">
+            <DialogTitle className="text-xl font-bold leading-tight text-slate-900">
               {title}
             </DialogTitle>
             {subtitle && (
-              <p className="mt-0.5 truncate text-xs text-slate-500">{subtitle}</p>
+              <p className="mt-0.5 truncate text-sm text-slate-500">{subtitle}</p>
             )}
           </div>
           <button
             type="button"
             onClick={() => onOpenChange(false)}
             aria-label="Close"
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-7">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
       </DialogContent>
     </Dialog>
   );
@@ -200,7 +196,7 @@ function SheetField({
   return (
     <div className="min-w-0">
       <p className="text-[11px] text-slate-500">{label}</p>
-      <p className="mt-0.5 text-[13px] font-semibold text-slate-900">{value}</p>
+      <p className="mt-0.5 text-sm font-semibold text-slate-900">{value}</p>
     </div>
   );
 }
@@ -957,33 +953,33 @@ export default function OrderTracking() {
           >
             <div className="grid grid-cols-3 gap-2 rounded-xl bg-[#F7F9FC] p-3">
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-400">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-400">
                   Order Date
                 </p>
-                <p className="mt-0.5 text-[13px] font-semibold text-slate-900">
+                <p className="mt-0.5 text-sm font-semibold text-slate-900">
                   {placedInstant ? formatPHDate(placedInstant, "short") : "—"}
                 </p>
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-400">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-400">
                   Order Time
                 </p>
-                <p className="mt-0.5 text-[13px] font-semibold text-slate-900">
+                <p className="mt-0.5 text-sm font-semibold text-slate-900">
                   {placedInstant ? formatPHTime(placedInstant) : "—"}
                 </p>
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-400">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-400">
                   Total Pages
                 </p>
-                <p className="mt-0.5 text-[13px] font-semibold text-slate-900">
+                <p className="mt-0.5 text-sm font-semibold text-slate-900">
                   {plural(mobileTotalPages, "page")}
                 </p>
               </div>
             </div>
 
             <div className="mb-2 mt-4 flex items-center justify-between">
-              <p className="text-xs font-semibold text-slate-600">Files</p>
+              <p className="text-sm font-semibold text-slate-600">Files</p>
               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
                 {mobileFileCount}
               </span>
@@ -998,7 +994,7 @@ export default function OrderTracking() {
                     <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[#EEF4FF] text-[#1668D9]">
                       <FileText className="h-4 w-4" />
                     </span>
-                    <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-slate-800">
+                    <p className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800">
                       {file.name}
                     </p>
                     <span className="flex-shrink-0 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-bold text-slate-500">
@@ -1047,7 +1043,7 @@ export default function OrderTracking() {
             {mobileFileCount > 0 && (
               <>
                 <div className="mb-2 mt-4 flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-600">
+                  <p className="text-sm font-semibold text-slate-600">
                     Attached Files
                   </p>
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
@@ -1066,10 +1062,10 @@ export default function OrderTracking() {
 
             {orderData?.notes && (
               <>
-                <p className="mb-2 mt-4 text-xs font-semibold text-slate-600">
+                <p className="mb-2 mt-4 text-sm font-semibold text-slate-600">
                   Additional Notes
                 </p>
-                <p className="whitespace-pre-wrap rounded-xl bg-[#F7F9FC] p-3 text-[13px] leading-relaxed text-slate-700">
+                <p className="whitespace-pre-wrap rounded-xl bg-[#F7F9FC] p-3 text-sm leading-relaxed text-slate-700">
                   {orderData.notes}
                 </p>
               </>
@@ -1079,7 +1075,7 @@ export default function OrderTracking() {
               <div className="mt-4 flex items-center gap-3 rounded-xl border border-[#DCE9FB] bg-[#F5F9FF] p-3">
                 <Info className="h-4 w-4 flex-shrink-0 text-[#1668D9]" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold text-slate-900">
+                  <p className="text-sm font-semibold text-slate-900">
                     Document Analysis
                   </p>
                   <p className="text-[11px] text-slate-500">
@@ -1108,7 +1104,7 @@ export default function OrderTracking() {
             subtitle={`${paymentMethodLabel} · ${paymentMetaLabel}`}
           >
             <div className="rounded-xl border border-slate-200 p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.07em] text-slate-400">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.07em] text-slate-400">
                 Payment Method
               </p>
               <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-slate-900">
@@ -1152,32 +1148,32 @@ export default function OrderTracking() {
 
             <div className="mt-2.5 grid grid-cols-3 gap-2 rounded-xl border border-slate-200 bg-[#F7F9FC] p-3">
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-400">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-400">
                   Total
                 </p>
-                <p className="mt-0.5 text-[13px] font-bold text-[#1668D9]">
+                <p className="mt-0.5 text-sm font-bold text-[#1668D9]">
                   {formatPrice(paymentSummary.total)}
                 </p>
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-400">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-400">
                   Paid
                 </p>
-                <p className="mt-0.5 text-[13px] font-bold text-slate-900">
+                <p className="mt-0.5 text-sm font-bold text-slate-900">
                   {formatPrice(paymentSummary.amountPaid)}
                 </p>
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-400">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-400">
                   Balance
                 </p>
-                <p className="mt-0.5 text-[13px] font-bold text-slate-900">
+                <p className="mt-0.5 text-sm font-bold text-slate-900">
                   {formatPrice(paymentSummary.remaining)}
                 </p>
               </div>
             </div>
 
-            <p className="mb-2 mt-4 text-xs font-semibold text-slate-600">
+            <p className="mb-2 mt-4 text-sm font-semibold text-slate-600">
               Order
             </p>
             <div className="overflow-hidden rounded-xl border border-slate-200">
@@ -1207,7 +1203,7 @@ export default function OrderTracking() {
             title="Cost Breakdown"
             subtitle={`${formatPrice(orderTotalNumber)} total`}
           >
-            <div className="rounded-xl border border-slate-200 p-3.5 text-[13px]">
+            <div className="rounded-xl border border-slate-200 p-3.5 text-sm">
               <div className="flex justify-between gap-3">
                 <span className="text-slate-600">
                   Printing cost ({plural(orderData?.pages || 0, "page")} ×{" "}

@@ -1402,3 +1402,68 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Each file row shows the file name, its order number, file type, size and upload time, and the order's current printing status badge, and opens that order's tracking page.
 - Added an honest empty state ("No files uploaded yet") so a customer with no uploads is not shown a blank card.
 - Typecheck and production build pass; chart bucketing verified with sample orders (daily, weekly and monthly windows), the inventory filters verified with the seeded items (status counts 3 / 0 / 2, Out of stock → 2 rows, combined with Paper → the same 2, a search with no match showed the filtered-empty state, and Clear restored all 5), and the recent-files list verified through a temporary dev route with sample orders (upload order 3h → 9h → 30h → 6 days, files from one order split by their own upload time, statuses Printing / Completed / Canceled, plus the empty state).
+
+## 2026-11-02 - Prans (11:08 AM PHT)
+
+- Restored Job Board Management after a merge silently rolled it back: an earlier "merge" commit was not a real merge and replaced the page with an older copy, so the rebuild disappeared without anyone choosing to undo it; the page is back to the rebuilt version.
+- Restored the details the rebuild carries: pay rate, schedule, location, duties and requirements in the create/edit dialog, the "Use shop address" helper, the posting/applicant/application views, applicant photos, the shared status colours, interview times in 12-hour form, and a dialog that only closes once the save lands.
+- Restyled the Archive action to the app's red-outline destructive style, matching the Archive buttons elsewhere and the collaborator's own intention.
+- Typecheck and production build pass; the restored page is identical to the version already verified live, apart from that one button style.
+
+
+## 2026-11-02 - Prans (02:26 PM PHT)
+
+- Regrouped the admin sidebar around the work being done instead of departments: Work (Dashboard, Orders, Payment Verification, Inventory), Team (Staff Management, Job Board), Settings (Pricing Management, Payment Methods, Landing Page, Terms & Privacy, Audit Trail), with Orders kept as the one expandable parent.
+- Dropped the Attendance row, which already redirects to Staff Management, and removed the two parent rows that only opened and closed.
+- Turned New walk-in into a pinned create action above the list instead of a nav row: it now has its own ACTIONS heading, a filled plus chip and a chevron that slides on hover, so it reads as something to do rather than the page you are already on.
+- Replaced the sidebar collapse button with a plain chevron on the rail's edge that points the way the rail will move.
+- Hid Help & Support from admins, whose contact section is the shop's own details, while staff and customers keep it.
+- Simplified the sidebar footer to Help & Support plus a single Sign out row that still asks for confirmation; profile stays in the header avatar menu, and the mobile drawer keeps its account row because phones have no header avatar.
+- Restored the rule under the sidebar brand so the logo no longer floats above the navigation.
+- Blocked a second application to the same posting in the store, and refused an application form for a posting that no longer exists, showing either an already-applied panel with the application status or an honest "position no longer available" state.
+- Showed the applied state and date on the customer job card with a link to the application, so it no longer just hides the Apply button.
+- Added an optional photo to job applications, defaulting to the applicant's account picture, stored privately and shown on the admin applicant list and detail; the new database column must be added or the application still saves without the photo.
+- Kept the dashboard at the adviser's layout and resized what remained: the Sales Trend chart now fills its card at every width with the empty state matching that height, and the Inventory Snapshot can no longer stretch the row beside it.
+- Typecheck and production build pass; the signed-in sidebar, job board and apply flow are structure-verified only because this session had no admin, staff or customer login and the browser exposes no screenshot surface. The new photo column (`job_applications.photo_storage_path`) still needs to be added in Supabase.
+
+## 2026-11-02 - Prans (11:50 PM PHT)
+
+- Merged the two outstanding collaborator pushes into the local `frontend-dev` work: Ethan's `deployment` updates (input-field restrictions) and aeprnts' `frontend-dev` update (sidebar regroup and job-application guards), so the branch now carries both on top of the dashboard, inventory and job-board work.
+- Brought in the system-wide field restrictions: names, phone numbers, payment reference numbers and account numbers are now filtered as they are typed and cleaned again before saving, so each field keeps its own rule no matter which page it appears on.
+- Kept student ID out of the app after that merge tried to bring it back: it had already been removed from the profile screens, and the revived code read and wrote a profile field the app's schema does not define, which broke the profile load and the type check.
+- Fixed payment account numbers being cut to 11 digits: the new phone rule was being applied before the field's own limit, so longer bank and e-wallet account numbers lost characters; phone fields still stop at 11.
+- Restored the invalid-format highlight on the job application's contact number and tidied the three identity fields the merge had left misaligned.
+- Brought in the sidebar regroup: navigation now follows the work being done (Work / Team / Settings), New walk-in is a pinned action instead of a nav row, the footer is Help plus a confirmed Sign out, and there is a new Help & Support dialog and a collapse chevron on the rail's edge.
+- Brought in the job-application guards: one application per posting (refused before anything is uploaded or saved), no application form for a posting that is gone or closed, and an optional applicant photo carried through to the admin review screens.
+- Typecheck and production build pass, and the dev server serves the app. The applicant photo still needs the `job_applications.photo_storage_path` column added in Supabase, otherwise the application saves without a photo.
+
+
+
+## 2026-11-02 - Prans (4:10 PM PHT)
+
+- Pulled the two outstanding collaborator pushes (Ethan's input-field restrictions and aeprnts' sidebar regroup + job-application guards) into the local rontend-dev work via fast-forward, resolving the one merge conflict in AGENTS.md by keeping both sides' bullets.
+- Restyled the three phone detail sheets on the customer Order Tracking page (Printing Details, Payment Method and Status, Cost Breakdown) from a slide-from-bottom sheet into a centred floating window, sized to be read: 660px wide capped at 94vh, with a larger icon chip, title, subtitle and close button, and enlarged the body and every field label inside the sheets so the content is legible on a phone.
+- Typecheck and production build pass.
+
+## 2026-11-03 - Prans (1:50 AM PHT)
+
+- Turned the profile picture upload into a small editor: after choosing an image, the customer can now drag it to reposition, zoom in and out and reset, with the round avatar previewed over the picture, so the avatar is no longer decided by however the file happened to be framed.
+- Kept only the square inside that frame and saved it at 512 pixels, so a large phone photo is downscaled before it is uploaded and the stored picture is a small square instead of the whole file.
+- Made cancelling the editor leave the current picture untouched, and taught the picker to refuse non-image files and to allow the same file to be chosen again after a cancel.
+- Gave the staff dashboard the same Overview as the admin dashboard, including the sales trend and the inventory card beside it, because staff were getting a reduced version with the chart missing.
+- Kept the announcement card and the Services tab admin-only, so staff still land on the Overview alone with no tab bar.
+- Moved the dashboard's date filter out of the page header and into the Sales Trend card, where it belongs: the header keeps only the shop status, and the numbers at the top and the chart now follow one date range instead of two pickers that disagreed.
+- Enlarged the sidebar's Help & Support and Sign out labels so they match every other row in the rail, and removed the "Guides and contact" line under Help, on both the desktop rail and the phone drawer.
+- Redesigned the selected payment method card on the print request: the chosen wallet now gets a tinted card, a solid brand icon and a round bullseye marker instead of a bar pinned to the card edge, so it reads as chosen rather than as a differently shaped card.
+- Applied the same treatment to Cash on Pickup, leaving its unavailable and restricted states exactly as they were.
+- Fixed the payment method picker on the Payment Verification page, where the selected tile set two conflicting border colours and ended up looking unselected and the tiles were cramped; it now uses the same cards, one per row on phones.
+- Brought the down-payment step onto the same cards for all three choices (pay at the shop or online, which wallet, and how much), so every payment screen in the customer flow now looks and behaves the same.
+- Typecheck and production build pass; the payment screens and the photo editor were verified by code and by the crop maths only, because this session has no signed-in account in the browser.
+
+
+## 2026-11-03 - Prans (2:08 AM PHT)
+
+- Promoted the current `frontend-dev` work to the `deployment` branch, which is the branch the live build tracks: the profile photo cropper, the staff dashboard on the full admin overview, the date filter moved into the Sales Trend card, the sidebar footer labels, and the unified payment method cards across the print request, payment verification and down payment steps.
+- The promotion is a clean fast-forward, so `deployment` and `frontend-dev` now sit on the same commit and production matches the work branch exactly - no separate merge commit and no code changed by the promotion itself.
+- Typecheck and production build pass.
+

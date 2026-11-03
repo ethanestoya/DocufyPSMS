@@ -10,12 +10,15 @@ import {
   Package,
   Briefcase,
   Home,
+  LifeBuoy,
+  Plus,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useMobileNav } from "../../contexts/MobileNavContext";
 import { useIsMobile } from "../ui/use-mobile";
 import { usePresence } from "../ui/use-presence";
 import { ConfirmationDialog } from "../ui/confirmation-dialog";
+import HelpSupportDialog from "./HelpSupportDialog";
 import {
   Sheet,
   SheetContent,
@@ -81,6 +84,7 @@ export default function MobileNavSheet({ router }: MobileNavSheetProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profilePresence = usePresence(isProfileOpen, 200);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   // Which parents have their inline submenu expanded. Kept as a Set so the
   // active module can be auto-expanded without clobbering manual toggles. It
@@ -134,14 +138,20 @@ export default function MobileNavSheet({ router }: MobileNavSheetProps) {
         : customerNavigation;
   const activeModule = findActiveModule(allModules, pathname, search);
 
-  // Sectioned groups for the admin/staff mobile nav (MAIN / OPERATIONS /
-  // MANAGEMENT). Customers keep the legacy flat menu (no headings).
+  // Sectioned groups for the admin/staff mobile nav (WORK / TEAM / SETTINGS).
+  // Customers keep the legacy flat menu (no headings).
   const sections: NavSection[] =
     user?.role === "admin"
       ? adminSections
       : user?.role === "staff"
         ? staffSections
         : [];
+
+  // Walk-in is the one create action in the rail, so it lives pinned under the
+  // brand instead of taking a nav row that would be indistinguishable from a
+  // destination.
+  const walkInPath = user ? `/${user.role}/walk-in` : "";
+  const isWalkInActive = !!user && pathname === walkInPath;
 
   // Always keep the parent of the current route expanded so navigation state
   // matches the URL (auto-expands after navigating straight to a child).
@@ -337,13 +347,46 @@ export default function MobileNavSheet({ router }: MobileNavSheetProps) {
             <div className="h-[2px] bg-white/40 w-full" />
           </div>
 
+          {/* Pinned create action — same place and treatment as the desktop rail. */}
+          {user.role !== "customer" && (
+            <div className="w-full px-3 pb-1">
+              <div
+                aria-hidden="true"
+                className="px-3 pt-1 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-100/70 select-none"
+              >
+                Actions
+              </div>
+              <button
+                type="button"
+                onClick={() => navigateAndClose(walkInPath)}
+                aria-label="New walk-in transaction"
+                aria-current={isWalkInActive ? "page" : undefined}
+                className={`group flex w-full items-center gap-3.5 rounded-xl bg-white py-2.5 pr-4 pl-4 text-[#1668D9] shadow-[0_2px_8px_rgba(9,32,74,0.3)] transition-all duration-200 hover:bg-[#EAF2FF] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
+                  isWalkInActive ? "ring-2 ring-white/70" : ""
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#1668D9] text-white"
+                >
+                  <Plus className="h-3.5 w-3.5" strokeWidth={3} />
+                </span>
+                <span className="text-sm font-semibold whitespace-nowrap">New walk-in</span>
+                <ChevronRight
+                  aria-hidden="true"
+                  className="ml-auto h-4 w-4 shrink-0 text-[#1668D9]/45 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-[#1668D9]"
+                />
+              </button>
+            </div>
+          )}
+
           <nav
             ref={navRef}
             onScroll={(e) => {
               savedNavScrollTop.current = e.currentTarget.scrollTop;
             }}
             aria-label="Primary navigation"
-            className="flex-1 py-5 space-y-2 overflow-y-auto custom-scrollbar flex flex-col items-center"
+            className="flex-1 py-3 space-y-2 overflow-y-auto custom-scrollbar flex flex-col items-center"
           >
             <div className="flex flex-col items-stretch w-full">
               {sections.length > 0 ? (
@@ -368,6 +411,27 @@ export default function MobileNavSheet({ router }: MobileNavSheetProps) {
 
           <div className="relative mt-auto w-full px-3 pb-5">
             <div className="h-[2px] bg-white/40 w-full mb-4" />
+            {/* Phones have no header avatar, so the drawer keeps the account
+                menu here — Help & Support sits beside it for the roles that
+                actually need it. Not for admin: the dialog's contact details
+                are the shop's own and its shortcuts mirror this drawer. */}
+            {user.role !== "admin" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  setIsHelpOpen(true);
+                }}
+                aria-label="Open Help & Support"
+                aria-haspopup="dialog"
+                className="mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-blue-100 transition-all hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+              >
+                <LifeBuoy className="h-5 w-5 shrink-0" />
+                <div className="min-w-0 flex-1 text-left">
+                  <p className="text-xs font-semibold text-white leading-none">Help &amp; Support</p>
+                </div>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setIsProfileOpen((isOpen) => !isOpen)}
@@ -439,6 +503,12 @@ export default function MobileNavSheet({ router }: MobileNavSheetProps) {
           </div>
         </div>
       </SheetContent>
+
+      <HelpSupportDialog
+        open={isHelpOpen}
+        onOpenChange={setIsHelpOpen}
+        onNavigate={(path) => router.navigate(path)}
+      />
 
       {showLogoutConfirm && (
         <ConfirmationDialog

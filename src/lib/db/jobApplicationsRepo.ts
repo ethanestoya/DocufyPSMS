@@ -1,5 +1,10 @@
 import { supabase } from '../supabaseClient';
-import { BUCKETS, getSignedObjectUrl, uploadObjectAndGetPath } from './storage';
+import {
+  BUCKETS,
+  getSignedObjectUrl,
+  removeObjectsIfPresent,
+  uploadObjectAndGetPath,
+} from './storage';
 import type {
   ApplicationStatus,
   JobApplicationDto,
@@ -27,7 +32,11 @@ function readJoinedTitle(row: RowWithJob): string | null {
   return j.title ?? null;
 }
 
-function toDto(row: RowWithJob, avatar?: string | null): JobApplicationDto {
+function toDto(
+  row: RowWithJob,
+  avatar?: string | null,
+  applicationPhoto?: string | null,
+): JobApplicationDto {
   return {
     id: row.id,
     jobId: row.job_id,
@@ -46,6 +55,8 @@ function toDto(row: RowWithJob, avatar?: string | null): JobApplicationDto {
     portfolioStoragePath: row.portfolio_storage_path,
     portfolioFileName: null,
     portfolioFileType: null,
+    photoStoragePath: row.photo_storage_path ?? null,
+    applicantPhotoUrl: applicationPhoto ?? null,
     status: row.status,
     interviewDate: row.interview_date,
     interviewTime: row.interview_time,
@@ -89,6 +100,26 @@ async function fetchApplicantAvatars(profileIds: string[]): Promise<Map<string, 
   return map;
 }
 
+// Photos attached to the applications themselves live in the private
+// `job-applications` bucket, so every list render needs a signed URL. One batch
+// call keeps the board from firing a request per applicant.
+async function fetchApplicationPhotoUrls(paths: string[]): Promise<Map<string, string>> {
+  const unique = Array.from(new Set(paths.filter(Boolean)));
+  if (unique.length === 0) return new Map();
+  const { data, error } = await supabase.storage
+    .from(BUCKETS.jobApplications)
+    .createSignedUrls(unique, 60 * 60);
+  if (error) {
+    console.warn('[db:jobApplications.photos]', error);
+    return new Map();
+  }
+  const map = new Map<string, string>();
+  for (const item of data ?? []) {
+    if (item.path && item.signedUrl) map.set(item.path, item.signedUrl);
+  }
+  return map;
+}
+
 // Fetch applications the calling role may see (RLS-filtered), newest first,
 // with the job title joined back so admin lists can show it without a second
 // lookup.
@@ -99,10 +130,21 @@ export async function fetchApplications(): Promise<JobApplicationDto[]> {
     .order('applied_at', { ascending: false });
   if (error) throw error;
   const rows = (data ?? []) as RowWithJob[];
-  const avatars = await fetchApplicantAvatars(
-    rows.map((row) => row.applicant_profile_id).filter((id): id is string => Boolean(id)),
+  const [avatars, applicationPhotos] = await Promise.all([
+    fetchApplicantAvatars(
+      rows.map((row) => row.applicant_profile_id).filter((id): id is string => Boolean(id)),
+    ),
+    fetchApplicationPhotoUrls(
+      rows.map((row) => row.photo_storage_path ?? '').filter(Boolean),
+    ),
+  ]);
+  return rows.map((row) =>
+    toDto(
+      row,
+      avatars.get(row.applicant_profile_id ?? ''),
+      applicationPhotos.get(row.photo_storage_path ?? ''),
+    ),
   );
-  return rows.map((row) => toDto(row, avatars.get(row.applicant_profile_id ?? '')));
 }
 
 export interface CreateApplicationInput {
@@ -119,6 +161,7 @@ export interface CreateApplicationInput {
   coverLetter?: string | null;
   portfolioUrl?: string | null;
   portfolioStoragePath?: string | null;
+  photoStoragePath?: string | null;
 }
 
 export async function createApplication(input: CreateApplicationInput): Promise<JobApplicationDto> {
@@ -136,13 +179,40 @@ export async function createApplication(input: CreateApplicationInput): Promise<
     cover_letter: input.coverLetter ?? null,
     portfolio_url: input.portfolioUrl ?? null,
     portfolio_storage_path: input.portfolioStoragePath ?? null,
+    photo_storage_path: input.photoStoragePath ?? null,
     status: 'Pending',
   };
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('job_applications')
     .insert(row)
     .select('*')
     .single();
+
+  // A database that has not had `photo_storage_path` added yet rejects the row
+  // (42703 undefined column, or PGRST204 "column not found in the schema
+  // cache"). The application itself must still be received — the photo is
+  // decoration; the submission is not — so retry without it. The caller sees
+  // `photoStoragePath: null` in the returned row and removes the object it just
+  // uploaded, so nothing is left orphaned in the bucket.
+  const errorCode = (error as { code?: string } | null)?.code;
+  const errorMessage = (error as { message?: string } | null)?.message ?? '';
+  const photoColumnMissing =
+    Boolean(input.photoStoragePath) &&
+    (errorCode === '42703' ||
+      errorCode === 'PGRST204' ||
+      errorMessage.includes('photo_storage_path'));
+  if (error && photoColumnMissing) {
+    console.warn(
+      '[db:jobApplications.photo] photo_storage_path is missing from the database — run: alter table public.job_applications add column if not exists photo_storage_path text;',
+    );
+    const { photo_storage_path: _dropped, ...withoutPhoto } = row;
+    ({ data, error } = await supabase
+      .from('job_applications')
+      .insert(withoutPhoto)
+      .select('*')
+      .single());
+  }
+
   if (error) throw error;
   return toDto(data as RowWithJob);
 }
@@ -209,4 +279,28 @@ export async function getPortfolioSignedUrl(
   storagePath: string | null | undefined,
 ): Promise<string | null> {
   return getSignedObjectUrl(BUCKETS.jobApplications, storagePath);
+}
+
+// The applicant's own photo, sent with the application. Same private bucket and
+// same owner-folder rule as the portfolio, so no extra storage policy is
+// needed: the first path segment is the applicant's profile id.
+export async function uploadApplicantPhoto(
+  applicantProfileId: string,
+  file: Blob,
+  fileName: string,
+): Promise<string> {
+  return uploadObjectAndGetPath({
+    bucket: BUCKETS.jobApplications,
+    folder: applicantProfileId,
+    file,
+    fileName,
+    contentType: file.type || 'image/jpeg',
+  });
+}
+
+// Drop a photo object that will never be referenced (the row was rejected, or
+// the column does not exist yet). Best effort — a leftover object is harmless.
+export async function deleteApplicantPhoto(storagePath: string | null | undefined): Promise<void> {
+  if (!storagePath) return;
+  await removeObjectsIfPresent(BUCKETS.jobApplications, [storagePath]);
 }

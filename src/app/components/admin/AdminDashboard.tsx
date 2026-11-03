@@ -252,24 +252,6 @@ function trendLabel(date: Date, unit: TrendUnit): string {
   );
 }
 
-/** `2026-11-02` → local midnight, instead of `new Date()`'s UTC parse. */
-function parseDayKey(iso: string): Date | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
-  if (!match) return null;
-  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-}
-
-function isoDay(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
-/** A preset page range → the two `YYYY-MM-DD` boxes the picker shows. */
-function toTrendRange(range: { start: Date; end: Date }): { from: string; to: string } {
-  const now = new Date();
-  const end = range.end.getTime() > now.getTime() ? now : range.end;
-  return { from: isoDay(range.start), to: isoDay(end) };
-}
-
 /**
  * Revenue inside an arbitrary window, split into buckets.
  *
@@ -383,61 +365,111 @@ function EmptyState({ icon: Icon, message }: { icon: React.ElementType; message:
 // sit here too, but "View Inventory" already opens the page that lists every
 // item with its stock, unit and status, so repeating it only made the dashboard
 // longer.
-function InventorySnapshot({ items, navigate, inventoryPath = "/admin/inventory" }: { items: InventoryItem[]; navigate: ReturnType<typeof useNavigate>; inventoryPath?: string }) {
+function InventorySnapshot({
+  items,
+  navigate,
+  inventoryPath = "/admin/inventory",
+  rail = false,
+}: {
+  items: InventoryItem[];
+  navigate: ReturnType<typeof useNavigate>;
+  inventoryPath?: string;
+  // `rail` is the narrow column beside the sales chart: one figure per row,
+  // stretched to the chart's height. Without it the three figures sit in a row.
+  rail?: boolean;
+}) {
   const activeItems = items.filter((i) => !i.archived);
   const lowStockItems = activeItems.filter((i) => inventoryStore.getInventoryStatus(i) === "low");
   const outOfStockItems = activeItems.filter((i) => inventoryStore.getInventoryStatus(i) === "out");
   const urgentItems = [...outOfStockItems, ...lowStockItems].slice(0, 4);
+  const needsAttention = lowStockItems.length + outOfStockItems.length;
+
+  // One source of figures for both layouts, so they can never disagree.
+  const stats = [
+    { label: "Total Items", value: activeItems.length, color: "text-[#2F6FD6]" },
+    {
+      label: "Low Stock",
+      value: lowStockItems.length,
+      color: lowStockItems.length > 0 ? "text-amber-600" : "text-slate-800",
+    },
+    {
+      label: "Out of Stock",
+      value: outOfStockItems.length,
+      color: outOfStockItems.length > 0 ? "text-red-600" : "text-slate-800",
+    },
+  ];
 
   return (
     <SectionCard
       title="Inventory Snapshot"
-      action={() => navigate(inventoryPath)}
-      actionLabel="View Inventory"
-    >
-      <div className="grid gap-4 @min-[720px]:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] @min-[720px]:items-start">
-        <div className="grid grid-cols-3 gap-2 text-center sm:gap-3">
-          <div className="p-3 bg-slate-50/70 border border-slate-200/60 rounded-xl">
-            <p className="text-xs font-medium text-slate-500">Total Items</p>
-            <p className="text-xl sm:text-2xl font-semibold text-[#2F6FD6] mt-1">{activeItems.length}</p>
-          </div>
-          <div className="p-3 bg-slate-50/70 border border-slate-200/60 rounded-xl">
-            <p className="text-xs font-medium text-slate-500">Low Stock</p>
-            <p className="text-xl sm:text-2xl font-semibold text-amber-600 mt-1">{lowStockItems.length}</p>
-          </div>
-          <div className="p-3 bg-slate-50/70 border border-slate-200/60 rounded-xl">
-            <p className="text-xs font-medium text-slate-500">Out of Stock</p>
-            <p className="text-xl sm:text-2xl font-semibold text-red-600 mt-1">{outOfStockItems.length}</p>
-          </div>
-        </div>
-
-        <div>
-          {urgentItems.length === 0 ? (
-            <div className="flex items-center gap-2 p-3 bg-green-50 text-green-700 rounded-xl">
-              <CheckCircle className="w-4 h-4 shrink-0 text-green-600" />
-              <p className="text-xs font-medium">All inventory levels are currently healthy.</p>
-            </div>
+      className={rail ? "h-full" : ""}
+      bodyClassName={rail ? "flex min-h-0 flex-1 flex-col" : ""}
+      headerRight={
+        <>
+          {needsAttention === 0 ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[11px] font-medium text-green-700">
+              <CheckCircle className="w-3 h-3 shrink-0 text-green-600" />
+              All levels healthy
+            </span>
           ) : (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-slate-500">Needs Attention</p>
-              {urgentItems.map((item) => {
-                const isOut = inventoryStore.getInventoryStatus(item) === "out";
-                return (
-                  <div key={item.id} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/80">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <AlertTriangle className={`w-4 h-4 shrink-0 ${isOut ? "text-red-500" : "text-amber-500"}`} />
-                      <p className="text-sm font-medium text-slate-700 truncate">{item.name}</p>
-                    </div>
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ml-2 ${isOut ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
-                      {isOut ? "Out of Stock" : "Low Stock"}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+              <AlertTriangle className="w-3 h-3 shrink-0" />
+              {needsAttention} need{needsAttention === 1 ? "s" : ""} attention
+            </span>
           )}
+          <Button
+            variant="link"
+            size="sm"
+            onClick={() => navigate(inventoryPath)}
+            className="ml-auto h-auto shrink-0 gap-1 px-0 text-[13px] font-semibold sm:ml-0"
+          >
+            View Inventory <ChevronRight className="w-3.5 h-3.5" />
+          </Button>
+        </>
+      }
+    >
+      {rail ? (
+        <div className="flex min-h-0 flex-1 flex-col gap-2">
+          {stats.map((stat) => (
+            <div
+              key={stat.label}
+              className="flex flex-1 items-center justify-between rounded-xl border border-slate-200/60 bg-slate-50/70 px-3.5 py-2.5"
+            >
+              <p className="text-xs font-medium text-slate-500">{stat.label}</p>
+              <p className={`text-2xl font-semibold ${stat.color}`}>{stat.value}</p>
+            </div>
+          ))}
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-2 text-center sm:gap-3">
+          {stats.map((stat) => (
+            <div key={stat.label} className="p-3 bg-slate-50/70 border border-slate-200/60 rounded-xl">
+              <p className="text-[11px] font-medium text-slate-500 sm:text-xs">{stat.label}</p>
+              <p className={`text-xl sm:text-2xl font-semibold mt-1 ${stat.color}`}>{stat.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {urgentItems.length > 0 && (
+        <div className="mt-3 space-y-2">
+          <p className="text-xs font-semibold text-slate-500">Needs Attention</p>
+          {urgentItems.map((item) => {
+            const isOut = inventoryStore.getInventoryStatus(item) === "out";
+            return (
+              <div key={item.id} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/80">
+                <div className="flex items-center gap-2 min-w-0">
+                  <AlertTriangle className={`w-4 h-4 shrink-0 ${isOut ? "text-red-500" : "text-amber-500"}`} />
+                  <p className="text-sm font-medium text-slate-700 truncate">{item.name}</p>
+                </div>
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ml-2 ${isOut ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
+                  {isOut ? "Out of Stock" : "Low Stock"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </SectionCard>
   );
 }
@@ -512,18 +544,19 @@ function OverviewTab({
   metrics,
   navigate,
   items,
+  orders,
   role = "admin",
   trend,
-  trendRange,
-  onTrendRangeChange,
+  dateSelector,
 }: {
   metrics: DashboardMetrics;
   navigate: ReturnType<typeof useNavigate>;
   items: InventoryItem[];
+  orders: Order[];
   role?: "admin" | "staff";
   trend: TrendSeries;
-  trendRange: { from: string; to: string };
-  onTrendRangeChange: (next: { from: string; to: string }) => void;
+  /** The Overview's single date control, rendered in the Sales Trend card header. */
+  dateSelector: React.ReactNode;
 }) {
   const {
     totalSales, totalOrders, walkInCount, activeCustomers,
@@ -567,43 +600,54 @@ function OverviewTab({
         />
       </div>
 
-      {/* One trend card. The window is picked here instead of from a
-          daily/weekly/monthly toggle — the bucket size follows the window. */}
-      {role === "admin" && (
-        <SectionCard
-          title="Sales Trend"
-          subtitle={TREND_SUBTITLE[trend.unit]}
-          headerRight={
-            <div className="w-full sm:w-[260px]">
-              <DateRangeFilter trigger value={trendRange} onChange={onTrendRangeChange} />
-            </div>
-          }
-        >
-          {trend.points.every((point) => point.sales === 0) ? (
-            <EmptyState icon={TrendingUp} message="No sales in this range" />
-          ) : (
-            <div className="h-56 sm:h-[260px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trend.points} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="salesGrad2" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#2F6FD6" stopOpacity={0.25} />
-                      <stop offset="100%" stopColor="#2F6FD6" stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 600 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 600 }} tickFormatter={(v: number) => fmtShortPlain(v)} />
-                  <Tooltip formatter={(v: number) => [fmt(v), "Sales"]} contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(15,23,42,0.08)", fontSize: 12 }} />
-                  <Area type="monotone" dataKey="sales" stroke="#2F6FD6" strokeWidth={2} fill="url(#salesGrad2)" dot={{ r: 3.5, fill: "#2F6FD6", stroke: "#fff", strokeWidth: 2 }} activeDot={{ r: 5 }} isAnimationActive={false} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </SectionCard>
-      )}
+      {/* Trend and inventory share one row on desktop: the chart takes two
+          thirds, the inventory figures the remaining third. Admin and staff
+          share this Overview — only the announcement card and the Services tab
+          stay admin-only. */}
+      <div className="grid grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2">
+          <SectionCard
+            title="Sales Trend"
+            subtitle={TREND_SUBTITLE[trend.unit]}
+            headerRight={dateSelector}
+          >
+            {trend.points.every((point) => point.sales === 0) ? (
+              // Same height as the chart so an empty range leaves a card that
+              // still holds the page together instead of collapsing to a line.
+              <div className="flex h-[260px] items-center justify-center sm:h-[340px]">
+                <EmptyState icon={TrendingUp} message="No sales in this range" />
+              </div>
+            ) : (
+              <div className="h-[260px] sm:h-[340px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={trend.points} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="salesGrad2" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#2F6FD6" stopOpacity={0.25} />
+                        <stop offset="100%" stopColor="#2F6FD6" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 600 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 600 }} tickFormatter={(v: number) => fmtShortPlain(v)} />
+                    <Tooltip formatter={(v: number) => [fmt(v), "Sales"]} contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(15,23,42,0.08)", fontSize: 12 }} />
+                    <Area type="monotone" dataKey="sales" stroke="#2F6FD6" strokeWidth={2} fill="url(#salesGrad2)" dot={{ r: 3.5, fill: "#2F6FD6", stroke: "#fff", strokeWidth: 2 }} activeDot={{ r: 5 }} isAnimationActive={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </SectionCard>
+        </div>
 
-      <InventorySnapshot items={items} navigate={navigate} inventoryPath={inventoryPath} />
+        <div className="min-w-0 lg:col-span-1">
+          <InventorySnapshot
+            items={items}
+            navigate={navigate}
+            inventoryPath={inventoryPath}
+            rail
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -1053,23 +1097,13 @@ export default function AdminDashboard({
 
   const dateRange = useMemo(() => getDateRange(dateRangeId, customStart, customEnd), [dateRangeId, customStart, customEnd]);
 
-  // The chart has its own window so the operator can look at a week of sales
-  // without changing the period every KPI above it is measured over. Picking a
-  // new page range re-seeds it, since the two are meant to start together.
-  const [trendRange, setTrendRange] = useState(() => toTrendRange(dateRange));
-  useEffect(() => {
-    setTrendRange(toTrendRange(dateRange));
-  }, [dateRange]);
-
-  const trend = useMemo(() => {
-    const from = parseDayKey(trendRange.from);
-    const to = parseDayKey(trendRange.to);
-    const start = from ?? dateRange.start;
-    let end = to ?? dateRange.end;
-    if (to) end = new Date(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59, 999);
-    if (end.getTime() < start.getTime()) end = start;
-    return buildTrendSeries(orders, { start, end });
-  }, [orders, trendRange, dateRange]);
+  // ONE range for the whole Overview: the date selector now lives in the Sales
+  // Trend card header, so a chart-only window would be a trap — the control
+  // would sit in the card it does not drive.
+  const trend = useMemo(
+    () => buildTrendSeries(orders, { start: dateRange.start, end: dateRange.end }),
+    [orders, dateRange],
+  );
 
   useEffect(() => {
     const unsubOrders = dataStore.subscribe(() => setOrders(dataStore.getOrders()));
@@ -1104,11 +1138,11 @@ export default function AdminDashboard({
             <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Dashboard</h2>
             <p className="text-sm text-slate-500 mt-1">Welcome back, {userName || "admin"}.</p>
           </div>
-          {/* The date range belongs to Overview — Services carries its own picker. */}
+          {/* The date range moved into the Sales Trend card header, so the page
+              header keeps only the announcement card and the shop's presence. */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
             {role === "admin" && activeTab === "Overview" && <CreateNotificationCard />}
             <div className="flex flex-wrap items-center gap-2.5">
-              {(role === "staff" || activeTab === "Overview") && overviewDateSelector}
               {/* The shop's state reads like a chat presence dot at every
                   width — a full card here cost ~92px of the first screen. */}
               {(role === "staff" || activeTab === "Overview") && <ShopStatusControl />}
@@ -1139,29 +1173,17 @@ export default function AdminDashboard({
             <CardSkeleton cards={4} columns={3} label="Loading dashboard" />
             <DetailSkeleton blocks={2} />
           </div>
-        ) : role === "admin" ? (
-          <>
-            {activeTab === "Overview" && (
-              <OverviewTab
-                metrics={metrics}
-                navigate={navigate}
-                items={inventoryItems}
-                trend={trend}
-                trendRange={trendRange}
-                onTrendRangeChange={setTrendRange}
-              />
-            )}
-            {activeTab === "Services" && <ServicesTab navigate={navigate} />}
-          </>
+        ) : activeTab === "Services" && role === "admin" ? (
+          <ServicesTab navigate={navigate} />
         ) : (
           <OverviewTab
             metrics={metrics}
             navigate={navigate}
             items={inventoryItems}
-            role="staff"
+            orders={orders}
+            role={role}
             trend={trend}
-            trendRange={trendRange}
-            onTrendRangeChange={setTrendRange}
+            dateSelector={overviewDateSelector}
           />
         )}
       </div>

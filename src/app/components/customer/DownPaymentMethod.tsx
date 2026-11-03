@@ -48,6 +48,20 @@ const menuItems = [
   },
 ];
 
+/** 22px bullseye marker shared by every choice card on this page. */
+function SelectionDot({ active }: { active: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`mt-[9px] flex size-[22px] shrink-0 items-center justify-center rounded-full border-2 bg-white transition-colors ${
+        active ? "border-[#1668D9]" : "border-slate-300"
+      }`}
+    >
+      {active && <span className="size-[10px] rounded-full bg-[#1668D9]" />}
+    </span>
+  );
+}
+
 export default function DownPaymentMethod() {
   const hydrating = useHydrating();
   const navigate = useNavigate();
@@ -177,24 +191,30 @@ export default function DownPaymentMethod() {
             Pay the down payment in cash at the shop, or settle it online with
             a wallet.
           </p>
-          <div className="grid grid-cols-1 @min-[640px]:grid-cols-2 gap-3">
+          <div
+            role="radiogroup"
+            aria-label="How you will pay"
+            className="grid grid-cols-1 @min-[640px]:grid-cols-2 gap-3"
+          >
             <button
               type="button"
+              role="radio"
+              aria-checked={venue === "shop"}
               onClick={() => setVenue("shop")}
-              className={`relative flex items-start gap-3 p-4 border-2 rounded-lg text-left transition-all active:scale-[0.98] ${
+              className={`flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]/40 ${
                 venue === "shop"
-                  ? "border-[#2F6FD6] bg-white"
-                  : "border-gray-200 hover:border-gray-300"
+                  ? "border-[#1668D9] bg-[#EAF2FF] shadow-[0_8px_20px_rgba(22,104,217,0.14)]"
+                  : "border-gray-200 bg-white hover:border-gray-300 hover:bg-slate-50/60"
               }`}
             >
-              {venue === "shop" && (
-                <span className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#2F6FD6] rounded-full" />
-              )}
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-blue-100">
-                <Banknote className="w-5 h-5 text-[#2F6FD6]" />
+              <SelectionDot active={venue === "shop"} />
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                venue === "shop" ? "bg-[#1668D9]" : "bg-blue-100"
+              }`}>
+                <Banknote className={`w-5 h-5 ${venue === "shop" ? "text-white" : "text-[#2F6FD6]"}`} />
               </div>
               <div>
-                <p className="font-semibold text-gray-900">
+                <p className={`font-semibold ${venue === "shop" ? "text-[#10316B]" : "text-gray-900"}`}>
                   Pay at the Shop
                 </p>
                 <p className="text-xs text-gray-500">
@@ -205,21 +225,23 @@ export default function DownPaymentMethod() {
             </button>
             <button
               type="button"
+              role="radio"
+              aria-checked={venue === "online"}
               onClick={() => setVenue("online")}
-              className={`relative flex items-start gap-3 p-4 border-2 rounded-lg text-left transition-all active:scale-[0.98] ${
+              className={`flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]/40 ${
                 venue === "online"
-                  ? "border-[#2F6FD6] bg-white"
-                  : "border-gray-200 hover:border-gray-300"
+                  ? "border-[#1668D9] bg-[#EAF2FF] shadow-[0_8px_20px_rgba(22,104,217,0.14)]"
+                  : "border-gray-200 bg-white hover:border-gray-300 hover:bg-slate-50/60"
               }`}
             >
-              {venue === "online" && (
-                <span className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#2F6FD6] rounded-full" />
-              )}
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-blue-100">
-                <Smartphone className="w-5 h-5 text-[#2F6FD6]" />
+              <SelectionDot active={venue === "online"} />
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                venue === "online" ? "bg-[#1668D9]" : "bg-blue-100"
+              }`}>
+                <Smartphone className={`w-5 h-5 ${venue === "online" ? "text-white" : "text-[#2F6FD6]"}`} />
               </div>
               <div>
-                <p className="font-semibold text-gray-900">Pay Online</p>
+                <p className={`font-semibold ${venue === "online" ? "text-[#10316B]" : "text-gray-900"}`}>Pay Online</p>
                 <p className="text-xs text-gray-500">
                   Pay with a mobile wallet and upload your receipt on Payment
                   Verification.
@@ -245,26 +267,32 @@ export default function DownPaymentMethod() {
                 back later or choose Pay at the Shop.
               </p>
             ) : (
-              <div className="grid grid-cols-1 @min-[640px]:grid-cols-2 gap-3">
+              <div
+                role="radiogroup"
+                aria-label="Choose your payment method"
+                className="grid grid-cols-1 @min-[640px]:grid-cols-2 gap-3"
+              >
                 {onlineMethods.map((method) => (
                   <button
                     key={method.id}
                     type="button"
+                    role="radio"
+                    aria-checked={wallet === method.name}
                     onClick={() => setWallet(method.name)}
-                    className={`relative flex items-center gap-3 p-4 border-2 rounded-lg text-left transition-all active:scale-[0.98] ${
+                    className={`flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]/40 ${
                       wallet === method.name
-                        ? "border-[#2F6FD6] bg-white"
-                        : "border-gray-200 hover:border-gray-300"
+                        ? "border-[#1668D9] bg-[#EAF2FF] shadow-[0_8px_20px_rgba(22,104,217,0.14)]"
+                        : "border-gray-200 bg-white hover:border-gray-300 hover:bg-slate-50/60"
                     }`}
                   >
-                    {wallet === method.name && (
-                      <span className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#2F6FD6] rounded-full" />
-                    )}
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-blue-100">
-                      <Smartphone className="w-5 h-5 text-[#2F6FD6]" />
+                    <SelectionDot active={wallet === method.name} />
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                      wallet === method.name ? "bg-[#1668D9]" : "bg-blue-100"
+                    }`}>
+                      <Smartphone className={`w-5 h-5 ${wallet === method.name ? "text-white" : "text-[#2F6FD6]"}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-900">
+                      <p className={`font-semibold ${wallet === method.name ? "text-[#10316B]" : "text-gray-900"}`}>
                         {method.name}
                       </p>
                       <p className="text-xs text-gray-500 truncate">
@@ -287,24 +315,30 @@ export default function DownPaymentMethod() {
             You can pay a 50% down payment now and the rest on pickup, or settle
             the full amount now.
           </p>
-          <div className="grid grid-cols-1 @min-[640px]:grid-cols-2 gap-3">
+          <div
+            role="radiogroup"
+            aria-label="How much would you like to pay today"
+            className="grid grid-cols-1 @min-[640px]:grid-cols-2 gap-3"
+          >
             <button
               type="button"
+              role="radio"
+              aria-checked={amountChoice === "down"}
               onClick={() => setAmountChoice("down")}
-              className={`relative flex items-start gap-3 p-4 border-2 rounded-lg text-left transition-all active:scale-[0.98] ${
+              className={`flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]/40 ${
                 amountChoice === "down"
-                  ? "border-[#2F6FD6] bg-white"
-                  : "border-gray-200 hover:border-gray-300"
+                  ? "border-[#1668D9] bg-[#EAF2FF] shadow-[0_8px_20px_rgba(22,104,217,0.14)]"
+                  : "border-gray-200 bg-white hover:border-gray-300 hover:bg-slate-50/60"
               }`}
             >
-              {amountChoice === "down" && (
-                <span className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#2F6FD6] rounded-full" />
-              )}
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-blue-100">
-                <Wallet className="w-5 h-5 text-[#2F6FD6]" />
+              <SelectionDot active={amountChoice === "down"} />
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                amountChoice === "down" ? "bg-[#1668D9]" : "bg-blue-100"
+              }`}>
+                <Wallet className={`w-5 h-5 ${amountChoice === "down" ? "text-white" : "text-[#2F6FD6]"}`} />
               </div>
               <div>
-                <p className="font-semibold text-gray-900">Down Payment (50%)</p>
+                <p className={`font-semibold ${amountChoice === "down" ? "text-[#10316B]" : "text-gray-900"}`}>Down Payment (50%)</p>
                 <p className="text-sm text-[#2F6FD6] font-semibold">
                   {formatCurrency(downDue)}{" "}
                   <span className="font-normal text-xs text-gray-500">
@@ -318,21 +352,23 @@ export default function DownPaymentMethod() {
             </button>
             <button
               type="button"
+              role="radio"
+              aria-checked={amountChoice === "full"}
               onClick={() => setAmountChoice("full")}
-              className={`relative flex items-start gap-3 p-4 border-2 rounded-lg text-left transition-all active:scale-[0.98] ${
+              className={`flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]/40 ${
                 amountChoice === "full"
-                  ? "border-[#2F6FD6] bg-white"
-                  : "border-gray-200 hover:border-gray-300"
+                  ? "border-[#1668D9] bg-[#EAF2FF] shadow-[0_8px_20px_rgba(22,104,217,0.14)]"
+                  : "border-gray-200 bg-white hover:border-gray-300 hover:bg-slate-50/60"
               }`}
             >
-              {amountChoice === "full" && (
-                <span className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#2F6FD6] rounded-full" />
-              )}
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-blue-100">
-                <CheckCircle2 className="w-5 h-5 text-[#2F6FD6]" />
+              <SelectionDot active={amountChoice === "full"} />
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                amountChoice === "full" ? "bg-[#1668D9]" : "bg-blue-100"
+              }`}>
+                <CheckCircle2 className={`w-5 h-5 ${amountChoice === "full" ? "text-white" : "text-[#2F6FD6]"}`} />
               </div>
               <div>
-                <p className="font-semibold text-gray-900">Full Amount</p>
+                <p className={`font-semibold ${amountChoice === "full" ? "text-[#10316B]" : "text-gray-900"}`}>Full Amount</p>
                 <p className="text-sm text-[#2F6FD6] font-semibold">
                   {formatCurrency(total)}{" "}
                   <span className="font-normal text-xs text-gray-500">

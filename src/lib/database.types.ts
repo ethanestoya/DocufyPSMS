@@ -992,6 +992,7 @@ export type Database = {
           cover_letter: string | null
           portfolio_url: string | null
           portfolio_storage_path: string | null
+          photo_storage_path: string | null
           status: Database['public']['Enums']['application_status']
           interview_date: string | null
           interview_time: string | null
@@ -1015,6 +1016,7 @@ export type Database = {
           cover_letter?: string | null
           portfolio_url?: string | null
           portfolio_storage_path?: string | null
+          photo_storage_path?: string | null
           status?: Database['public']['Enums']['application_status']
           interview_date?: string | null
           interview_time?: string | null
@@ -1038,6 +1040,7 @@ export type Database = {
           cover_letter?: string | null
           portfolio_url?: string | null
           portfolio_storage_path?: string | null
+          photo_storage_path?: string | null
           status?: Database['public']['Enums']['application_status']
           interview_date?: string | null
           interview_time?: string | null

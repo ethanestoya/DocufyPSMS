@@ -4,8 +4,6 @@ import {
   Bell,
   LogOut,
   Menu,
-  PanelLeftClose,
-  PanelLeftOpen,
   User,
   ChevronDown,
   Printer,
@@ -24,6 +22,8 @@ Home,
   Boxes,
   ArrowRight,
   Calendar,
+  LifeBuoy,
+  Plus,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useLogo } from "../hooks/useLogo";
@@ -49,6 +49,7 @@ import {
   DialogFooter,
 } from "./ui/dialog";
 import { AnnouncementDetailsModal, type AnnouncementDetailData } from "./shared/AnnouncementDetailsModal";
+import HelpSupportDialog from "./shared/HelpSupportDialog";
 import { UnclaimedHeaderIndicator } from "./shared/UnclaimedHeaderIndicator";
 import { Button } from "./ui/button";
 import { TopProgressBar } from "./ui/top-progress-bar";
@@ -214,7 +215,7 @@ export default function Layout({
     if (isMobile) window.scrollTo(0, 0);
   }, [isMobile]);
 
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isTopProfileOpen, setIsTopProfileOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] =
     useState(false);
@@ -263,7 +264,6 @@ export default function Layout({
   });
 
   // Keep panels mounted while animating closed
-  const sidebarProfilePresence = usePresence(isProfileOpen, 200);
   const topProfilePresence = usePresence(isTopProfileOpen, 200);
   const notificationPresence = usePresence(isNotificationOpen, 200);
 
@@ -421,14 +421,20 @@ export default function Layout({
         ? flattenSections(staffSections)
         : customerModules;
 
-  // Sectioned groups for the admin/staff sidebar (MAIN / OPERATIONS /
-  // MANAGEMENT). Customers keep the legacy flat menu (no headings).
+  // Sectioned groups for the admin/staff sidebar (WORK / TEAM / SETTINGS).
+  // Customers keep the legacy flat menu (no headings).
   const sections: NavSection[] =
     user?.role === "admin"
       ? adminSections
       : user?.role === "staff"
         ? staffSections
         : [];
+
+  // Walk-in is the one create action in the rail, so it lives pinned under the
+  // brand instead of taking a nav row that would be indistinguishable from a
+  // destination.
+  const walkInPath = user ? `/${user.role}/walk-in` : "";
+  const isWalkInActive = !!user && location.pathname === walkInPath;
 
   const activeModule = findActiveModule(
     allModules,
@@ -796,7 +802,7 @@ export default function Layout({
             <span
               className={`absolute inset-0 z-10 flex items-center justify-center pointer-events-none transition-opacity duration-200 ${showLabels ? "hidden" : "opacity-0 group-hover:opacity-100"}`}
             >
-              <PanelLeftOpen className="w-5 h-5 text-white" />
+              <ChevronRight className="w-5 h-5 text-white" strokeWidth={2.5} />
             </span>
             <span
               className={`absolute left-[52px] top-1/2 -translate-y-1/2 text-lg font-bold tracking-tight text-white whitespace-nowrap pointer-events-none transition-opacity duration-300 ${showLabels ? "opacity-100" : "opacity-0"}`}
@@ -817,9 +823,9 @@ export default function Layout({
               }}
               aria-label={isMobile ? "Close navigation" : "Collapse navigation"}
               aria-expanded={isMobile ? isNavigationOpen : isSidebarExpanded}
-              className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-lg w-8 h-8 text-blue-100 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 transition-colors duration-200"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full text-blue-100 transition-colors duration-200 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
             >
-              <PanelLeftClose className="w-[18px] h-[18px] flex-shrink-0" />
+              <ChevronLeft className="w-4 h-4" strokeWidth={2.5} />
             </button>
           )}
         </div>
@@ -828,6 +834,54 @@ export default function Layout({
       <div className="px-3 mb-2">
         <div className="h-[2px] bg-white/40 w-full" />
       </div>
+
+      {/* Pinned create action — outside the scroller so it never scrolls away.
+          White-on-blue alone reads like a selected nav row, so it carries its own
+          group heading, a filled plus chip and a travelling chevron: a button,
+          not a destination. */}
+      {user && user.role !== "customer" && (
+        <div className="w-full px-3 pb-1">
+          {showLabels && (
+            <div
+              aria-hidden="true"
+              className="px-3 pt-1 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-100/70 select-none"
+            >
+              Actions
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => handleNavigation(walkInPath)}
+            onMouseEnter={(event) => showSidebarTooltip("New walk-in", event)}
+            onMouseLeave={hideSidebarTooltip}
+            onFocus={(event) => showSidebarTooltip("New walk-in", event)}
+            onBlur={hideSidebarTooltip}
+            aria-label="New walk-in transaction"
+            aria-current={isWalkInActive ? "page" : undefined}
+            className={`group flex items-center rounded-xl bg-white text-[#1668D9] shadow-[0_2px_8px_rgba(9,32,74,0.3)] transition-all duration-200 hover:bg-[#EAF2FF] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
+              showLabels ? "w-full gap-3.5 py-2.5 pr-4 pl-4" : "mx-auto h-11 w-11 justify-center"
+            } ${isWalkInActive ? "ring-2 ring-white/70" : ""}`}
+          >
+            {showLabels ? (
+              <>
+                <span
+                  aria-hidden="true"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#1668D9] text-white"
+                >
+                  <Plus className="h-3.5 w-3.5" strokeWidth={3} />
+                </span>
+                <span className="text-sm font-semibold whitespace-nowrap">New walk-in</span>
+                <ChevronRight
+                  aria-hidden="true"
+                  className="ml-auto h-4 w-4 shrink-0 text-[#1668D9]/45 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-[#1668D9]"
+                />
+              </>
+            ) : (
+              <Plus className="h-5 w-5 shrink-0" strokeWidth={2.5} />
+            )}
+          </button>
+        </div>
+      )}
 
       <nav
         ref={navRef}
@@ -845,7 +899,7 @@ export default function Layout({
                 <div key={section.key} className="flex flex-col items-stretch w-full">
                   <div
                     aria-hidden="true"
-                    className="px-6 pt-1 pb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-100/70 select-none"
+                    className="px-6 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-100/70 select-none"
                   >
                     {section.label}
                   </div>
@@ -865,91 +919,58 @@ export default function Layout({
         )}
       </nav>
 
-      <div className="relative mt-auto w-full px-3 pb-5">
-        <div className="h-[2px] bg-white/40 w-full mb-4" />
-        <button
-          type="button"
-          onClick={() => {
-            if (!isMobile && !isSidebarExpanded) {
-              // Collapsed sidebar: expanding it first so the full profile
-              // button shows, and opening the menu to preserve the click intent.
-              setIsSidebarExpanded(true);
-              setIsProfileOpen(true);
-              hideSidebarTooltip();
-            } else {
-              setIsProfileOpen(!isProfileOpen);
-            }
-            setIsTopProfileOpen(false);
-            setIsNotificationOpen(false);
-          }}
-          aria-label="Open account menu"
-          aria-expanded={isProfileOpen}
-          aria-haspopup="menu"
-          className={`flex items-center gap-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]/40 ${
-            isMobile || isSidebarExpanded ? "w-full px-3 py-2.5" : "mx-auto h-11 w-11 justify-center"
-          } ${isProfileOpen ? "bg-white/10" : "hover:bg-white/10"}`}
-        >
-          <div className="w-8 h-8 bg-white text-[#1668D9] rounded-lg flex items-center justify-center font-bold text-xs uppercase flex-shrink-0 overflow-hidden">
-            {profileImage ? (
-              <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
-            ) : (
-              profileInitial
-            )}
-          </div>
-          {(isMobile || isSidebarExpanded) && (
-            <div className="min-w-0 flex-1 text-left">
-              <p className="text-xs font-semibold text-white leading-none truncate">
-                {user?.name || user?.email?.split("@")[0]}
-              </p>
-              <p className="text-[10px] text-blue-100 capitalize leading-none mt-1">
-                {user?.role} account
-              </p>
-            </div>
-          )}
-          {(isMobile || isSidebarExpanded) && (
-            <ChevronDown className={`w-4 h-4 text-blue-100 transition-transform ${isProfileOpen ? "rotate-180" : ""}`} />
-          )}
-        </button>
+      {/* Footer: the way out, and the way to ask for help. Help & Support is
+          staff/customer only — an admin's contact details are the shop's own.
+          Sign out sits here as a plain row, the same shape as the row above it;
+          the profile block lives in the header avatar menu, not in the rail. */}
+      <div className="mt-auto w-full px-3 pb-5">
+        <div className="h-[2px] bg-white/40 w-full mb-3" />
 
-        {sidebarProfilePresence && (
-          <div className={`absolute bottom-full mb-2 ${sidebarProfilePresence.isClosing ? "animate-out fade-out-0 zoom-out-95 slide-out-to-bottom-2 duration-200 pointer-events-none" : "animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2 duration-200"} ${isMobile || isSidebarExpanded ? "left-3 right-3" : "left-[72px] w-56"} bg-white rounded-2xl shadow-2xl border border-gray-100 py-1.5 z-20`}>
-            <div className="px-4 py-3 border-b border-gray-100">
-              <p className="text-xs font-bold text-gray-900 truncate">{user?.name || user?.email?.split("@")[0]}</p>
-              <p className="text-[10px] text-gray-500 truncate mt-0.5">{user?.email}</p>
-              <p className="text-[10px] text-gray-500 capitalize mt-0.5">{user?.role} Account</p>
-            </div>
-            <div className="py-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsProfileOpen(false);
-                  handleNavigation("/");
-                }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-medium"
-              >
-                <Home className="w-4 h-4" /> Home
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsProfileOpen(false);
-                  handleNavigation(`/${user?.role}/profile`);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-medium"
-              >
-                <User className="w-4 h-4" /> My Profile
-              </button>
-            </div>
-            <div className="border-t border-gray-100 py-1">
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors font-medium"
-              >
-                <LogOut className="w-4 h-4" /> Sign Out
-              </button>
-            </div>
-          </div>
+        {user?.role !== "admin" && (
+          <button
+            type="button"
+            onClick={() => {
+              setIsHelpOpen(true);
+              hideSidebarTooltip();
+            }}
+            onMouseEnter={(event) => showSidebarTooltip("Help & Support", event)}
+            onMouseLeave={hideSidebarTooltip}
+            onFocus={(event) => showSidebarTooltip("Help & Support", event)}
+            onBlur={hideSidebarTooltip}
+            aria-label="Open Help & Support"
+            aria-haspopup="dialog"
+            className={`flex items-center gap-3 rounded-xl text-blue-100 transition-all hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+              showLabels ? "w-full px-3 py-2.5" : "mx-auto h-11 w-11 justify-center"
+            }`}
+          >
+            <LifeBuoy className="w-5 h-5 shrink-0" />
+            {showLabels && (
+              <div className="min-w-0 flex-1 text-left">
+                <p className="text-sm font-semibold text-white leading-none">Help &amp; Support</p>
+              </div>
+            )}
+          </button>
+        )}
+
+        {user && (
+          <button
+            type="button"
+            onClick={() => {
+              hideSidebarTooltip();
+              handleLogout();
+            }}
+            onMouseEnter={(event) => showSidebarTooltip("Sign out", event)}
+            onMouseLeave={hideSidebarTooltip}
+            onFocus={(event) => showSidebarTooltip("Sign out", event)}
+            onBlur={hideSidebarTooltip}
+            aria-label="Sign out"
+            className={`flex items-center gap-3 rounded-xl text-blue-100 transition-all hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+              showLabels ? "mt-1.5 w-full px-3 py-2.5" : "mx-auto mt-1.5 h-11 w-11 justify-center"
+            }`}
+          >
+            <LogOut className="w-5 h-5 shrink-0" />
+            {showLabels && <span className="text-sm font-semibold leading-none">Sign out</span>}
+          </button>
         )}
       </div>
 
@@ -1050,7 +1071,6 @@ export default function Layout({
                 type="button"
                 onClick={() => {
                   setIsNotificationOpen(!isNotificationOpen);
-                  setIsProfileOpen(false);
                 }}
                 aria-label={`Notifications${combinedUnread > 0 ? `, ${combinedUnread} unread` : ''}`}
                 aria-expanded={isNotificationOpen}
@@ -1164,7 +1184,7 @@ export default function Layout({
                 <button
                   type="button"
                   onClick={() => {
-                    setIsTopProfileOpen(!isTopProfileOpen);                    setIsProfileOpen(false);
+                    setIsTopProfileOpen(!isTopProfileOpen);
                     setIsNotificationOpen(false);
                   }}
                   aria-label="Open profile"
@@ -1255,6 +1275,8 @@ export default function Layout({
           background-clip: padding-box;
         }
       `}</style>
+
+      <HelpSupportDialog open={isHelpOpen} onOpenChange={setIsHelpOpen} onNavigate={navigate} />
 
       {/* Sign Out Confirmation */}
       {showLogoutConfirm && (

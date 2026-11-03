@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Kanban, LayoutGrid, ShoppingCart, User, Mail, Phone, Calendar, Shield, Save, ArrowLeft, CheckCircle, Key, BriefcaseBusiness, AlertCircle, Camera, Clock, Boxes, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
+import { AvatarCropDialog } from '../ui/avatar-crop-dialog';
 import Layout from '../Layout';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
@@ -97,15 +98,27 @@ export default function StaffProfile() {
     };
   });
 
+  const [cropSource, setCropSource] = useState<string | null>(null);
+
   const handleProfileImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    // Reset first so the same file can be picked again after a cancel.
+    event.target.value = '';
     if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please choose an image file.');
+      return;
+    }
     if (file.size > 2 * 1024 * 1024) {
       toast.error('Please choose an image smaller than 2MB.');
       return;
     }
+    // Open the cropper; the avatar only changes once the square is confirmed.
     const reader = new FileReader();
-    reader.onload = () => setProfileImage(typeof reader.result === 'string' ? reader.result : null);
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : null;
+      if (result) setCropSource(result);
+    };
     reader.readAsDataURL(file);
   };
 
@@ -575,6 +588,20 @@ export default function StaffProfile() {
           destructive={false}
         />
       )}
+
+      <AvatarCropDialog
+        open={cropSource !== null}
+        imageSrc={cropSource}
+        onOpenChange={(open) => {
+          if (!open) setCropSource(null);
+        }}
+        onApply={(cropped) => {
+          setProfileImage(cropped);
+          setCropSource(null);
+          toast.success('Photo ready — save to apply it.');
+        }}
+      />
+
     </Layout>
   );
 }

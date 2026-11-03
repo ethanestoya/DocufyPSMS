@@ -345,6 +345,11 @@ export interface JobApplicationDto {
   portfolioStoragePath: string | null;
   portfolioFileName: string | null;
   portfolioFileType: string | null;
+  // Photo submitted WITH the application (own bucket object), and its resolved
+  // signed URL. Both null when the applicant sent none — the board then falls
+  // back to the account picture, then to initials.
+  photoStoragePath: string | null;
+  applicantPhotoUrl?: string | null;
   status: ApplicationStatus;
   interviewDate: string | null;
   interviewTime: string | null;

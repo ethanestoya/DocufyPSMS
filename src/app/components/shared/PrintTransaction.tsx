@@ -1014,7 +1014,16 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
           <span className="text-sm">Order ID: {created.displayId ?? created.id}</span>
           <span className="text-sm">Total: {formatCurrency(manualPrice)}</span>
         </div>,
-        { duration: 5000 }
+        {
+          duration: 5000,
+          action: {
+            label: "Open order",
+            onClick: () =>
+              navigate(
+                `${role === "admin" ? "/admin/orders" : "/staff/queue"}?orderId=${encodeURIComponent(created.id)}`,
+              ),
+          },
+        }
       );
       resetForm();
       return;
@@ -1024,6 +1033,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
     let filesTotal = 0;
     for (const f of files) filesTotal += calculateFileTotal(f);
     let transactionId = "";
+    let createdOrderId = "";
 
     if (!validatePhotoMinQty()) return;
 
@@ -1132,6 +1142,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
         return;
       }
       transactionId = created.displayId ?? created.id;
+      createdOrderId = created.id;
     }
 
     toast.success(
@@ -1140,7 +1151,18 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
         <span className="text-sm">Order ID: {transactionId}</span>
         <span className="text-sm">Total: {formatCurrency(total)}</span>
       </div>,
-      { duration: 5000 }
+      {
+        duration: 5000,
+        action: createdOrderId
+          ? {
+              label: "Open order",
+              onClick: () =>
+                navigate(
+                  `${role === "admin" ? "/admin/orders" : "/staff/queue"}?orderId=${encodeURIComponent(createdOrderId)}`,
+                ),
+            }
+          : undefined,
+      }
     );
 
     resetForm();

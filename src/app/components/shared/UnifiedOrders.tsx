@@ -70,6 +70,7 @@ import { useHydrating } from "../../utils/useHydrating";
 import { generateReceiptData } from "../../utils/invoiceUtils";
 import { OrderReceiptDialog } from "./OrderReceipt";
 import { CustomerDetailsDialog } from "./CustomerDetailsDialog";
+import { ConfirmPricingDialog, usePriceAdjustments } from "./ConfirmPricing";
 import { pricingStore } from "../../utils/pricingStore";
 import { ORDER_STATUS_STYLES, getStatusBadgeClasses } from "../../utils/orderStatusPalette";
 import { inventoryStore } from "../../utils/inventoryStore";
@@ -160,6 +161,8 @@ type OrderType = {
     addonsCost: number;
     total: number;
   };
+  // Set when staff confirm a corrected price (see ConfirmPricing).
+  manualTotal?: number;
   downPaymentRequired?: boolean;
   downPaymentAmount?: number;
   downPaymentVerified?: boolean;
@@ -439,6 +442,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
     holdReason: "",
   });
   const [showReceipt, setShowReceipt] = useState(false);
+  const [showPricing, setShowPricing] = useState(false);
 
   // Pagination
   const PAGE_SIZE = 10;
@@ -502,6 +506,64 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
       colorMode: file.colorMode ?? (single ? selectedOrder.colorMode : undefined),
     }));
   }, [selectedOrder]);
+
+  // The same three figures the receipt reads, restated for the Pricing block.
+  // Nothing is re-derived from the rate matrix: an order that stored no
+  // breakdown keeps its stored total and shows no invented parts.
+  const pricingFigures = useMemo(() => {
+    if (!selectedOrder) return { printing: 0, addons: 0, total: 0 };
+    const addons =
+      selectedOrder.costBreakdown?.addonsCost ??
+      (selectedOrder.addons ?? []).reduce(
+        (sum, addon) => sum + addon.price * addon.quantity,
+        0,
+      );
+    const total =
+      selectedOrder.costBreakdown?.total ?? selectedOrder.manualTotal ?? 0;
+    const printing =
+      selectedOrder.costBreakdown?.printingCost ?? Math.max(total - addons, 0);
+    return { printing, addons, total };
+  }, [selectedOrder]);
+
+  // Confirmed price changes for this order, newest first (audit-backed).
+  const priceAdjustments = usePriceAdjustments(selectedOrder?.id);
+  const latestAdjustment = priceAdjustments[0] ?? null;
+  const previousTotal =
+    latestAdjustment?.changes.find((change) => change.field === "Total")
+      ?.previous ?? null;
+  const pricingReason =
+    latestAdjustment?.changes.find(
+      (change) => change.field === "Reason for change",
+    )?.next ?? null;
+
+  // Repricing needs a file to re-analyse, whose bytes are actually stored.
+  const pricingFile = selectedOrder?.attachedFiles?.find(
+    (file) =>
+      (file.printType ?? "document").toLowerCase() !== "photo" &&
+      !!file.storagePath,
+  );
+  const canReviewPricing =
+    !!selectedOrder &&
+    canActOnOrder &&
+    selectedOrder.status !== "released" &&
+    selectedOrder.status !== "canceled" &&
+    pricingFigures.total > 0 &&
+    !!pricingFile;
+
+  // Why the button is unavailable, stated instead of leaving it silently dead.
+  const pricingBlockedReason = !selectedOrder
+    ? null
+    : isPhotocopyOrder(selectedOrder)
+      ? "A photocopy is priced by hand at the counter, so there is no detected colour to re-check."
+      : selectedOrder.status === "released" || selectedOrder.status === "canceled"
+        ? "This order is closed, so its price can no longer be changed."
+        : !canActOnOrder
+          ? `${lockHolder ?? "Another reviewer"} is reviewing this order.`
+          : pricingFigures.total <= 0
+            ? "This order has no stored total to review."
+            : !pricingFile
+              ? "This order has no stored file, so page colour detection can't be re-checked."
+              : null;
 
   // What the job will be printed as, one group per uploaded file.
   const printDetails = useMemo(
@@ -1681,6 +1743,124 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                   )}
                 </section>
 
+                {/* Pricing — what the customer is charged, and the one place a
+                    misread colour page can be corrected. Nothing here changes
+                    until the change is confirmed in the dialog. */}
+                <section className="border-t border-[#E5E7EB] px-6 py-5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-[13px] font-semibold text-[#111827]">
+                      Pricing
+                    </h3>
+                    <span
+                      className={
+                        latestAdjustment
+                          ? "inline-flex items-center gap-1.5 rounded-full bg-[#FEF3C7] px-2.5 py-1 text-[12px] font-semibold text-[#92400E]"
+                          : "inline-flex items-center gap-1.5 rounded-full bg-[#F1F5F9] px-2.5 py-1 text-[12px] font-semibold text-[#475569]"
+                      }
+                    >
+                      {latestAdjustment
+                        ? "Price adjusted"
+                        : isPhotocopyOrder(selectedOrder)
+                          ? "Set at counter"
+                          : "Auto-priced"}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 rounded-[14px] border border-[#E5E7EB] px-4 py-3.5">
+                    <div className="flex items-baseline justify-between gap-4 py-1">
+                      <span className="text-[13px] text-[#6B7280]">Printing</span>
+                      <span className="text-[14px] font-medium text-[#111827]">
+                        {formatCurrency(pricingFigures.printing)}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-4 py-1">
+                      <span className="text-[13px] text-[#6B7280]">Add-ons</span>
+                      <span className="text-[14px] font-medium text-[#111827]">
+                        {formatCurrency(pricingFigures.addons)}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t border-[#E5E7EB] pt-2">
+                      <span className="text-[13px] font-semibold text-[#111827]">
+                        Total
+                        {previousTotal && (
+                          <span className="ml-2 text-[12.5px] font-normal text-[#6B7280]">
+                            was {previousTotal}
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-[16px] font-semibold text-[#111827]">
+                        {formatCurrency(pricingFigures.total)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {latestAdjustment && (
+                    <div className="mt-2.5 space-y-1">
+                      <p className="text-[12.5px] leading-relaxed text-[#6B7280]">
+                        Price adjusted by {latestAdjustment.actorName} (
+                        {latestAdjustment.actorRole}) ·{" "}
+                        {formatPHDate(latestAdjustment.timestamp)} ·{" "}
+                        {formatPHTime(latestAdjustment.timestamp)}
+                      </p>
+                      {pricingReason && (
+                        <p className="break-words text-[12.5px] leading-relaxed text-[#6B7280]">
+                          Reason: {pricingReason}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {canReviewPricing ? (
+                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-9 px-3 text-[13px]"
+                        onClick={() => setShowPricing(true)}
+                      >
+                        Review pricing
+                      </Button>
+                      <p className="max-w-[46ch] text-[12.5px] leading-relaxed text-[#6B7280]">
+                        Detection can misread a coloured page.{" "}
+                        {selectedOrder?.orderSource === "walkin"
+                          ? "A confirmed price change is recorded on the order."
+                          : "A confirmed price change notifies the customer."}
+                      </p>
+                    </div>
+                  ) : pricingBlockedReason ? (
+                    <p className="mt-3 text-[12.5px] leading-relaxed text-[#6B7280]">
+                      {pricingBlockedReason}
+                    </p>
+                  ) : null}
+
+                  {priceAdjustments.length > 1 && (
+                    <ul className="mt-3 space-y-1 border-t border-[#E5E7EB] pt-3">
+                      {priceAdjustments.map((entry) => {
+                        const totalChange = entry.changes.find(
+                          (change) => change.field === "Total",
+                        );
+                        return (
+                          <li
+                            key={entry.id}
+                            className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-[12.5px] text-[#6B7280]"
+                          >
+                            <span>
+                              {formatPHDate(entry.timestamp, "short")} ·{" "}
+                              {formatPHTime(entry.timestamp)} · {entry.actorName}
+                            </span>
+                            {totalChange && (
+                              <span className="font-medium text-[#111827]">
+                                {totalChange.previous} → {totalChange.next}
+                              </span>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </section>
+
                 {/* Payment — the figure is printed here, once */}
                 <section className="border-t border-[#E5E7EB] px-6 py-5">
                   <h3 className="text-[13px] font-semibold text-[#111827]">
@@ -2145,6 +2325,21 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
           open={showReceipt}
           onOpenChange={setShowReceipt}
           data={generateReceiptData(selectedOrder)}
+        />
+      )}
+
+      {/* Price review for the open order — a confirmed change reprices it */}
+      {selectedOrder && (
+        <ConfirmPricingDialog
+          open={showPricing}
+          onOpenChange={setShowPricing}
+          order={selectedOrder}
+          onSaved={(orderId) => {
+            const fresh = ordersStore
+              .getOrders()
+              .find((order) => order.id === orderId);
+            if (fresh) setSelectedOrder(fresh);
+          }}
         />
       )}
 

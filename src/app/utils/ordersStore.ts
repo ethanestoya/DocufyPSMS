@@ -187,6 +187,10 @@ class OrdersStore {
         errorUsage: updatedOrder.errorUsage,
         statusUpdatedAt: toIso(updatedOrder.statusUpdatedAt),
         lastUpdatedAt: toIso(updatedOrder.lastUpdatedAt),
+        // Sent only when the caller is actually changing the price, so a plain
+        // status update never re-writes the breakdown.
+        ...(updates.manualTotal !== undefined ? { manualTotal: updates.manualTotal } : {}),
+        ...(updates.costBreakdown ? { costBreakdown: updates.costBreakdown } : {}),
       });
     } finally {
       this.syncing = false;

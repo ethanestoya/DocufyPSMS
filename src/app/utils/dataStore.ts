@@ -725,6 +725,17 @@ class DataStore {
     const newStatus = patch.status ?? oldStatus;
 
     await dbUpdateOrder(id, patch);
+
+    // The stored breakdown is what the receipt and Order Details read, so a
+    // price change has to land there too — not just on manual_total.
+    if ('costBreakdown' in updates && updates.costBreakdown) {
+      await upsertCostBreakdown(id, {
+        printingCost: updates.costBreakdown.printingCost,
+        addonsCost: updates.costBreakdown.addonsCost,
+        total: updates.costBreakdown.total,
+      });
+    }
+
     if (patch.status && newStatus && newStatus !== oldStatus) {
       await insertStatusHistory(id, {
         oldStatus,

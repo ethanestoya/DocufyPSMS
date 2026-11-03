@@ -81,6 +81,8 @@ export interface AuditEntry {
   description: string;
   /** Before/after values. Empty when the action created or deleted a record. */
   changes: AuditChange[];
+  /** The affected record's id, so per-record history can be read back. */
+  entityId?: string;
   /** Optional investigation metadata — omitted entirely when unknown. */
   ipAddress?: string;
   device?: string;
@@ -399,6 +401,7 @@ function dtoToEntry(dto: AuditLogDto): AuditEntry | null {
     title: dto.title ?? action,
     description: dto.description ?? "",
     changes: dto.changes ?? [],
+    ...(dto.entityId ? { entityId: dto.entityId } : {}),
     ...(dto.ipAddress ? { ipAddress: dto.ipAddress } : {}),
     ...(dto.device ? { device: dto.device } : {}),
     ...(dto.transactionId ? { transactionId: dto.transactionId } : {}),
@@ -535,12 +538,17 @@ class AuditLogStore {
     const actor = currentAuditActor();
     const device = currentDeviceLabel();
     const created: AuditEntry = {
-      ...entry,
+      module: entry.module,
+      action: entry.action,
+      reference: entry.reference,
+      title: entry.title,
+      description: entry.description,
       id: `AUD-${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 90 + 10)}`,
       timestamp: entry.timestamp ?? new Date().toISOString(),
       actorName: actor.actorName,
       actorRole: actor.actorRole,
       changes: entry.changes ?? [],
+      ...(entry.entityId ? { entityId: entry.entityId } : {}),
       ...(device ? { device } : {}),
     };
     this.entries = [created, ...this.entries];

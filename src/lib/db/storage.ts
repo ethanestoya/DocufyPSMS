@@ -10,6 +10,7 @@ export const BUCKETS = {
   brandAssets: 'brand-assets',
   shopPhotos: 'shop-photos',
   jobApplications: 'job-applications',
+  jobApplicationPhotos: 'job-application-photos',
 } as const;
 
 export type BucketName = (typeof BUCKETS)[keyof typeof BUCKETS];

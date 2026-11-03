@@ -12,6 +12,9 @@ export const UNKNOWN_SAVE_MESSAGE = 'Something went wrong while saving. Please t
 function humanize(raw: string): string {
   const msg = raw.toLowerCase();
 
+  if (msg.includes('order file size limit exceeded')) {
+    return 'Each order file must be 50 MB or smaller.';
+  }
   if (
     msg.includes('duplicate key') ||
     msg.includes('unique constraint') ||

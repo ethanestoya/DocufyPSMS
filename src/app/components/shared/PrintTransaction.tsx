@@ -59,7 +59,11 @@ import {
 } from "../ui/dialog";
 import { ConfirmationDialog } from "../ui/confirmation-dialog";
 import { useAuth } from "../../contexts/AuthContext";
-import { dataStore, type OrderUploadProgress } from "../../utils/dataStore";
+import {
+  dataStore,
+  MAX_ORDER_FILE_SIZE_BYTES,
+  type OrderUploadProgress,
+} from "../../utils/dataStore";
 import { showDbError } from "../../../lib/db/errors";
 import {
   analyzeDocument,
@@ -712,7 +716,29 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
 
     if (!selectedFiles || selectedFiles.length === 0) return;
 
-    const filesToProcess = Array.from(selectedFiles);
+    const selected = Array.from(selectedFiles);
+    const clearInput = () => {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+    const oversizedFiles = selected.filter(
+      (file) => file.size > MAX_ORDER_FILE_SIZE_BYTES,
+    );
+    const filesToProcess = selected.filter(
+      (file) => file.size <= MAX_ORDER_FILE_SIZE_BYTES,
+    );
+
+    if (oversizedFiles.length > 0) {
+      const fileNames = oversizedFiles.map((file) => `"${file.name}"`).join(", ");
+      const sizeLimitMb = MAX_ORDER_FILE_SIZE_BYTES / (1024 * 1024);
+      setFileError(
+        `${fileNames} ${oversizedFiles.length === 1 ? "is" : "are"} over the ${sizeLimitMb} MB per-file limit and ${oversizedFiles.length === 1 ? "was" : "were"} skipped.`,
+      );
+    }
+
+    if (filesToProcess.length === 0) {
+      clearInput();
+      return;
+    }
 
     for (const file of filesToProcess) {
       const fileType = file.type;
@@ -728,10 +754,6 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
         return;
       }
     }
-
-    const clearInput = () => {
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    };
 
     // Non-PDF files confirm the preferred PDF format before they are accepted.
     if (filesToProcess.some((f) => f.type !== "application/pdf" && !f.name.toLowerCase().endsWith(".pdf"))) {

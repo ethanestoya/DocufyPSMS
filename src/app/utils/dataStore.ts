@@ -31,6 +31,8 @@ import { formatOrderNumber } from '../../lib/db/types';
 import type { OrderDto, OrderFileDto } from '../../lib/db/types';
 import { authReady } from '../../lib/supabaseClient';
 
+export const MAX_ORDER_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+
 export interface AttachedFile {
   name: string;
   size: string;
@@ -453,6 +455,13 @@ class DataStore {
   // the DB uuid and `displayId` is the ORD-0001 form. The input's pre-minted
   // display `id` (legacy counter) is ignored.
   async addOrder(input: OrderInput, onProgress?: (p: OrderUploadProgress) => void): Promise<Order> {
+    const oversizedFile = input.attachedFiles?.find(
+      (file) => file.file && file.file.size > MAX_ORDER_FILE_SIZE_BYTES,
+    );
+    if (oversizedFile) {
+      throw new Error(`Order file size limit exceeded: ${oversizedFile.name}`);
+    }
+
     const status = STATUS_MAP[input.status ?? 'Awaiting Payment'] ?? 'Awaiting Payment';
     const total = parseMoney(input.total, 0);
     const printingCost = input.costBreakdown?.printingCost ?? total - (input.costBreakdown?.addonsCost ?? 0);

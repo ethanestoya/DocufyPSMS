@@ -165,6 +165,7 @@ export async function expireOverdueOrders(now: Date = new Date()): Promise<numbe
     await updateOrder(row.id, {
       status: 'Canceled',
       cancellationReason: PAYMENT_DEADLINE_EXPIRED_REASON,
+      statusUpdatedAt: now,
     });
     await insertStatusHistory(row.id, {
       oldStatus: 'Awaiting Payment',

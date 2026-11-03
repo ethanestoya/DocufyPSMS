@@ -685,6 +685,12 @@ class DataStore {
 
     const patch: Parameters<typeof dbUpdateOrder>[1] = {};
     if ('status' in updates && updates.status) patch.status = updates.status;
+    const statusUpdatedAt = updates.statusUpdatedAt
+      ? new Date(updates.statusUpdatedAt)
+      : updates.status && updates.status !== current?.status
+        ? new Date()
+        : undefined;
+    if (statusUpdatedAt) patch.statusUpdatedAt = statusUpdatedAt;
     if ('holdReason' in updates) patch.holdReason = updates.holdReason ?? null;
     if ('cancellationReason' in updates) patch.cancellationReason = updates.cancellationReason ?? null;
     if ('paymentDeadline' in updates)
@@ -735,7 +741,13 @@ class DataStore {
     }
 
     // Fallback: mirror the patched order locally so the UI reflects the change.
-    const fallback = current ? { ...current, ...updates } : undefined;
+    const fallback = current
+      ? {
+          ...current,
+          ...updates,
+          statusUpdatedAt: statusUpdatedAt?.toISOString() ?? current.statusUpdatedAt,
+        }
+      : undefined;
     if (fallback) {
       this.orders = [fallback as Order, ...this.orders.filter((o) => o.id !== id)];
       this.notify();

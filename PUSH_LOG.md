@@ -1478,3 +1478,20 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Pulled Ethan's two `deployment` pushes into this branch: the 50 MB per-file upload limit for customer print requests (oversized files are named in the inline error and skipped, with a store-level refusal behind it), the file-size limit extended across the profile, brand and job-application uploads, the weekly auto-delete of old orders (Edge Function plus cron schedule), and the status-change timestamp that the retention purge keys off.
 - The Supabase side of his work is not applied by this push: the two upload-limit migrations, the order-retention cron schedule and deploying the purge Edge Function still need to be run in the Supabase project.
 - Typecheck and production build pass. The press animation itself is unverified by eye - this session has no working customer login and the in-app browser exposes no touch emulation, so it needs Chrome device emulation or a real phone on the LAN to judge the feel.
+
+## 2026-11-04 - Prans (12:17 AM PHT)
+
+- Added the UAT survey window: once a customer finishes checkout - including Cash on Pickup, and again after payment verification - the "Help Us Improve" dialog offers the survey link and a Skip for Now escape, shown only once per order.
+- Highlighted the payment consequence inside the Place Order confirmation, so the amount the customer owes and where they pay it no longer blends into the rest of the paragraph.
+- Turned the organization-email rule into a "Docufy PSMS Testing Phase Notice" the customer acknowledges on login, sign up and Google, instead of a refusal they only discover after failing.
+- Stopped the Continue with Google button spinning forever when the customer opens the account chooser and backs out; the round trip now settles and reports login failed or cancelled.
+- Typecheck and production build pass. The authenticated path is code-verified only - no working customer login exists against the dev backend in this session.
+
+## 2026-11-04 - Prans (12:45 AM PHT)
+
+- Fixed color detection flagging every page of a black-and-white thesis as color: a 192-page upload read "1% color" on pure-text pages and priced the whole job as color printing.
+- Added an absolute colour-spread floor to the pixel test. Saturation is a ratio, so on paper that is a hair off white it amplifies a 2/255 channel cast into a confident "colored" reading - half a scanned page was being counted as color for that reason alone. A pixel must now genuinely differ across its channels before the ratio is consulted.
+- Stopped the page gate running on a rounded number. A page with 0.563% colored pixels was rounding up to 1% and then being accepted by a "1% or more" rule, so the verdict also flipped depending on which render size the document happened to hit. The gate now reads the un-rounded fraction against a 2% threshold.
+- Moved that threshold into one shared constant so analysis and pricing agree. The per-page color percentage previously had two separate "under 1 means black and white" cutoffs - one in the print request, one in the price lookup - that would have priced color pages differently from how they were classified.
+- Note for the shop: a document whose only color is a small university seal or running-header logo on every page now bills as all black-and-white. That is the intended tradeoff of the 2% gate; if those jobs should bill as color, it needs a separate rule rather than lowering the threshold back.
+- Typecheck and production build pass. The rule was chosen from measured rasterizations of twelve synthetic pages (pure text, cast blacks, warm paper at 2/255 and 6/255, a small header logo, link text, and real color figures) run through the same pdf.js pipeline; the reported 192-page thesis itself was not re-uploaded through the app.

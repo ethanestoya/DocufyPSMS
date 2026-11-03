@@ -70,6 +70,7 @@ import {
   isSupportedImageName,
   type ColorAnalysis,
 } from "../../utils/colorAnalysis";
+import { PAGE_COLOR_THRESHOLD_PCT } from "../../utils/colorThreshold";
 import { inventoryStore } from "../../utils/inventoryStore";
 import { notificationStore } from "../../utils/notificationStore";
 import {
@@ -835,7 +836,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
       0,
     );
     const avg = sum / analysis.colorPages.length;
-    if (avg < 1) return 0;
+    if (avg < PAGE_COLOR_THRESHOLD_PCT) return 0;
     return avg <= 50 ? 50 : avg <= 75 ? 75 : 100;
   };
 

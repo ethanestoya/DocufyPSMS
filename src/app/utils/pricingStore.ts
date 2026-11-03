@@ -14,6 +14,7 @@ import { subscribeTableChanges } from '../../lib/db/hooks';
 import { isRlsDenied, showDbError } from '../../lib/db/errors';
 import { authReady } from '../../lib/supabaseClient';
 import { auditLogStore } from './auditLogStore';
+import { PAGE_COLOR_THRESHOLD_PCT } from './colorThreshold';
 import {
   fetchMatrixCells,
   fetchPricingSettings,
@@ -1004,7 +1005,9 @@ function pricingFieldLabel(key: keyof PricingValues): string {
 export function resolveColorTier(colorMode: 'bw' | 'colored', colorPct?: number): ColorTier {
   if (colorMode === 'bw') return 'bw';
   const pct = typeof colorPct === 'number' ? colorPct : 100;
-  if (pct < 1) return 'bw';
+  // Same gate the analyzer used to decide the page is colored at all, so a
+  // sub-threshold percentage can never price as color here.
+  if (pct < PAGE_COLOR_THRESHOLD_PCT) return 'bw';
   return pct > 50 ? 'full' : 'partial';
 }
 

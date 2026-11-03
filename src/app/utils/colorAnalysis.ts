@@ -31,6 +31,7 @@ import {
 } from "pdf-lib";
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { PAGE_COLOR_THRESHOLD_PCT } from "./colorThreshold";
 
 // Load the pdf.js worker as a Vite asset and hand its URL to pdfjs once.
 if (!GlobalWorkerOptions.workerSrc) {
@@ -100,30 +101,37 @@ export async function analyzeDocument(file: File): Promise<AnalyzedDocument> {
 const CAP = 256; // long-edge cap for rendered PDF pages / images
 const LARGE_DOC_CAP = 192; // cheaper cap for very long documents
 const SAT_THRESHOLD = 0.18;
-// A page must reach this % of colored pixels to count as colored (>=); pages
-// with only ~1% (a tiny logo, an underline, antialiased edges) stay B&W.
-const MIN_COLOR_PCT = 1;
+// Minimum absolute channel spread (max - min, on the 0..255 byte scale) before
+// a pixel counts as colored. HSL saturation divides by (1 - |2L-1|), which
+// collapses near white and near black, so a 2/255 cast on paper reads as
+// s>0.18. A neutral pixel has spread 0 and no divide can inflate it.
+const MIN_CHROMA = 12;
 
 type PixelScan = { colored: number; total: number };
 
-// Counts "colorful" pixels on an RGBA ImageData buffer: a pixel is colored
-// when its HSL saturation exceeds the threshold. Grayscale (incl. antialiased
-// text and sepia-less scans) stays under it, while genuine color reads high.
+// Counts "colorful" pixels on an RGBA ImageData buffer: a pixel is colored when
+// its HSL saturation exceeds the threshold AND its channels actually differ by
+// MIN_CHROMA. Grayscale (incl. antialiased text, tinted scanner paper and
+// near-black ink) fails one of the two, while genuine color passes both.
 function scanPixels(data: Uint8ClampedArray | number[]): PixelScan {
   let colored = 0;
   const total = data.length >> 2;
   for (let i = 0; i < data.length; i += 4) {
-    const r = data[i] / 255;
-    const g = data[i + 1] / 255;
-    const b = data[i + 2] / 255;
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    const l = (max + min) / 2;
+    const max = Math.max(data[i], data[i + 1], data[i + 2]);
+    const min = Math.min(data[i], data[i + 1], data[i + 2]);
+    if (max - min < MIN_CHROMA) continue;
+    const l = (max + min) / (2 * 255);
     const denom = 1 - Math.abs(2 * l - 1);
-    const s = denom === 0 ? 0 : (max - min) / denom;
-    if (s > SAT_THRESHOLD) colored += 1;
+    if (denom > 0 && (max - min) / 255 / denom > SAT_THRESHOLD) colored += 1;
   }
   return { colored, total };
+}
+
+// Raw color fraction of a page as a percentage, to one decimal. The gate always
+// runs on the un-rounded value so a 0.6% page can never be promoted to 1%.
+export function colorFractionPct(scan: PixelScan): number {
+  if (scan.total <= 0) return 0;
+  return Math.round((scan.colored / scan.total) * 1000) / 10;
 }
 
 function buildAnalysis(totalPages: number, perPage: number[], estimated: boolean, method: NonNullable<ColorAnalysis["method"]>): ColorAnalysis {
@@ -137,11 +145,12 @@ function buildAnalysis(totalPages: number, perPage: number[], estimated: boolean
   };
   for (let i = 1; i <= totalPages; i++) {
     const pct = perPage[i - 1] ?? 0;
-    // A page needs at least MIN_COLOR_PCT percent of its pixels colored to
-    // count as a color page — a stray logo, underline, or antialiased edge
-    // (~1% or less) must not repaint the whole page as colored. The real
-    // percentage is still preserved in colorPercentages for transparency.
-    const isColored = pct >= MIN_COLOR_PCT;
+    // A page needs PAGE_COLOR_THRESHOLD_PCT of its pixels colored to count as a
+    // color page — a stray logo, underline, or antialiased edge must not
+    // repaint the whole page as colored. The gate runs on `pct` before any
+    // display rounding, and the detected value stays visible either way so the
+    // analysis panel never claims a B&W page is "1% color".
+    const isColored = pct >= PAGE_COLOR_THRESHOLD_PCT;
     analysis.colorPercentages[i] = pct;
     if (isColored) analysis.colorPages.push(i);
     else analysis.bwPages.push(i);
@@ -209,7 +218,7 @@ export async function analyzePdfDocument(
         continue;
       }
       const { colored, total } = scanPixels(imageData.data);
-      perPage.push(total > 0 ? Math.round((colored / total) * 100) : 0);
+      perPage.push(colorFractionPct({ colored, total }));
     }
     pdf.cleanup();
     return { pageCount: totalPages, analysis: buildAnalysis(totalPages, perPage, false, "pdf") };
@@ -628,8 +637,7 @@ export async function analyzeImageColors(
     if (!ctx) throw new Error("canvas-unavailable");
     ctx.drawImage(img, 0, 0, w, h);
     const { colored, total } = scanPixels(ctx.getImageData(0, 0, w, h).data);
-    const pct = total > 0 ? Math.round((colored / total) * 100) : 0;
-    return buildAnalysis(1, [pct], false, "image");
+    return buildAnalysis(1, [colorFractionPct({ colored, total })], false, "image");
   } finally {
     URL.revokeObjectURL(url);
   }

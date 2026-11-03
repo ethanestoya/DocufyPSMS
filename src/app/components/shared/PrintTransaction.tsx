@@ -99,6 +99,7 @@ import {
 } from "../../utils/unclaimedPolicy";
 import { useUnclaimedOffenses } from "../../utils/useUnclaimedOffenses";
 import LegalPolicyDialog from "./LegalPolicyDialog";
+import { UatSurveyDialog, hasSeenUatSurvey } from "./UatSurveyDialog";
 import {
   shopStatusStore,
   type ShopStatusState,
@@ -466,6 +467,9 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
     [key: string]: number;
   }>({});
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  // The UAT survey is asked once for a placed order, stacked over the success
+  // modal — Cash on Pickup included, since this is where those orders finish.
+  const [uatSurveyOrderId, setUatSurveyOrderId] = useState<string | null>(null);
   const [showPlaceOrderConfirm, setShowPlaceOrderConfirm] = useState(false);
   const [showLegalPolicy, setShowLegalPolicy] = useState(false);
   const [legalPolicyTab, setLegalPolicyTab] = useState<"terms" | "privacy">("terms");
@@ -1478,6 +1482,9 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
     lastUploadPercentRef.current = -1;
     lastUploadFileIndexRef.current = 0;
     setShowSuccessModal(true);
+    if (!hasSeenUatSurvey(orderId)) {
+      setUatSurveyOrderId(orderId);
+    }
   };
 
   const handleCancelOrder = () => {
@@ -3972,6 +3979,17 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
         </Dialog>
       )}
 
+      {/* UAT feedback survey — asked once per placed order (Cash on Pickup
+          included), stacked over the success modal. Dismissing it returns to
+          that modal so the customer still picks their own next step. */}
+      {!isWalkin && (
+        <UatSurveyDialog
+          orderId={uatSurveyOrderId}
+          open={uatSurveyOrderId !== null}
+          onDismiss={() => setUatSurveyOrderId(null)}
+        />
+      )}
+
       {/* Place Order / Go to Payment Verification Confirmation (customer only) */}
       {!isWalkin && showPlaceOrderConfirm && (
         <ConfirmationDialog
@@ -3985,18 +4003,79 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
           }
           description={(() => {
             const total = calculateTotal();
-            const paymentNote =
-              requiresFullPayment
-                ? ` Full payment of ${formatCurrency(total)} is required before printing (no 50% option).`
-                : requiresDownPayment
-                  ? ` A 50% down payment of ${formatCurrency(total * 0.5)} is required before printing.`
-                  : isOnline
-                    ? ` Full payment of ${formatCurrency(total)} is required before printing.`
-                    : ` You selected Cash on Pickup — you must pay ${formatCurrency(total)} in cash at the shop before your order can be printed.`;
+            const pages = files.reduce(
+              (s, f) => s + f.pageCount * f.copies,
+              0,
+            );
+            const payVia =
+              paymentMethod === "" ? "your selected method" : paymentMethod;
+            const strong = (text: React.ReactNode) => (
+              <strong className="font-semibold text-gray-900">{text}</strong>
+            );
+            // Inside the amber requirement box the emphasis stays amber and only
+            // gets heavier, so the figure never turns grey against the tint.
+            const inBox = (text: React.ReactNode) => (
+              <strong className="font-bold">{text}</strong>
+            );
+            const requirement = requiresFullPayment ? (
+              <>
+                Full payment of {inBox(formatCurrency(total))} is required before
+                printing (no 50% option).
+              </>
+            ) : requiresDownPayment ? (
+              <>
+                A 50% down payment of {inBox(formatCurrency(total * 0.5))} is
+                required before printing.
+              </>
+            ) : isOnline ? (
+              <>
+                Full payment of {inBox(formatCurrency(total))} is required before
+                printing.
+              </>
+            ) : (
+              <>
+                You selected {inBox("Cash on Pickup")} — you must pay{" "}
+                {inBox(formatCurrency(total))} in cash at the shop before your
+                order can be printed.
+              </>
+            );
 
-            return isOnline
-                ? `Your print request for ${files.length} file(s), ${files.reduce((s, f) => s + f.pageCount * f.copies, 0)} pages, total ${formatCurrency(total)} via ${paymentMethod}. Continuing will take you to payment verification, where you will upload your ${paymentMethod} payment receipt and submit your reference number.${paymentNote} Your order is NOT placed in the system until you submit your reference.`
-                : `Submit your print request for ${files.length} file(s), ${files.reduce((s, f) => s + f.pageCount * f.copies, 0)} pages, total ${formatCurrency(total)} via ${paymentMethod === "" ? "your selected method" : paymentMethod}.${paymentNote} This will create your order, reserve paper stock, and notify staff. Review your details before confirming.`;
+            return (
+              <span className="block space-y-3 text-left">
+                <span className="block">
+                  {isOnline ? "Your" : "Submit your"} print request for{" "}
+                  {strong(`${files.length} file(s)`)}, {strong(`${pages} pages`)},{" "}
+                  total {strong(formatCurrency(total))} via {strong(payVia)}.
+                </span>
+
+                {isOnline && (
+                  <span className="block">
+                    Continuing will take you to payment verification, where you
+                    will upload your {strong(`${paymentMethod} payment receipt`)}{" "}
+                    and submit your {strong("reference number")}.
+                  </span>
+                )}
+
+                <span className="block rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
+                  {requirement}
+                </span>
+
+                <span className="block">
+                  {isOnline ? (
+                    <>
+                      Your order is{" "}
+                      <strong className="font-semibold text-red-600">
+                        NOT placed
+                      </strong>{" "}
+                      in the system until you submit your reference.{" "}
+                    </>
+                  ) : (
+                    "This will create your order, reserve paper stock, and notify staff. "
+                  )}
+                  Review your details before confirming.
+                </span>
+              </span>
+            );
           })()}
           confirmLabel={
             isOnline

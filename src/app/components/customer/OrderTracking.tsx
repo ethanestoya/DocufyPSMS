@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useLocation } from "react-router";
 import {
   LayoutDashboard,
   FileText,
@@ -56,6 +56,7 @@ import { landingContentStore, DEFAULT_MAP_EMBED } from "../../utils/landingConte
 import { computeOrderPayment, type OrderPaymentSummary } from "../shared/OrderPaymentSummary";
 import { shopPhotosStore, type ShopPhoto } from "../../utils/shopPhotosStore";
 import { useUnclaimedOffenses } from "../../utils/useUnclaimedOffenses";
+import { UatSurveyDialog, hasSeenUatSurvey } from "../shared/UatSurveyDialog";
 
 const OFFENSE_WORDS: Record<number, string> = {
   1: "First",
@@ -228,6 +229,16 @@ export default function OrderTracking() {
   const hydrating = useHydrating();
   const { orderId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Set when the cash down-payment page hands the customer here as the last
+  // step they take for that order; the UAT survey is asked once for it.
+  const [uatSurveyOrderId, setUatSurveyOrderId] = useState<string | null>(null);
+  React.useEffect(() => {
+    const wasSentHere = (location.state as { uatSurvey?: boolean } | null)
+      ?.uatSurvey;
+    if (!wasSentHere || !orderId || hasSeenUatSurvey(orderId)) return;
+    setUatSurveyOrderId(orderId);
+  }, [location.state, orderId]);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [showPaymentDetails, setShowPaymentDetails] = useState(false);
@@ -2110,6 +2121,13 @@ export default function OrderTracking() {
           </DialogContent>
         </Dialog>
       )}
+      {/* UAT feedback survey — asked once, only when the cash down-payment
+          choice sent the customer here as their final step for this order. */}
+      <UatSurveyDialog
+        orderId={uatSurveyOrderId}
+        open={uatSurveyOrderId !== null}
+        onDismiss={() => setUatSurveyOrderId(null)}
+      />
     </Layout>
   );
 }

@@ -12,6 +12,7 @@ import {
   Eye,
   EyeOff,
   ShieldAlert,
+  Info,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { ConfirmationDialog } from "./ui/confirmation-dialog";
@@ -28,6 +29,16 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 import { EMAIL_POLICY_MESSAGE } from "../utils/authEmailPolicy";
+
+// Written the moment a Google attempt starts and read back when the login page
+// is shown again. A successful round trip lands on /auth/callback, never here,
+// so a marker still on the page means the visitor came back without signing in.
+const GOOGLE_ATTEMPT_KEY = "docufy_google_attempt";
+// Only a marker from the last minute counts as an interrupted attempt — an
+// older one is leftover from a sign-in that completed in this tab.
+const GOOGLE_ATTEMPT_TTL_MS = 60_000;
+const GOOGLE_CANCELLED_MESSAGE =
+  "Sign in with Google was cancelled or didn't finish. Try again, or log in with your email and password.";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -47,7 +58,11 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [showGoogleConfirm, setShowGoogleConfirm] = useState(false);
+  // All three ways in (Log in, Create account, Continue with Google) stop at
+  // the UAT notice first, so remember which one "I Understand" should resume.
+  const [uatAction, setUatAction] = useState<
+    "login" | "signup" | "google" | null
+  >(null);
   const [submitting, setSubmitting] = useState(false);
   const [policyDialogOpen, setPolicyDialogOpen] = useState(false);
 
@@ -71,6 +86,8 @@ export default function LoginPage() {
 
   React.useEffect(() => {
     if (user) {
+      // Signed in — any marker from the round trip that got us here is spent.
+      sessionStorage.removeItem(GOOGLE_ATTEMPT_KEY);
       if (user.role === "customer") {
         navigate(
           pendingJobId
@@ -86,8 +103,33 @@ export default function LoginPage() {
     }
   }, [user, navigate, pendingJobId]);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  // Google hands the browser over to the provider, so this page is unloaded
+  // while the visitor picks an account. Pressing Back then restores it from
+  // browser history with its React state frozen mid-request, which left the
+  // button spinning forever with no message. pageshow runs on the first load
+  // and on every history restore, so it is the one place that can unwind it.
+  React.useEffect(() => {
+    const unwind = () => {
+      const startedAt = sessionStorage.getItem(GOOGLE_ATTEMPT_KEY);
+      if (!startedAt) return;
+      sessionStorage.removeItem(GOOGLE_ATTEMPT_KEY);
+      setGoogleLoading(false);
+      setSubmitting(false);
+      setUatAction(null);
+      if (!user && Date.now() - Number(startedAt) < GOOGLE_ATTEMPT_TTL_MS) {
+        setError(GOOGLE_CANCELLED_MESSAGE);
+      }
+    };
+    window.addEventListener("pageshow", unwind);
+    return () => window.removeEventListener("pageshow", unwind);
+  }, [user]);
+
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    setUatAction("login");
+  };
+
+  const runLogin = async () => {
     setError("");
     setSubmitting(true);
     try {
@@ -111,11 +153,24 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     setError("");
+    sessionStorage.setItem(GOOGLE_ATTEMPT_KEY, String(Date.now()));
     const result = await signInWithGoogle();
     if (!result.success) {
+      // The browser never left, so this same page can clear its own marker.
+      sessionStorage.removeItem(GOOGLE_ATTEMPT_KEY);
       setGoogleLoading(false);
       setError("Could not start Google sign-in. Please try again.");
     }
+  };
+
+  // Dismisses the UAT notice and resumes whichever action opened it.
+  const acknowledgeUat = () => {
+    const action = uatAction;
+    setUatAction(null);
+    if (action === "login") void runLogin();
+    else if (action === "google") void handleGoogleSignIn();
+    else if (action === "signup")
+      navigate(`/signup${pendingJobId ? `?jobId=${pendingJobId}` : ""}`);
   };
 
   return (
@@ -194,7 +249,7 @@ export default function LoginPage() {
           <Button
             variant="outline"
             className="group w-full border-gray-200 text-[#1c1f26] h-10 text-sm mb-4"
-            onClick={() => setShowGoogleConfirm(true)}
+            onClick={() => setUatAction("google")}
             disabled={googleLoading}
           >
             {googleLoading ? (
@@ -343,9 +398,7 @@ export default function LoginPage() {
           <div className="mt-4 text-center text-xs text-gray-500">
             Need an account?{" "}
             <button
-              onClick={() =>
-                navigate(`/signup${pendingJobId ? `?jobId=${pendingJobId}` : ""}`)
-              }
+              onClick={() => setUatAction("signup")}
               className="text-[#1668D9] text-xs font-semibold"
             >
               Create account
@@ -381,29 +434,47 @@ export default function LoginPage() {
         }
         onConfirm={() => setPolicyDialogOpen(false)}
       />
-<ConfirmationDialog
-        open={showGoogleConfirm}
-        onOpenChange={setShowGoogleConfirm}
-        title="Continue with Google?"
+      {/* Every way into the app pauses here first: the shop is in User
+          Acceptance Testing, and that — plus the promise that test data is
+          deleted afterwards — should be read before a login, a sign-up or an
+          OAuth round trip happens. */}
+      <ConfirmationDialog
+        open={uatAction !== null}
+        onOpenChange={(open) => {
+          if (!open) setUatAction(null);
+        }}
+        title="Docufy PSMS Testing Phase Notice"
+        confirmLabel="I Understand"
+        hideCancel
+        icon={<Info className="w-5 h-5 text-[#1668D9]" />}
+        onConfirm={acknowledgeUat}
         description={
-          <>
-            Non-corporate email accounts are not allowed. Use this organization
-            email address:{" "}
-            <span className="font-semibold text-red-600">
-              @psu.palawan.edu.ph
+          <span className="block space-y-2 text-sm leading-snug">
+            <span className="block">
+              Welcome! Docufy PSMS is currently in User Acceptance Testing
+              (UAT), so features may evolve as we polish the application.
             </span>
-          </>
+            <span className="block">
+              Your privacy is protected. All transaction data, files, and
+              feedback are kept confidential for academic purposes only.
+            </span>
+            <span className="block">
+              Non-corporate email accounts are not allowed. Use this
+              organization email address:{" "}
+              <span className="font-semibold text-red-600">
+                @psu.palawan.edu.ph
+              </span>
+            </span>
+            <span className="block rounded-md bg-red-50 px-2.5 py-1.5 font-semibold text-red-600">
+              Rest assured, all test data will be fully deleted at the end of
+              the UAT period.
+            </span>
+            <span className="block">
+              Please report any bugs or feedback to our team to help us improve
+              your printing experience.
+            </span>
+          </span>
         }
-        confirmLabel="Proceed"
-        icon={
-          <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden="true">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
-        }
-        onConfirm={handleGoogleSignIn}
       />
     </div>
   );

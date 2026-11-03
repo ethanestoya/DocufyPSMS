@@ -57,6 +57,7 @@ import {
 import { formatCurrency } from "../../utils/formatNumber";
 import { formatPHDateTime } from "../../utils/pht";
 import { PaymentDeadlineCountdown } from "../shared/PaymentDeadlineCountdown";
+import { UatSurveyDialog, hasSeenUatSurvey } from "../shared/UatSurveyDialog";
 import {
   clearPrintDraft,
 } from "../shared/PrintTransaction";
@@ -193,6 +194,11 @@ export default function PaymentVerification() {
   // field itself, not only a toast that disappears.
   const [referenceError, setReferenceError] = useState("");
   const [proofError, setProofError] = useState("");
+
+  // The UAT survey is asked once per order, over the success dialog, only after
+  // a payment submission actually reached the server.
+  const [showSurveyDialog, setShowSurveyDialog] = useState(false);
+  const [surveyOrderId, setSurveyOrderId] = useState<string | null>(null);
   const [showImagePreview, setShowImagePreview] =
     useState(false);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<
@@ -504,13 +510,18 @@ export default function PaymentVerification() {
       toast.success("Payment details submitted. Awaiting verification by staff.");
     }
 
-    // The submitted order no longer needs its checkout draft — clearing it
-    // prevents a later "New Print Request" from being redirected back to
-    // this payment verification page.
+    // The order's checkout draft is cleared only now — a submit that throws
+    // before this line keeps the draft, so the "New Print Request" redirect can
+    // never drop an unfinished order.
     clearPrintDraft();
 
     // Show success dialog instead of navigating immediately
     setShowSuccessDialog(true);
+    // Ask for UAT feedback once for this order, stacked over the success dialog.
+    if (orderId && !hasSeenUatSurvey(orderId)) {
+      setSurveyOrderId(orderId);
+      setShowSurveyDialog(true);
+    }
     } finally {
       setSubmitting(false);
     }
@@ -1339,6 +1350,19 @@ export default function PaymentVerification() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* UAT feedback survey — asked once per order, after a payment
+          submission has reached the server. It stacks over the success dialog
+          and closes back onto it, so the customer still chooses their own next
+          step (new request or dashboard) afterwards. */}
+      <UatSurveyDialog
+        orderId={surveyOrderId}
+        open={showSurveyDialog}
+        onDismiss={() => {
+          setShowSurveyDialog(false);
+          setSurveyOrderId(null);
+        }}
+      />
 
       {/* Submit Payment Confirmation */}
       {showSubmitConfirm && (

@@ -62,14 +62,16 @@ async function expireOverdueOrdersLocally(): Promise<void> {
     }
 
     const deadlineLabel = formatPHDateTime(order.paymentDeadline);
-    notificationStore.addNotification('order', 'Order Cancelled — Payment Deadline Expired', `${order.customerName}'s order ${order.id} (${order.total}) was auto-cancelled because payment was not confirmed before ${deadlineLabel} (deadline expired).`, {
+    // `order.id` is the DB uuid; notifications must show the human ORD-XXXX label.
+    const orderLabel = order.displayId ?? order.id;
+    notificationStore.addNotification('order', 'Order Cancelled — Payment Deadline Expired', `${order.customerName}'s order ${orderLabel} (${order.total}) was auto-cancelled because payment was not confirmed before ${deadlineLabel} (deadline expired).`, {
       clickable: true,
       priority: 'important',
       relatedOrderId: order.id,
       relatedRoute: '/staff/queue',
       recipientRole: 'staff_admin',
     });
-    notificationStore.addNotification('order', 'Order Cancelled — Payment Deadline Expired', `Your order ${order.id} was auto-cancelled because payment was not confirmed before ${deadlineLabel}. If you still need this order, please place it again.`, {
+    notificationStore.addNotification('order', 'Order Cancelled — Payment Deadline Expired', `Your order ${orderLabel} was auto-cancelled because payment was not confirmed before ${deadlineLabel}. If you still need this order, please place it again.`, {
       clickable: true,
       relatedOrderId: order.id,
       relatedRoute: '/customer/orders',

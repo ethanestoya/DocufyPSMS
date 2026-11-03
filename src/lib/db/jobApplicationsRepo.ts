@@ -4,6 +4,7 @@ import {
   getSignedObjectUrl,
   removeObjectsIfPresent,
   uploadObjectAndGetPath,
+  type BucketName,
 } from './storage';
 import type {
   ApplicationStatus,
@@ -23,6 +24,18 @@ import type {
 interface RowWithJob extends JobApplicationRow {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   jobs?: { title: string } | any[] | null;
+}
+
+const APPLICATION_PHOTO_BUCKET_PREFIX = `${BUCKETS.jobApplicationPhotos}:`;
+
+function photoStorageLocation(value: string): { bucket: BucketName; path: string } {
+  if (value.startsWith(APPLICATION_PHOTO_BUCKET_PREFIX)) {
+    return {
+      bucket: BUCKETS.jobApplicationPhotos,
+      path: value.slice(APPLICATION_PHOTO_BUCKET_PREFIX.length),
+    };
+  }
+  return { bucket: BUCKETS.jobApplications, path: value };
 }
 
 function readJoinedTitle(row: RowWithJob): string | null {
@@ -106,17 +119,29 @@ async function fetchApplicantAvatars(profileIds: string[]): Promise<Map<string, 
 async function fetchApplicationPhotoUrls(paths: string[]): Promise<Map<string, string>> {
   const unique = Array.from(new Set(paths.filter(Boolean)));
   if (unique.length === 0) return new Map();
-  const { data, error } = await supabase.storage
-    .from(BUCKETS.jobApplications)
-    .createSignedUrls(unique, 60 * 60);
-  if (error) {
-    console.warn('[db:jobApplications.photos]', error);
-    return new Map();
-  }
   const map = new Map<string, string>();
-  for (const item of data ?? []) {
-    if (item.path && item.signedUrl) map.set(item.path, item.signedUrl);
-  }
+  const locations = unique.map((storedPath) => ({
+    storedPath,
+    ...photoStorageLocation(storedPath),
+  }));
+  const buckets = Array.from(new Set(locations.map((location) => location.bucket)));
+
+  await Promise.all(buckets.map(async (bucket) => {
+    const bucketLocations = locations.filter((location) => location.bucket === bucket);
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .createSignedUrls(bucketLocations.map((location) => location.path), 60 * 60);
+    if (error) {
+      console.warn('[db:jobApplications.photos]', error);
+      return;
+    }
+    for (const item of data ?? []) {
+      if (!item.path || !item.signedUrl) continue;
+      const location = bucketLocations.find((candidate) => candidate.path === item.path);
+      if (location) map.set(location.storedPath, item.signedUrl);
+    }
+  }));
+
   return map;
 }
 
@@ -289,18 +314,20 @@ export async function uploadApplicantPhoto(
   file: Blob,
   fileName: string,
 ): Promise<string> {
-  return uploadObjectAndGetPath({
-    bucket: BUCKETS.jobApplications,
-    folder: applicantProfileId,
+  const path = await uploadObjectAndGetPath({
+    bucket: BUCKETS.jobApplicationPhotos,
+    folder: `${applicantProfileId}/photos`,
     file,
     fileName,
     contentType: file.type || 'image/jpeg',
   });
+  return `${APPLICATION_PHOTO_BUCKET_PREFIX}${path}`;
 }
 
 // Drop a photo object that will never be referenced (the row was rejected, or
 // the column does not exist yet). Best effort — a leftover object is harmless.
 export async function deleteApplicantPhoto(storagePath: string | null | undefined): Promise<void> {
   if (!storagePath) return;
-  await removeObjectsIfPresent(BUCKETS.jobApplications, [storagePath]);
+  const location = photoStorageLocation(storagePath);
+  await removeObjectsIfPresent(location.bucket, [location.path]);
 }

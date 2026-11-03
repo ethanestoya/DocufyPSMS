@@ -591,8 +591,9 @@ export default function SignUpPage() {
 
             <Button
               type="submit"
+              variant="primary"
               disabled={isSubmitting}
-              className="w-full h-11 lg:h-10 rounded-xl text-sm font-semibold transition-all duration-200 bg-[#1668D9] text-white border-2 border-[#1668D9] hover:bg-[#10316B] hover:border-[#10316B] shadow-md cursor-pointer lg:bg-white lg:text-[#1668D9] lg:border-blue-200 lg:hover:bg-[#1668D9] lg:hover:text-white lg:hover:border-blue-200"
+              className="w-full h-11 lg:h-10 rounded-xl text-sm font-semibold cursor-pointer"
             >
               {isSubmitting ? (
                 <Spinner size="xs" label="Creating Account..." stack={false} />

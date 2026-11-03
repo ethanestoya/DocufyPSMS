@@ -135,8 +135,9 @@ export default function ResetPasswordPage() {
             </div>
             <Button
               type="button"
+              variant="primary"
               onClick={() => navigate('/forgot-password')}
-              className="w-full bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
+              className="w-full"
             >
               Request a New Reset Link
             </Button>
@@ -199,9 +200,10 @@ export default function ResetPasswordPage() {
               </div>
               <Button
                 type="submit"
+                variant="primary"
                 loading={saving}
                 loadingText="Updating..."
-                className="w-full bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
+                className="w-full"
               >
                 Update Password
               </Button>

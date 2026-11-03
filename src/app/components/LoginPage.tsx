@@ -331,9 +331,10 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
+                variant="primary"
                 loading={submitting}
                 loadingText="Logging In..."
-                className="w-full h-10 bg-[#1668D9] text-white border-2 border-[#1668D9] hover:bg-[#10316B] hover:border-[#10316B] rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.97] active:bg-[#0c2a5c] disabled:opacity-60 disabled:pointer-events-none"
+                className="w-full h-10 rounded-xl text-sm font-semibold active:scale-[0.97]"
               >
                 Log In
               </Button>

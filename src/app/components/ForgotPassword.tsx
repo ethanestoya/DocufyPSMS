@@ -91,9 +91,10 @@ export default function ForgotPassword() {
 
               <Button
                 type="submit"
+                variant="primary"
                 loading={sending}
                 loadingText="Sending link..."
-                className="w-full bg-white text-[#2F6FD6] border-2 border-blue-200 hover:bg-[#2F6FD6] hover:text-white"
+                className="w-full"
               >
                 Send Reset Link
               </Button>

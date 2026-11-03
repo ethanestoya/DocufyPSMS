@@ -180,8 +180,8 @@ export default function CustomerOrders() {
                 </select>
               </div>
 
-              <div className="relative space-y-2 w-full sm:hidden">
-                <Label htmlFor="mobile-status-filter">Status</Label>
+              <div className="relative w-full sm:hidden">
+                <Label htmlFor="mobile-status-filter" className="block pb-2">Status</Label>
                 <button
                   id="mobile-status-filter"
                   type="button"
@@ -211,8 +211,10 @@ export default function CustomerOrders() {
                 )}
               </div>
 
-              {/* Expanded Filters (smooth drawer on mobile, inline row on desktop) */}
-              <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out sm:flex sm:flex-1 sm:flex-row sm:items-end sm:gap-4 sm:min-w-0 sm:w-auto ${showMoreFilters ? "grid-rows-[1fr]" : "grid-rows-[0fr] -my-2 sm:my-0"}`}>
+              {/* Expanded Filters — smooth drawer on mobile, inline row on desktop. The
+                  collapsed drawer carries -my-2 to swallow the double flex gap, so margin
+                  animates with the rows; otherwise it snaps 8px when swapped. */}
+              <div className={`grid transition-[grid-template-rows,margin] duration-300 ease-in-out sm:flex sm:flex-1 sm:flex-row sm:items-end sm:gap-4 sm:min-w-0 sm:w-auto ${showMoreFilters ? "grid-rows-[1fr]" : "grid-rows-[0fr] -my-2 sm:my-0"}`}>
                 <div className="min-h-0 overflow-hidden sm:contents">
                   <div className="flex flex-col gap-4 sm:contents">
                     {/* Date range */}
@@ -266,19 +268,16 @@ export default function CustomerOrders() {
               </div>
 
               {/* See More / Show Less (mobile) */}
-              <button
+              <Button
                 type="button"
+                variant={showMoreFilters ? "outline" : "primary"}
                 onClick={() => setShowMoreFilters((isOpen) => !isOpen)}
                 aria-expanded={showMoreFilters}
-                className={`flex items-center justify-center gap-2 rounded-xl border-2 border-[#2F6FD6] px-3 py-2 text-sm font-semibold shadow-sm transition-all duration-300 hover:-translate-y-0.5 sm:hidden ${
-                  showMoreFilters
-                    ? "bg-white text-[#2F6FD6] hover:bg-[#2F6FD6] hover:text-white"
-                    : "bg-[#2F6FD6] text-white shadow-md hover:bg-[#2557b8]"
-                }`}
+                className="w-full rounded-xl text-sm font-semibold sm:hidden"
               >
                 {showMoreFilters ? "Show Less" : "See More"}
                 <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${showMoreFilters ? "rotate-180" : ""}`} />
-              </button>
+              </Button>
             </div>
           </div>
         </Card>

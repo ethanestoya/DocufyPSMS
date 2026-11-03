@@ -215,6 +215,14 @@ export default function Layout({
     if (isMobile) window.scrollTo(0, 0);
   }, [isMobile]);
 
+  // Phones never hover, so the customer's press feedback (tailwind.css) is
+  // switched on for customer sessions only through this attribute.
+  useEffect(() => {
+    if (user?.role !== "customer") return;
+    document.documentElement.setAttribute("data-mobile-press", "customer");
+    return () => document.documentElement.removeAttribute("data-mobile-press");
+  }, [user?.role]);
+
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isTopProfileOpen, setIsTopProfileOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] =

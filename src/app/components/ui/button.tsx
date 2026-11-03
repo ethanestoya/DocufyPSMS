@@ -75,6 +75,8 @@ const Button = React.forwardRef<
     return (
       <Comp
         data-slot="button"
+        // Read by the customer touch-press rules in tailwind.css to pick the pressed fill colour.
+        data-variant={variant ?? "default"}
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
         aria-busy={loading || undefined}

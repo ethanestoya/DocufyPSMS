@@ -80,6 +80,14 @@ export default function LandingPage({
     return shopPhotosStore.subscribe(load);
   }, []);
 
+  // Phones never hover: visitors and customers get the touch press feedback
+  // (tailwind.css) here, while a signed-in staff/admin keeps the desktop look.
+  useEffect(() => {
+    if (user && user.role !== "customer") return;
+    document.documentElement.setAttribute("data-mobile-press", "customer");
+    return () => document.documentElement.removeAttribute("data-mobile-press");
+  }, [user?.role]);
+
   useEffect(() => {
     const load = () => setMatrix(pricingStore.getMatrix());
     return pricingStore.subscribe(load);

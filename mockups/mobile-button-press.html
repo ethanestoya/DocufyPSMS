@@ -1,0 +1,220 @@
+<style>
+  .mcta {
+    --brand: #1668D9;
+    --brand-hover: #0F57B8;
+    --brand-soft: #EAF2FF;
+    --navy: #10316B;
+    --ink: #0F172A;
+    --muted: #5C6B7F;
+    --hairline: #D5DCE6;
+    --blue-200: #BFDBFE;
+    --red: #DC2626;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: #f6f7f9;
+    padding: 16px;
+  }
+  .mcta h1 { font-size: 17px; font-weight: 700; margin: 0 0 4px; }
+  .mcta p.lede { font-size: 12.5px; color: var(--muted); margin: 0 0 16px; line-height: 1.45; }
+  .mcta .frame { display: grid; gap: 14px; }
+  @media (min-width: 900px) { .mcta .frame { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .mcta .col {
+    background: #fff; border: 1px solid #E7EBF0; border-radius: 14px;
+    padding: 14px; box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  }
+  .mcta .col > h2 { font-size: 13px; font-weight: 700; margin: 0 0 2px; }
+  .mcta .col > h2 .tag {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    text-transform: uppercase; padding: 2px 7px; border-radius: 999px; margin-left: 6px; vertical-align: 2px;
+  }
+  .mcta .tag.pick { background: #DCFCE7; color: #15803D; }
+  .mcta .tag.mirror { background: var(--brand-soft); color: var(--navy); }
+  .mcta .tag.flash { background: #FEF3C7; color: #92400E; }
+  .mcta .col > p { font-size: 11.5px; color: var(--muted); margin: 0 0 12px; line-height: 1.45; min-height: 32px; }
+
+  /* phone canvas: 390px-ish content, stacked */
+  .mcta .phone {
+    background: #F8FAFC; border: 1px solid var(--hairline); border-radius: 12px;
+    padding: 12px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .mcta .row { display: flex; gap: 8px; align-items: center; }
+  .mcta .lbl { font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #94A3B8; }
+
+  /* ---- the Docufy button surfaces, copied from the real primitive ---- */
+  .mcta .btn {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    appearance: none;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    white-space: nowrap; border-radius: 10px; font-size: 13.5px; font-weight: 600;
+    height: 40px; padding: 0 14px; border: 2px solid transparent; cursor: pointer;
+    transition: all .15s ease-out; flex: 1;
+  }
+  .mcta .btn.small { flex: 0; height: 36px; font-size: 13px; }
+  .mcta .btn.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .mcta .btn.outline { background: #fff; color: #334155; border-color: var(--blue-200); }
+  .mcta .btn.destructive { background: #fff; color: var(--red); border-color: var(--red); }
+  .mcta .btn.ghost { background: transparent; color: #475569; border-color: transparent; height: 34px; }
+  .mcta .btn.icon { flex: 0; width: 36px; padding: 0; background: #fff; border-color: var(--hairline); color: #64748B; border-radius: 10px; }
+  .mcta .chip {
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+    appearance: none; cursor: pointer; font: inherit;
+    height: 32px; padding: 0 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+    background: #fff; color: #64748B; border: 1px solid var(--hairline);
+    transition: all .15s ease-out;
+  }
+  .mcta .chip.on { background: var(--brand-soft); color: var(--navy); border-color: #9CBBEC; }
+  .mcta .cardbtn {
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+    appearance: none; cursor: pointer; font: inherit; text-align: left; width: 100%;
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    background: #fff; border: 2px solid var(--hairline); border-radius: 12px;
+    transition: all .15s ease-out;
+  }
+  .mcta .cardbtn .glyph {
+    width: 34px; height: 34px; border-radius: 9px; background: var(--brand-soft);
+    color: var(--brand); display: grid; place-items: center; font-size: 14px; font-weight: 700; flex: none;
+  }
+  .mcta .cardbtn b { font-size: 13.5px; color: var(--navy); display: block; }
+  .mcta .cardbtn i { font-size: 11.5px; color: var(--muted); font-style: normal; }
+
+  /* ================= TREATMENT 1 — mirror the desktop hover ================= */
+  .mcta .t1 .primary:active { background: var(--brand-hover); border-color: var(--brand-hover); transform: translateY(-2px); box-shadow: 0 6px 14px rgba(22, 104, 217, .28); }
+  .mcta .t1 .outline:active, .mcta .t1 .ghost:active { background: var(--brand); border-color: var(--brand); color: #fff; transform: translateY(-2px); box-shadow: 0 6px 14px rgba(22, 104, 217, .22); }
+  .mcta .t1 .destructive:active { background: var(--red); border-color: var(--red); color: #fff; transform: translateY(-2px); box-shadow: 0 6px 14px rgba(220, 38, 38, .26); }
+  .mcta .t1 .icon:active { background: var(--brand); border-color: var(--brand); color: #fff; transform: translateY(-2px); }
+  .mcta .t1 .chip:active { background: var(--brand); border-color: var(--brand); color: #fff; transform: translateY(-2px); }
+  .mcta .t1 .cardbtn:active { border-color: var(--brand); background: var(--brand-soft); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(22, 104, 217, .14); }
+  .mcta .t1 .cardbtn:active .glyph { background: var(--brand); color: #fff; }
+
+  /* ================= TREATMENT 2 — hover language + press-in ================= */
+  .mcta .t2 .primary:active { background: var(--brand-hover); border-color: var(--brand-hover); transform: scale(.965); box-shadow: 0 2px 6px rgba(22, 104, 217, .2); }
+  .mcta .t2 .outline:active, .mcta .t2 .ghost:active { background: var(--brand); border-color: var(--brand); color: #fff; transform: scale(.965); box-shadow: 0 2px 6px rgba(22, 104, 217, .18); }
+  .mcta .t2 .destructive:active { background: var(--red); border-color: var(--red); color: #fff; transform: scale(.965); }
+  .mcta .t2 .icon:active { background: var(--brand); border-color: var(--brand); color: #fff; transform: scale(.9); }
+  .mcta .t2 .chip:active { background: var(--brand); border-color: var(--brand); color: #fff; transform: scale(.94); }
+  .mcta .t2 .cardbtn:active { border-color: var(--brand); background: var(--brand-soft); transform: scale(.985); box-shadow: 0 4px 12px rgba(22, 104, 217, .12); }
+  .mcta .t2 .cardbtn:active .glyph { background: var(--brand); color: #fff; }
+  /* release settle */
+  @keyframes mctaSettle { 0% { transform: scale(.965); } 60% { transform: scale(1.012); } 100% { transform: scale(1); } }
+  .mcta .t2 .primary, .mcta .t2 .outline, .mcta .t2 .destructive, .mcta .t2 .ghost { -webkit-backface-visibility: hidden; }
+  .mcta .t2 .btn.settle { animation: mctaSettle .18s ease-out; }
+
+  /* ================= TREATMENT 3 — fill + touch ripple ================= */
+  .mcta .t3 .btn, .mcta .t3 .chip, .mcta .t3 .cardbtn { position: relative; overflow: hidden; }
+  .mcta .t3 .primary:active { background: var(--brand-hover); border-color: var(--brand-hover); }
+  .mcta .t3 .outline:active, .mcta .t3 .ghost:active { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .mcta .t3 .destructive:active { background: var(--red); border-color: var(--red); color: #fff; }
+  .mcta .t3 .icon:active { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .mcta .t3 .chip:active { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .mcta .t3 .cardbtn:active { border-color: var(--brand); background: var(--brand-soft); }
+  .mcta .t3 .cardbtn:active .glyph { background: var(--brand); color: #fff; }
+  .mcta .t3 .ring {
+    position: absolute; border-radius: 999px; pointer-events: none;
+    background: rgba(255, 255, 255, .55); transform: scale(0); opacity: 1;
+    animation: mctaRing .38s ease-out forwards;
+  }
+  .mcta .t3 .outline .ring, .mcta .t3 .ghost .ring, .mcta .t3 .destructive .ring,
+  .mcta .t3 .chip .ring, .mcta .t3 .cardbtn .ring, .mcta .t3 .icon .ring { background: rgba(22, 104, 217, .22); }
+  @keyframes mctaRing { to { transform: scale(2.6); opacity: 0; } }
+
+  .mcta .note { font-size: 11px; color: var(--muted); line-height: 1.5; margin-top: 12px; }
+  .mcta .note b { color: var(--ink); }
+  .mcta .desktop {
+    margin-bottom: 14px; background: #fff; border: 1px solid var(--hairline); border-radius: 12px; padding: 10px 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .mcta .desktop .lbl { margin-right: 4px; }
+  .mcta .desktop .btn { flex: 0; height: 34px; font-size: 12.5px; }
+  .mcta .desktop .primary:hover { background: var(--brand-hover); border-color: var(--brand-hover); transform: translateY(-2px); box-shadow: 0 6px 14px rgba(22, 104, 217, .28); }
+  .mcta .desktop .outline:hover { background: var(--brand); border-color: var(--brand); color: #fff; transform: translateY(-2px); box-shadow: 0 6px 14px rgba(22, 104, 217, .22); }
+  .mcta .howto { font-size: 11px; font-weight: 600; color: var(--brand); margin: 0 0 10px; }
+  @media (prefers-reduced-motion: reduce) {
+    .mcta .btn, .mcta .chip, .mcta .cardbtn { transition-duration: .001ms; }
+    .mcta .btn.settle, .mcta .t3 .ring { animation-duration: .001ms; }
+  }
+</style>
+
+<div class="mcta">
+  <h1>Customer mobile buttons — press feedback</h1>
+  <p class="lede">Today on a phone the Docufy buttons do nothing when tapped: every state the shared Button primitive has is written as a <b>hover</b> rule, and a touch device never hovers. Pick how a tap should feel. <b>Press and hold</b> each control — on a phone, or with a mouse.</p>
+
+  <div class="desktop">
+    <span class="lbl">Desktop today (hover)</span>
+    <button class="btn primary small" style="flex:0">Place Order</button>
+    <button class="btn outline small" style="flex:0">Clear</button>
+    <span class="lbl" style="font-weight:400;text-transform:none;letter-spacing:0">← the lift + fill you already know</span>
+  </div>
+  <p class="howto">Nothing below reacts to hover — only to a press, so phone and desktop read the same.</p>
+
+  <div class="frame">
+    <div class="col">
+      <h2>1 · Mirror the hover<span class="tag mirror">Most literal</span></h2>
+      <p>While held, the button becomes exactly what it looks like under a mouse cursor: fills brand blue, lifts 2px, shadow. Releases back on lift-off.</p>
+      <div class="phone t1" data-t="1">
+        <div class="row"><button class="btn primary">Place Order</button></div>
+        <div class="row"><button class="btn outline">Clear</button><button class="btn destructive">Cancel Order</button></div>
+        <div class="row"><button class="btn ghost">Back</button><button class="btn icon">⋯</button></div>
+        <div class="row"><button class="chip on">All</button><button class="chip">Ready</button><button class="chip">Overdue</button></div>
+        <button class="cardbtn"><span class="glyph">G</span><span><b>GCash</b><i>Pay via GCash mobile wallet</i></span></button>
+      </div>
+    </div>
+
+    <div class="col">
+      <h2>2 · Hover fill + press-in<span class="tag pick">Recommended</span></h2>
+      <p>Same fill, but it squashes 3.5% instead of lifting — a lift hides under your fingertip, a squash reads as the screen taking your press. Settles back with a 180ms overshoot.</p>
+      <div class="phone t2" data-t="2">
+        <div class="row"><button class="btn primary">Place Order</button></div>
+        <div class="row"><button class="btn outline">Clear</button><button class="btn destructive">Cancel Order</button></div>
+        <div class="row"><button class="btn ghost">Back</button><button class="btn icon">⋯</button></div>
+        <div class="row"><button class="chip on">All</button><button class="chip">Ready</button><button class="chip">Overdue</button></div>
+        <button class="cardbtn"><span class="glyph">G</span><span><b>GCash</b><i>Pay via GCash mobile wallet</i></span></button>
+      </div>
+    </div>
+
+    <div class="col">
+      <h2>3 · Fill + ripple<span class="tag flash">Most animated</span></h2>
+      <p>Fills like option 1 and adds a ripple from where your finger landed, 380ms. The only one that clearly moves even on a full-card tap, but it is the least like the rest of Docufy.</p>
+      <div class="phone t3" data-t="3">
+        <div class="row"><button class="btn primary">Place Order</button></div>
+        <div class="row"><button class="btn outline">Clear</button><button class="btn destructive">Cancel Order</button></div>
+        <div class="row"><button class="btn ghost">Back</button><button class="btn icon">⋯</button></div>
+        <div class="row"><button class="chip on">All</button><button class="chip">Ready</button><button class="chip">Overdue</button></div>
+        <button class="cardbtn"><span class="glyph">G</span><span><b>GCash</b><i>Pay via GCash mobile wallet</i></span></button>
+      </div>
+    </div>
+  </div>
+
+  <p class="note">
+    <b>Scope I would implement it in:</b> one block in <code>src/styles/tailwind.css</code> behind <code>@media (hover: none) and (pointer: coarse)</code> — real touch devices only, so a narrow desktop window keeps the hover behaviour untouched — gated by an <code>html</code> attribute set only when the signed-in role is <b>customer</b> (plus the public Landing Page). That is 3 files (<code>tailwind.css</code>, <code>Layout.tsx</code>, <code>LandingPage.tsx</code>) and <b>zero</b> per-button edits, so it covers all 58 primitive + 82 raw buttons in the customer flow and everything inside their dialogs automatically. The app's existing reduced-motion rule already disables it for people who turn animations off.
+  </p>
+</div>
+
+<script>
+  (function () {
+    var root = document.querySelector('.mcta');
+    // Treatment 2: add a settle animation on release.
+    root.querySelectorAll('.t2 .btn').forEach(function (b) {
+      b.addEventListener('pointerup', function () {
+        b.classList.remove('settle');
+        void b.offsetWidth;
+        b.classList.add('settle');
+      });
+      b.addEventListener('animationend', function () { b.classList.remove('settle'); });
+    });
+    // Treatment 3: ripple from the touch point.
+    root.querySelectorAll('.t3 .btn, .t3 .chip, .t3 .cardbtn').forEach(function (b) {
+      b.addEventListener('pointerdown', function (e) {
+        var r = b.getBoundingClientRect();
+        var size = Math.max(r.width, r.height) * 0.9;
+        var ring = document.createElement('span');
+        ring.className = 'ring';
+        ring.style.width = ring.style.height = size + 'px';
+        ring.style.left = (e.clientX - r.left - size / 2) + 'px';
+        ring.style.top = (e.clientY - r.top - size / 2) + 'px';
+        b.appendChild(ring);
+        setTimeout(function () { ring.remove(); }, 420);
+      });
+    });
+  })();
+</script>

@@ -1467,3 +1467,14 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - The promotion is a clean fast-forward, so `deployment` and `frontend-dev` now sit on the same commit and production matches the work branch exactly - no separate merge commit and no code changed by the promotion itself.
 - Typecheck and production build pass.
 
+
+## 2026-11-03 - Prans (10:12 PM PHT)
+
+- Gave customer buttons on phones real press feedback: Docufy styles every button state with `hover:`, and a phone never hovers, so customer controls were dead flat under a finger. On a touch device a customer button now fills with the colour its own hover would have shown and squashes about 3.5%, then springs back - the desktop hover language replayed in the one form touch can express, with no lift (a lift hides under the fingertip that causes it).
+- Scoped it to customers only, and only on real touch devices: the shared Button primitive now marks which variant it rendered, Layout switches the behaviour on for a customer session and the landing page for visitors, staff and admin keep the desktop look, and a narrow desktop window keeps its hover because the rules live behind a touch-only media query. Reduced-motion users are unaffected - the existing global rule already switches it off.
+- Finished the button uniformity pass on the four auth screens (login, sign up, forgot password, reset password): every submit button now goes through the shared Button primitive as the solid brand variant, so the same CTA no longer renders three different ways, and sign up lost its desktop-only outline / mobile-only solid split identity.
+- Moved the customer My Orders See More / Show Less control onto the same primitive, so the last hand-rolled button in that toolbar matches its Clear and pagination neighbours, and stopped the page jumping when the Status dropdown or the filter drawer opens.
+- Named the order customers recognise in the payment-deadline expiry notice instead of the raw database id, in both the auto-cancel notification texts.
+- Pulled Ethan's two `deployment` pushes into this branch: the 50 MB per-file upload limit for customer print requests (oversized files are named in the inline error and skipped, with a store-level refusal behind it), the file-size limit extended across the profile, brand and job-application uploads, the weekly auto-delete of old orders (Edge Function plus cron schedule), and the status-change timestamp that the retention purge keys off.
+- The Supabase side of his work is not applied by this push: the two upload-limit migrations, the order-retention cron schedule and deploying the purge Edge Function still need to be run in the Supabase project.
+- Typecheck and production build pass. The press animation itself is unverified by eye - this session has no working customer login and the in-app browser exposes no touch emulation, so it needs Chrome device emulation or a real phone on the LAN to judge the feel.

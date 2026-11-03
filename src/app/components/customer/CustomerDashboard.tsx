@@ -225,8 +225,11 @@ export default function CustomerDashboard() {
     );
   }, [customerOrders]);
 
+  // All of the customer's orders, newest first — the card shows three rows and
+  // the rest are reached by scrolling inside it, so a long history never turns
+  // the dashboard into one endless list.
   const recentOrders = useMemo(() => {
-    return customerOrders.slice(0, 5);
+    return customerOrders;
   }, [customerOrders]);
 
   // Every uploaded file across the customer's orders, newest upload first.
@@ -243,8 +246,7 @@ export default function CustomerDashboard() {
           };
         }),
       )
-      .sort((a, b) => b.stamp - a.stamp)
-      .slice(0, 5);
+      .sort((a, b) => b.stamp - a.stamp);
   }, [customerOrders]);
 
   const inProgressCount = stats.inProgress;
@@ -556,7 +558,9 @@ export default function CustomerDashboard() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto">
+              {/* Three rows tall — the rest scroll inside the card so a long
+                  history never stretches the dashboard into one long list. */}
+              <div className="flex-1 max-h-[272px] overflow-y-auto">
                 {recentOrders.length === 0 ? (
                   <div className="p-6 text-center">
                     <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center mx-auto mb-2">
@@ -687,6 +691,7 @@ export default function CustomerDashboard() {
             </button>
           </div>
 
+          {/* Three rows tall like Recent Orders — the rest scroll inside. */}
           {recentFiles.length === 0 ? (
             <div className="p-6 text-center">
               <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center mx-auto mb-2">
@@ -700,7 +705,7 @@ export default function CustomerDashboard() {
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
+            <div className="max-h-[196px] overflow-y-auto divide-y divide-gray-200">
               {recentFiles.map(({ key, file, order }) => (
                 <button
                   key={key}

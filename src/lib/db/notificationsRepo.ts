@@ -53,8 +53,11 @@ function cacheKey(email: string): string {
 }
 
 // Resolve an email to its `profiles.id` (a real Supabase account). Null when the
-// email has no profile row (e.g. demo roster staff). Results are cached per
-// email for the session.
+// email has no profile row (e.g. demo roster staff), when the caller's
+// permissions hide the row, or when nothing matches. Results are cached per
+// email for the session. The stored address is tried both as written and
+// lowercased because a profile created through Google can keep the casing the
+// IdP sent, and a single-cased equality read would then miss it.
 export async function resolveProfileIdByEmail(email: string): Promise<string | null> {
   const key = cacheKey(email);
   if (!key) return null;
@@ -63,12 +66,23 @@ export async function resolveProfileIdByEmail(email: string): Promise<string | n
 
   let id: string | null = null;
   try {
-    const { data } = await supabase
+    const candidates = Array.from(new Set([email.trim(), key].filter(Boolean)));
+    const { data, error } = await supabase
       .from('profiles')
-      .select('id')
-      .eq('email', key)
+      .select('id, email')
+      .in('email', candidates)
+      .limit(1)
       .maybeSingle();
     if (data) id = data.id;
+    else if (error) {
+      console.warn('[db:notification] recipient lookup failed', key, error.message);
+    } else {
+      console.warn(
+        '[db:notification] no profile row readable for',
+        key,
+        '— the notification will be stored without a recipient and stay invisible',
+      );
+    }
   } catch {
     // keep null
   }
@@ -167,21 +181,36 @@ export interface NotificationWrite {
   relatedRoute?: string | null;
   recipientRole?: NotificationRecipientRole | null;
   recipientEmail?: string | null;
+  // The recipient's profile uuid when the caller already knows it — an order
+  // carries its own customer id, so a notification about that order should not
+  // depend on an email lookup the caller's permissions may not complete.
+  recipientProfileId?: string | null;
 }
 
-// Create a notification row. `recipientEmail` resolves to `recipient_profile_id`
-// (RLS = only that profile can see it). A role-targeted row keeps its role so
-// staff/admin can see it from any device. Unresolvable emails become a
-// role-scoped ('customer') row with no profile link — RLS keeps it invisible
-// until the profile exists, so it never leaks.
+// Create a notification row. The recipient is the caller-supplied profile id
+// when it is a real uuid, otherwise the `recipientEmail` resolved to one (RLS =
+// only that profile can see it). A role-targeted row keeps its role so staff/admin
+// can see it from any device. An unresolvable recipient is stored role-scoped with
+// no profile link and warned about — RLS keeps it invisible rather than leaking it.
 export async function pushNotification(write: NotificationWrite): Promise<string | null> {
   const emailTargeted = !!write.recipientEmail;
-  const recipientProfileId = emailTargeted
-    ? await resolveProfileIdByEmail(write.recipientEmail ?? '')
-    : null;
+  const knownProfileId = isUuid(write.recipientProfileId) ? write.recipientProfileId : null;
+  const recipientProfileId =
+    knownProfileId ?? (emailTargeted ? await resolveProfileIdByEmail(write.recipientEmail ?? '') : null);
+
+  if ((emailTargeted || knownProfileId) && !recipientProfileId) {
+    console.warn(
+      '[db:notification-push] recipient not identified for',
+      write.title,
+      '— storing role-scoped; the customer will not see it',
+    );
+  }
 
   let recipientRole = mapRecipientRole(write.recipientRole);
   if (emailTargeted && (write.recipientRole == null || write.recipientRole === 'all')) {
+    recipientRole = 'customer';
+  }
+  if (knownProfileId && (write.recipientRole == null || write.recipientRole === 'all')) {
     recipientRole = 'customer';
   }
 

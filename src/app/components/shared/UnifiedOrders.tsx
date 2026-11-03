@@ -103,6 +103,9 @@ type OrderType = {
   displayId?: string;
   customer: string;
   customerEmail?: string;
+  // The customer's Supabase profile uuid, so a notification can address the
+  // account directly instead of relying on an email lookup that can miss.
+  customerId?: string | null;
   customerType?: 'printing' | 'photocopy';
   pages: number;
   type: string;
@@ -966,18 +969,24 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
 
     const statusTitle = pendingStatus === "inQueue" ? "In Queue" : pendingStatus.charAt(0).toUpperCase() + pendingStatus.slice(1);
 
-    notificationStore.addNotification(
-      'status_update',
-      `Order ${statusTitle}`,
-      statusMessages[pendingStatus] || `Your order status has been updated to ${statusTitle}.`,
-      {
-        clickable: true,
-        relatedOrderId: selectedOrder.id,
-        relatedRoute: `/customer/track/${selectedOrder.id}`,
-        recipientEmail: selectedOrder.customerEmail || selectedOrder.customer,
-        recipientRole: 'customer',
-      }
-    );
+    // Only an order that belongs to a real account can be notified — a walk-in
+    // has no signed-in customer behind the address we store for it.
+    const notifyEmail = (selectedOrder.customerEmail ?? "").trim().toLowerCase();
+    if (notifyEmail && !notifyEmail.includes("@example.com")) {
+      notificationStore.addNotification(
+        'status_update',
+        `Order ${statusTitle}`,
+        statusMessages[pendingStatus] || `Your order status has been updated to ${statusTitle}.`,
+        {
+          clickable: true,
+          relatedOrderId: selectedOrder.id,
+          relatedRoute: `/customer/track/${selectedOrder.id}`,
+          recipientEmail: notifyEmail,
+          recipientRole: 'customer',
+          recipientProfileId: selectedOrder.customerId ?? null,
+        }
+      );
+    }
 
     if (pendingStatus === "completed") {
       toast.success(

@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
+  Eye,
   Loader2,
   RotateCcw,
   Undo2,
@@ -20,11 +21,10 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { Button } from "../ui/button";
-import { ZoomSafeDropdown } from "../ui/zoom-safe-dropdown";
 import { Textarea } from "../ui/textarea";
 import { Label } from "../ui/label";
 import { showDbError } from "../../../lib/db/errors";
-import { BUCKETS, downloadObjectToBlob } from "../../../lib/db/storage";
+import { BUCKETS, downloadObjectToBlob, getSignedObjectUrl } from "../../../lib/db/storage";
 import { analyzeDocument } from "../../utils/colorAnalysis";
 import { auditLogStore, type AuditEntry } from "../../utils/auditLogStore";
 import { notificationStore } from "../../utils/notificationStore";
@@ -45,6 +45,7 @@ export type PricingOrder = {
   displayId?: string;
   customer?: string;
   customerEmail?: string;
+  customerId?: string | null;
   orderSource?: "online" | "walkin";
   paperSize?: string;
   copies?: number;
@@ -224,6 +225,7 @@ export function ConfirmPricingDialog({
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [openingFile, setOpeningFile] = useState(false);
 
   const orderId = order?.id ?? "";
 
@@ -462,6 +464,31 @@ export function ConfirmPricingDialog({
     setRangeTo("");
   };
 
+  // order-files is a private bucket, so the preview goes through a signed URL
+  // exactly like the staff/admin Order Details "View" button.
+  const openStoredFile = async () => {
+    const path = primaryFile?.storagePath;
+    if (!path || openingFile) return;
+    setOpeningFile(true);
+    try {
+      const url = await getSignedObjectUrl(BUCKETS.orderFiles, path);
+      if (!url) {
+        toast.error("Couldn't open the file from the server. Please try again.");
+        return;
+      }
+      const tab = window.open(url, "_blank", "noopener,noreferrer");
+      if (!tab) {
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.target = "_blank";
+        anchor.rel = "noopener,noreferrer";
+        anchor.click();
+      }
+    } finally {
+      setOpeningFile(false);
+    }
+  };
+
   const cellCount = (tier: TierFilter) => {
     if (analysis.status !== "ready") return 0;
     if (tier === "all") return analysis.pageCount;
@@ -552,6 +579,7 @@ export function ConfirmPricingDialog({
             relatedRoute: `/customer/track/${order.id}`,
             recipientRole: "customer",
             recipientEmail: order.customerEmail,
+            recipientProfileId: order.customerId ?? null,
           },
         );
       }
@@ -609,16 +637,33 @@ export function ConfirmPricingDialog({
               {subtitle}
             </DialogDescription>
           </div>
-          <button
-            type="button"
-            onClick={() => !saving && onOpenChange(false)}
-            aria-label="Close pricing"
-            className="-mr-1 -mt-1 inline-flex size-9 shrink-0 items-center justify-center rounded-[10px] border border-[#D5DBE5] bg-white text-[#4B5563] transition-colors hover:bg-[#F3F4F6] hover:text-[#111827] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8] focus-visible:ring-offset-2"
-          >
-            <span aria-hidden="true" className="text-[18px] leading-none">
-              ×
-            </span>
-          </button>
+          <div className="flex shrink-0 items-start gap-2">
+            {primaryFile?.storagePath && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 px-3 text-[13px]"
+                loading={openingFile}
+                loadingText="Opening…"
+                onClick={openStoredFile}
+                title={`Open ${primaryFile.name} in a new tab`}
+              >
+                <Eye className="mr-1.5 size-3.5" aria-hidden="true" />
+                Preview file
+              </Button>
+            )}
+            <button
+              type="button"
+              onClick={() => !saving && onOpenChange(false)}
+              aria-label="Close pricing"
+              className="-mr-1 -mt-1 inline-flex size-9 shrink-0 items-center justify-center rounded-[10px] border border-[#D5DBE5] bg-white text-[#4B5563] transition-colors hover:bg-[#F3F4F6] hover:text-[#111827] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8] focus-visible:ring-offset-2"
+            >
+              <span aria-hidden="true" className="text-[18px] leading-none">
+                ×
+              </span>
+            </button>
+          </div>
         </DialogHeader>
 
         <div className="mt-5 h-px bg-[#E5E7EB]" />
@@ -761,7 +806,7 @@ export function ConfirmPricingDialog({
                 ))}
               </div>
 
-              <div className="grid max-h-[280px] grid-cols-6 gap-1.5 overflow-y-auto rounded-[12px] border border-[#E5E7EB] bg-[#F8FAFC] p-2.5 sm:grid-cols-8">
+              <div className="grid max-h-[min(52vh,560px)] grid-cols-6 gap-1.5 overflow-y-auto rounded-[12px] border border-[#E5E7EB] bg-[#F8FAFC] p-2.5 sm:grid-cols-8">
                 {Array.from({ length: pageCount }, (_, index) => index + 1)
                   .filter((page) => {
                     if (filter === "all") return true;
@@ -824,31 +869,47 @@ export function ConfirmPricingDialog({
                       className="mt-1 h-9 w-full rounded-[10px] border border-[#D5DBE5] px-2.5 text-[13.5px] text-[#111827] focus:border-[#1668D9] focus:outline-none focus:ring-[3px] focus:ring-[#1668D9]/20"
                     />
                   </div>
-                  <div className="min-w-[170px] flex-1">
-                    <ZoomSafeDropdown
-                      label="Colour tier"
-                      value={rangeTier}
-                      onChange={(value) => setRangeTier(value as ColorTier)}
-                      options={(["bw", "partial", "full"] as ColorTier[]).map(
-                        (tier) => ({
-                          value: tier,
-                          label: COLOR_TIER_LABELS[tier],
-                        }),
-                      )}
-                      className="mt-1"
-                      triggerClassName="h-9 text-[13.5px]"
-                    />
-                  </div>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-9 px-3 text-[13px]"
+                    className="ml-auto h-9 px-3 text-[13px]"
                     onClick={applyRange}
                     disabled={!rangeFrom || !rangeTo}
                   >
                     Mark
                   </Button>
+                </div>
+                {/* The tier is chosen inline: a list that floats over this card
+                    is clipped by the dialog's own scroll container and the
+                    browser scrolls the panel to reveal it, so the whole card
+                    jumps. Static chips cannot move anything. */}
+                <Label className="mt-3 block text-[11.5px] text-[#6B7280]">
+                  Mark those pages as
+                </Label>
+                <div
+                  role="group"
+                  aria-label="Colour tier to mark"
+                  className="mt-1.5 flex flex-wrap gap-2"
+                >
+                  {(["bw", "partial", "full"] as ColorTier[]).map((tier) => {
+                    const active = rangeTier === tier;
+                    return (
+                      <button
+                        key={tier}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => setRangeTier(tier)}
+                        className={`h-9 flex-1 whitespace-nowrap rounded-[10px] border px-2 text-[12.5px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9] ${
+                          active
+                            ? `${tierClass(tier)} ring-2 ring-[#1668D9]`
+                            : "border-[#D5DBE5] bg-white text-[#4B5563] hover:bg-[#F8FAFC]"
+                        }`}
+                      >
+                        {COLOR_TIER_LABELS[tier]}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -955,16 +1016,43 @@ export function ConfirmPricingDialog({
                 <Label className="text-[13px] font-semibold text-[#111827]">
                   Reason for change
                 </Label>
-                <div className="mt-1.5">
-                  <ZoomSafeDropdown
-                    label="Reason for change"
-                    value={reason}
-                    onChange={setReason}
-                    placeholder="Choose a reason"
-                    applied={!!reason}
-                    options={PRICE_REASONS.map((value) => ({ value, label: value }))}
-                    triggerClassName="h-9 text-[13.5px]"
-                  />
+                {/* The reason is chosen from a standing list, not a dropdown:
+                    a floating list is clipped by this dialog's own scroll
+                    container and the browser scrolls the panel to reveal it,
+                    so the whole card jumps when it opens. */}
+                <div
+                  role="group"
+                  aria-label="Reason for change"
+                  className="mt-1.5 space-y-1.5"
+                >
+                  {PRICE_REASONS.map((value) => {
+                    const active = reason === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => setReason(value)}
+                        className={`flex h-9 w-full items-center gap-2.5 rounded-[10px] border px-3 text-left text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9] ${
+                          active
+                            ? "border-[#9CBBEC] bg-[#F4F8FE] font-semibold text-[#1F4E9C]"
+                            : "border-[#D5DCE6] bg-white text-[#4B5563] hover:bg-[#F8FAFC]"
+                        }`}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`flex size-4 shrink-0 items-center justify-center rounded-full border ${
+                            active ? "border-[#2F6FD6]" : "border-[#C3CBD8]"
+                          }`}
+                        >
+                          {active && (
+                            <span className="size-2 rounded-full bg-[#2F6FD6]" />
+                          )}
+                        </span>
+                        {value}
+                      </button>
+                    );
+                  })}
                 </div>
                 <Label className="mt-3 block text-[13px] font-semibold text-[#111827]">
                   Note{" "}

@@ -724,10 +724,11 @@ class DataStore {
     const oldStatus = current?.status ?? null;
     const newStatus = patch.status ?? oldStatus;
 
-    await dbUpdateOrder(id, patch);
-
-    // The stored breakdown is what the receipt and Order Details read, so a
-    // price change has to land there too — not just on manual_total.
+    // The breakdown goes first on purpose: it is the figure the receipt and
+    // Order Details read, and it is the write whose table policy is least
+    // certain. If the server refuses it, nothing was saved and the failure
+    // message stays true — whereas writing manual_total first would leave a
+    // repriced order whose stored breakdown still holds the old total.
     if ('costBreakdown' in updates && updates.costBreakdown) {
       await upsertCostBreakdown(id, {
         printingCost: updates.costBreakdown.printingCost,
@@ -735,6 +736,8 @@ class DataStore {
         total: updates.costBreakdown.total,
       });
     }
+
+    await dbUpdateOrder(id, patch);
 
     if (patch.status && newStatus && newStatus !== oldStatus) {
       await insertStatusHistory(id, {

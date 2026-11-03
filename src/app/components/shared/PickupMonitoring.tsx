@@ -4,21 +4,30 @@
 //
 // There is no manual review workflow here: an order counts as unclaimed only
 // when the real order + status-history timeline proves it reached Completed and
-// was not collected by the shop's configured closing time. The page is
-// display-only (view an order's details); nothing is enforced or written.
+// was not collected by the shop's configured closing time. The page is otherwise
+// display-only (view an order's details); the one thing it can change is the
+// pickup itself — a staff/admin can mark a waiting order as released.
 
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Search,
   Eye,
   AlertTriangle,
+  CheckCircle2,
   ClipboardList,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { toast } from "sonner";
 import Layout from "../Layout";
 import StaffTimeInGate from "./StaffTimeInGate";
+import { ConfirmationDialog } from "../ui/confirmation-dialog";
+import { useAuth } from "../../contexts/AuthContext";
 import { ordersStore } from "../../utils/ordersStore";
+import { notificationStore } from "../../utils/notificationStore";
+import { auditLogStore } from "../../utils/auditLogStore";
+import { getLock } from "../../utils/orderLocks";
+import { showDbError } from "../../../lib/db/errors";
 import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -145,6 +154,10 @@ export default function PickupMonitoring({
   const [dateTo, setDateTo] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [selected, setSelected] = useState<OrderRow | null>(null);
+  const [releaseTarget, setReleaseTarget] = useState<OrderRow | null>(null);
+
+  const { user } = useAuth();
+  const myName = user?.name || "Staff";
 
   useEffect(() => {
     const sync = () => setOrders(ordersStore.getOrders());
@@ -266,6 +279,83 @@ export default function PickupMonitoring({
     const readyAt = readyAtFor(order);
     if (!readyAt) return "—";
     return `${formatPHDate(readyAt)} · ${formatPHTime(readyAt)}`;
+  };
+
+  // A row can be released only while it is still waiting to be collected —
+  // an order already marked Released has nothing left to do here.
+  const canRelease = (order: OrderRow): boolean =>
+    stateById.get(order.id) !== "collected";
+
+  // The customer address to notify, or null when the order has no real account
+  // behind it — a walk-in has no signed-in customer to receive the alert.
+  const notifyAddressFor = (order: OrderRow): string | null => {
+    const email = (order.customerEmail ?? "").trim().toLowerCase();
+    return email && !email.includes("@example.com") ? email : null;
+  };
+
+  // Opening the confirm is also the moment we check the order session lock, so
+  // a release never lands on top of an order another reviewer has open in Orders.
+  const openReleaseConfirm = (order: OrderRow) => {
+    const holder = getLock(order.id);
+    if (holder && holder.heldBy !== myName) {
+      toast.error(`${holder.heldBy} is managing this order`, {
+        description:
+          "Only the current reviewer can change it. Try again once they close it.",
+      });
+      return;
+    }
+    setReleaseTarget(order);
+  };
+
+  // The same release path the Orders page uses: one status write, its audit
+  // entry, and the customer notification. Nothing else on this page changes.
+  const confirmRelease = async (order: OrderRow) => {
+    try {
+      await ordersStore.updateOrder(order.id, {
+        status: "released",
+        statusUpdatedAt: new Date(),
+      });
+    } catch (err) {
+      showDbError("releasing the order", err);
+      // Rejection keeps the confirmation open so staff can retry.
+      throw err;
+    }
+
+    auditLogStore.record({
+      module: "Orders",
+      action: "Released",
+      reference: `Order #${order.displayId ?? order.id}`,
+      entityType: "Order",
+      entityId: order.id,
+      title: "Order Released",
+      description: `The order was marked as released from Pickup Monitoring. Status changed from ${statusLabel(order.status)} to Released.`,
+      changes: [
+        { field: "Order Status", previous: statusLabel(order.status), next: "Released" },
+      ],
+    });
+
+    const notifyEmail = notifyAddressFor(order);
+    if (notifyEmail) {
+      notificationStore.addNotification(
+        "status_update",
+        "Order Released",
+        "Your order has been released.",
+        {
+          clickable: true,
+          relatedOrderId: order.id,
+          relatedRoute: `/customer/track/${order.id}`,
+          recipientEmail: notifyEmail,
+          recipientRole: "customer",
+          recipientProfileId: order.customerId ?? null,
+        },
+      );
+    }
+
+    toast.success(
+      `Order ${order.displayId ?? order.id} marked as released.`,
+    );
+    // The shared confirmation closes itself once this promise settles, and the
+    // row itself re-renders from the ordersStore subscription.
   };
 
   return (
@@ -448,18 +538,34 @@ export default function PickupMonitoring({
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelected(order);
-                              }}
-                              className="h-8"
-                            >
-                              <Eye className="h-3.5 w-3.5" />
-                              View
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelected(order);
+                                }}
+                                className="h-8"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                                View
+                              </Button>
+                              {canRelease(order) && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openReleaseConfirm(order);
+                                  }}
+                                  className="h-8"
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                  Mark as released
+                                </Button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -605,6 +711,25 @@ export default function PickupMonitoring({
           )}
         </DialogContent>
       </Dialog>
+
+      {releaseTarget && (
+        <ConfirmationDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setReleaseTarget(null);
+          }}
+          onConfirm={() => confirmRelease(releaseTarget)}
+          title="Mark order as released?"
+          description={`Order ${releaseTarget.displayId ?? releaseTarget.id} for ${releaseTarget.customer} will move to Released.${
+            notifyAddressFor(releaseTarget)
+              ? " The customer will be notified."
+              : ""
+          }`}
+          confirmLabel="Mark as Released"
+          cancelLabel="Go Back"
+          success
+        />
+      )}
     </Layout>
   );
 }

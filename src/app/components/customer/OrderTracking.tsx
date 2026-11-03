@@ -704,7 +704,7 @@ export default function OrderTracking() {
                       Current Status
                     </p>
                     <p
-                      className={`truncate text-[26px] font-bold leading-tight ${statusStyle.label}`}
+                      className={`text-[21px] font-bold leading-[1.2] break-words hyphens-none sm:text-[26px] ${statusStyle.label}`}
                     >
                       {currentOrderLabel}
                     </p>

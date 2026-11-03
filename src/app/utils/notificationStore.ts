@@ -27,6 +27,9 @@ type Notification = {
   relatedRoute?: string;
   recipientRole?: 'customer' | 'staff' | 'admin' | 'staff_admin' | 'all';
   recipientEmail?: string;
+  // The recipient's Supabase profile uuid, when the caller knows it (an order
+  // already carries its own customer id). Preferred over an email lookup.
+  recipientProfileId?: string | null;
 };
 
 type Subscriber = () => void;
@@ -162,6 +165,7 @@ class NotificationStore {
       relatedRoute?: string;
       recipientRole?: Notification['recipientRole'];
       recipientEmail?: string;
+      recipientProfileId?: string | null;
     }
   ) {
     const notification: Notification = {
@@ -177,6 +181,7 @@ class NotificationStore {
       relatedRoute: options?.relatedRoute,
       recipientRole: options?.recipientRole || 'all',
       recipientEmail: options?.recipientEmail,
+      recipientProfileId: options?.recipientProfileId,
     };
 
     this.notifications.unshift(notification);
@@ -199,6 +204,7 @@ class NotificationStore {
         relatedRoute: notification.relatedRoute,
         recipientRole: notification.recipientRole,
         recipientEmail: notification.recipientEmail,
+        recipientProfileId: notification.recipientProfileId,
       });
       if (dbId) {
         const item = this.notifications.find((n) => n.id === notification.id);
@@ -213,6 +219,8 @@ class NotificationStore {
         notification.type,
         notification.recipientRole ?? null,
         notification.recipientEmail ?? null,
+        'recipient=',
+        notification.recipientProfileId ?? 'resolved-from-email',
       );
     } catch (err) {
       if (isRlsDenied(err)) {
@@ -234,8 +242,11 @@ class NotificationStore {
         n.recipientRole === userRole ||
         (n.recipientRole === 'staff_admin' &&
           (userRole === 'staff' || userRole === 'admin'));
-      // Check email match (if specified)
-      const emailMatch = !n.recipientEmail || n.recipientEmail === userEmail;
+      // Check email match (if specified). Case-insensitive because the order
+      // stores the address the customer typed while the session carries the
+      // lowercased one from the identity provider.
+      const emailMatch =
+        !n.recipientEmail || n.recipientEmail.trim().toLowerCase() === (userEmail || '').trim().toLowerCase();
       return roleMatch && emailMatch;
     });
   }

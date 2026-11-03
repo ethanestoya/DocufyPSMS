@@ -3655,7 +3655,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
           if (!open) setAnalysisFileId(null);
         }}
       >
-        <DialogContent className="sm:max-w-lg max-h-[70vh] flex flex-col overflow-hidden p-0">
+        <DialogContent className="sm:max-w-lg max-h-[82dvh] sm:max-h-[80vh] flex flex-col overflow-hidden p-0">
           <DialogHeader className="shrink-0 border-b border-gray-100 px-6 pt-6 pb-5">
             <DialogTitle>Document Analysis</DialogTitle>
             <DialogDescription>
@@ -3675,7 +3675,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
               const ca = aFile.colorAnalysis;
               return (
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
-                  <p className="font-semibold text-gray-900">
+                  <p className="font-semibold text-gray-900 break-words">
                     Document Analysis — {aFile.fileName}
                   </p>
                   <p className="text-xs text-gray-600 mt-1">
@@ -3700,10 +3700,12 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                       const renderRow = (page: number) => (
                         <div
                           key={page}
-                          className="flex items-center justify-between gap-4 rounded border border-blue-100 bg-[#F2F7FF] px-2.5 py-1.5"
+                          className="flex items-center justify-between gap-2 rounded border border-blue-100 bg-[#F2F7FF] px-2.5 py-1.5"
                         >
-                          <span className="text-gray-700">Page {page}</span>
-                          <span className="font-medium text-gray-900">
+                          <span className="min-w-0 truncate text-gray-700">
+                            Page {page}
+                          </span>
+                          <span className="whitespace-nowrap font-medium text-gray-900">
                             {ca.colorPercentages[page] ?? 0}% color
                           </span>
                         </div>
@@ -3729,18 +3731,17 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                                     {colorPages.slice(0, 3).map(renderRow)}
                                   </div>
                                 )}
+                                {/* The rows expand into the dialog's own scroll
+                                    area. A second scrollbar inside a fixed 9rem
+                                    box showed barely two pages and made the
+                                    list scroll inside a scrolling window. */}
                                 <div
                                   className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
                                     analysisShowAll ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
                                   }`}
                                 >
                                   <div className="min-h-0 overflow-hidden">
-                                    <div
-                                      className="mt-1.5 space-y-1 overflow-y-auto pr-1"
-                                      style={{
-                                        maxHeight: analysisShowAll ? "9rem" : "0px",
-                                      }}
-                                    >
+                                    <div className="mt-1.5 space-y-1">
                                       {colorPages.map(renderRow)}
                                     </div>
                                   </div>

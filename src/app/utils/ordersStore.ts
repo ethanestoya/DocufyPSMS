@@ -7,6 +7,10 @@ type OrderType = {
   displayId?: string;
   customer: string;
   customerEmail?: string;
+  // The customer's Supabase profile uuid when the order is linked to an account
+  // (falls back to the stored email for rows with no link). Read-only: it lets a
+  // notification address the right account without another profile lookup.
+  customerId?: string | null;
   customerType?: 'printing' | 'photocopy';
   pages: number;
   type: string;
@@ -236,6 +240,7 @@ class OrdersStore {
       paymentVerifiedAt: asDate(order.paymentVerifiedAt),
       paymentMethod: order.paymentMethod,
       orderSource: order.orderSource || (order.paymentMethod === 'Cash' ? 'walkin' : 'online'),
+      customerId: order.customerId ?? null,
       customerEmail: order.customerEmail,
       customerType: order.customerType,
       orientation: order.orientation as 'portrait' | 'landscape' | undefined,

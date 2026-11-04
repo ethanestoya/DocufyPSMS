@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Pickup Monitoring — before / after</title>
+<style>
+  :root{
+    --brand:#1668D9; --brand-dark:#10316B; --brand-tint:#F2F7FF; --brand-soft:#EAF3FF;
+    --ink:#1F2937; --muted:#6B7280; --line:#E5E7EB; --line-soft:#F1F5F9;
+    --red-bg:#FDE8E8; --red:#B91C1C; --red-line:rgba(220,38,38,.4);
+    --amber-bg:#FFF5D6; --amber:#92400E; --amber-line:rgba(245,158,11,.4);
+    --green-bg:#E8F7D8; --green:#3B7A1E; --green-line:rgba(85,166,48,.4);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#F6F7F9;font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color:var(--ink);padding:28px 20px 60px}
+  h1{font-size:19px;font-weight:700;color:var(--brand-dark);margin:0 0 4px}
+  .lead{font-size:13px;color:var(--muted);margin:0 0 22px}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;max-width:1520px;margin:0 auto}
+  @media (max-width:1180px){.cols{grid-template-columns:1fr}}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+  .panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 14px;color:var(--muted);font-weight:700}
+  .panel.after h2{color:var(--brand)}
+  .panel.after{border-color:rgba(22,104,217,.25);box-shadow:0 8px 24px rgba(22,104,217,.07)}
+
+  /* toolbar */
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .search{flex:1 1 220px;position:relative}
+  .search input{width:100%;height:36px;border:1px solid #D5DCE6;border-radius:10px;padding:0 10px 0 32px;font-size:13px;color:var(--ink);background:#fff}
+  .search span{position:absolute;left:10px;top:9px;color:#98A2B3;font-size:13px}
+  .datepill{height:36px;border:1px solid #D5DCE6;border-radius:10px;display:flex;align-items:center;padding:0 12px;font-size:12.5px;color:var(--muted);background:#fff;white-space:nowrap}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:9px}
+  .chip{height:30px;border-radius:9px;border:1px solid #D5DCE6;background:#fff;color:#475569;font-size:12.5px;font-weight:500;padding:0 11px;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+  .chip b{font-size:11px;color:#94A3B8}
+  .chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+  .chip.on b{color:rgba(255,255,255,.78)}
+  .note{font-size:11.5px;color:var(--muted);height:16px;margin:0 0 10px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+
+  table{width:100%;border-collapse:collapse;table-layout:fixed}
+  thead th{background:var(--brand-tint);border-bottom:1px solid rgba(22,104,217,.1);text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-dark);font-weight:700;padding:10px 10px}
+  tbody td{padding:10px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+  tbody tr:last-child td{border-bottom:0}
+  .oid{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#4B5563}
+  .cust{font-size:13px;font-weight:600;color:#111827;margin-top:1px}
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;border-radius:999px;padding:3px 9px;border:1px solid}
+  .b-ready{background:var(--brand-soft);color:var(--brand);border-color:rgba(22,104,217,.3)}
+  .b-over{background:var(--red-bg);color:var(--red);border-color:var(--red-line)}
+  .b-late{background:var(--red-bg);color:var(--red);border-color:var(--red-line)}
+  .b-done{background:#F1F5F9;color:#475569;border-color:#E2E8F0}
+  .pay{font-size:12.5px;font-weight:600;color:#B45309}
+  .pay.red{color:var(--red)}
+  .sub{font-size:10.5px;color:#9CA3AF;margin-top:1px}
+  .ok{font-size:11.5px;font-weight:600;color:var(--green)}
+
+  /* before buttons */
+  .btn{height:30px;border-radius:9px;border:1px solid #CBD5E1;background:#fff;color:#334155;font-size:12px;font-weight:500;padding:0 11px;display:inline-flex;align-items:center;gap:5px;margin-left:6px;cursor:pointer;white-space:nowrap}
+  .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  .btn.quiet{border-color:transparent;background:transparent;color:var(--brand);font-weight:600;padding:0 4px}
+  .btn.quiet:hover{text-decoration:underline}
+
+  .foot{display:flex;justify-content:space-between;align-items:center;padding:12px 4px 0;font-size:12px;color:var(--muted)}
+  .pg{display:flex;gap:6px}
+  .pg span{width:30px;height:30px;border:1px solid #D5DCE6;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;background:#fff}
+  .pg span.on{background:var(--brand);border-color:var(--brand);color:#fff}
+
+  /* after: urgency rail */
+  .now td.st{position:relative}
+  .rail{position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:3px}
+  .rail.red{background:#DC2626}
+  .rail.blue{background:#1668D9}
+  .rail.slate{background:#CBD5E1}
+  .overdue-by{font-size:10.5px;font-weight:700;color:var(--red);margin-top:2px}
+  .due-today{font-size:10.5px;font-weight:700;color:#B45309;margin-top:2px}
+  .when{font-size:12px;color:#374151;font-weight:500;white-space:nowrap}
+  .when i{font-style:normal;color:#9CA3AF;display:block;font-size:10.5px;margin-top:1px}
+
+  .legend{margin:18px auto 0;max-width:1520px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .legend h3{margin:0 0 10px;font-size:13px;color:var(--brand-dark)}
+  .legend ol{margin:0;padding-left:18px;font-size:12.5px;line-height:1.9;color:#374151}
+  .legend b{color:#111827}
+</style>
+</head>
+<body>
+  <div style="max-width:1520px;margin:0 auto 18px">
+    <h1>Pickup Monitoring — before / after</h1>
+    <p class="lead">Same data, same counts. Left is what runs today; right is the proposed treatment.</p>
+  </div>
+
+  <div class="cols">
+    <!-- ================= BEFORE ================= -->
+    <div class="panel">
+      <h2>Now</h2>
+      <div class="toolbar">
+        <div class="search"><span>⌕</span><input placeholder="Search order or customer" /></div>
+        <div class="datepill">📅 From — To</div>
+      </div>
+      <div class="chips">
+        <span class="chip on">All <b>11</b></span>
+        <span class="chip">Ready <b>3</b></span>
+        <span class="chip">Overdue <b>6</b></span>
+        <span class="chip">Picked up <b>1</b></span>
+        <span class="chip">Picked up late <b>1</b></span>
+        <span class="chip">Unclaimed <b>6</b></span>
+      </div>
+      <p class="note">Past the pickup deadline and still owing part of the total. These are the orders recorded as unclaimed.</p>
+
+      <table>
+        <colgroup><col style="width:26%"><col style="width:17%"><col style="width:19%"><col style="width:20%"><col style="width:18%"></colgroup>
+        <thead><tr><th>Order / Customer</th><th>Status</th><th>Payment</th><th>Pickup Deadline</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><div class="oid">ORD-0057</div><div class="cust">Tess Lim</div></td>
+            <td><span class="badge b-over">Overdue</span></td>
+            <td><div class="pay red">₱320.00</div><div class="sub">Owed at deadline</div></td>
+            <td style="color:var(--red);font-size:12px">Nov 4, 2026 · 08:00 PM</td>
+            <td><span class="btn">👁 View</span><span class="btn">✓ Mark as released</span></td>
+          </tr>
+          <tr>
+            <td><div class="oid">ORD-0058</div><div class="cust">Ulysses Ong</div></td>
+            <td><span class="badge b-over">Overdue</span></td>
+            <td><div class="pay red">₱200.00</div><div class="sub">Owed at deadline</div></td>
+            <td style="color:var(--red);font-size:12px">Oct 31, 2026 · 08:00 PM</td>
+            <td><span class="btn">👁 View</span><span class="btn">✓ Mark as released</span></td>
+          </tr>
+          <tr>
+            <td><div class="oid">ORD-0054</div><div class="cust">Rita Bautista</div></td>
+            <td><span class="badge b-ready">Ready for pickup</span></td>
+            <td><div class="pay">₱150.00 due</div></td>
+            <td style="color:#374151;font-size:12px">Nov 5, 2026 · 08:00 PM</td>
+            <td><span class="btn">👁 View</span><span class="btn">✓ Mark as released</span></td>
+          </tr>
+          <tr>
+            <td><div class="oid">ORD-0062</div><div class="cust">Wendy Sy</div></td>
+            <td><span class="badge b-done">Picked up</span></td>
+            <td><span class="ok">Paid</span></td>
+            <td style="color:#374151;font-size:12px">Nov 3, 2026 · 08:00 PM</td>
+            <td><span class="btn">👁 View</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="foot"><span>Showing 1–4 of 11 orders</span><div class="pg"><span>1</span><span class="on">2</span></div></div>
+    </div>
+
+    <!-- ================= AFTER ================= -->
+    <div class="panel after">
+      <h2>Proposed</h2>
+      <div class="toolbar">
+        <div class="search"><span>⌕</span><input placeholder="Search order or customer" /></div>
+        <div class="datepill">📅 From — To</div>
+      </div>
+      <div class="chips">
+        <span class="chip on">All <b>11</b></span>
+        <span class="chip">Ready <b>3</b></span>
+        <span class="chip">Overdue <b>6</b></span>
+        <span class="chip">Picked up <b>1</b></span>
+        <span class="chip">Picked up late <b>1</b></span>
+        <span class="chip">Unclaimed <b>6</b></span>
+      </div>
+      <p class="note">Past the pickup deadline and still owing part of the total. These are the orders recorded as unclaimed.</p>
+
+      <table>
+        <colgroup><col style="width:27%"><col style="width:16%"><col style="width:19%"><col style="width:22%"><col style="width:16%"></colgroup>
+        <thead><tr><th>Order / Customer</th><th>Status</th><th>Payment</th><th>Pickup Deadline</th><th style="text-align:right">Action</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="st"><span class="rail red"></span><div class="oid">ORD-0057</div><div class="cust">Tess Lim</div></td>
+            <td><span class="badge b-over">Overdue</span><div class="overdue-by">1 day overdue</div></td>
+            <td><div style="font-size:12.5px;font-weight:700;color:#111827">₱320.00</div><div class="sub">owed at deadline</div></td>
+            <td><div class="when">Nov 4, 2026<i>8:00 PM</i></div></td>
+            <td style="text-align:right;white-space:nowrap"><span class="btn quiet">View</span><span class="btn primary">Release</span></td>
+          </tr>
+          <tr>
+            <td class="st"><span class="rail red"></span><div class="oid">ORD-0058</div><div class="cust">Ulysses Ong</div></td>
+            <td><span class="badge b-over">Overdue</span><div class="overdue-by">5 days overdue</div></td>
+            <td><div style="font-size:12.5px;font-weight:700;color:#111827">₱200.00</div><div class="sub">owed at deadline</div></td>
+            <td><div class="when">Oct 31, 2026<i>8:00 PM</i></div></td>
+            <td style="text-align:right;white-space:nowrap"><span class="btn quiet">View</span><span class="btn primary">Release</span></td>
+          </tr>
+          <tr>
+            <td class="st"><span class="rail blue"></span><div class="oid">ORD-0054</div><div class="cust">Rita Bautista</div></td>
+            <td><span class="badge b-ready">Ready for pickup</span><div class="due-today">due today</div></td>
+            <td><div style="font-size:12.5px;font-weight:700;color:#111827">₱150.00</div><div class="sub">still to collect</div></td>
+            <td><div class="when">Nov 5, 2026<i>8:00 PM</i></div></td>
+            <td style="text-align:right;white-space:nowrap"><span class="btn quiet">View</span><span class="btn primary">Release</span></td>
+          </tr>
+          <tr>
+            <td class="st"><span class="rail slate"></span><div class="oid">ORD-0062</div><div class="cust">Wendy Sy</div></td>
+            <td><span class="badge b-done">Picked up</span></td>
+            <td><span class="ok">Paid</span></td>
+            <td><div class="when">Nov 3, 2026<i>8:00 PM</i></div></td>
+            <td style="text-align:right"><span class="btn quiet">View</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="foot"><span>Showing 1–4 of 11 orders</span><div class="pg"><span>1</span><span class="on">2</span></div></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <h3>What changes, and why</h3>
+    <ol>
+      <li><b>One committing action per row.</b> "View" becomes a quiet text action, "Release" is the single blue button — you can no longer mis-click the passive control.</li>
+      <li><b>Urgency is visible.</b> Each waiting row gets a left rail and an "N days overdue" line, so a 5-day-old order no longer looks like a fresh one.</li>
+      <li><b>Red appears once.</b> The status badge keeps the red; the amount goes neutral black with a small caption. The deadline text turns red only on an actual offence.</li>
+      <li><b>Deadline is scanned, not read twice.</b> Date on the first line, the repeated time muted beneath it.</li>
+      <li><b>The note line keeps its height</b> whether a filter is on or off, so the table never jumps when you switch chips.</li>
+      <li><b>Nothing about the counts changes.</b> Ready 3 + Overdue 6 + Picked up 1 + Picked up late 1 = All 11, and Unclaimed stays 6 — the same records Unclaimed Orders counts.</li>
+    </ol>
+  </div>
+</body>
+</html>

@@ -46,12 +46,13 @@ export type PricingValues = {
   // Order totals at/above this amount require FULL payment (no 50% option) before
   // printing, since a printed-but-unclaimed high-value order is hard to recover.
   fullPaymentThreshold: number;
-  // PLACEHOLDER — PAID-PAYMENT DEADLINES NOT YET CONFIRMED BY THE CLIENT.
   // Awaiting-payment orders are auto-cancelled as expired if payment is not
-  // confirmed within these windows. Cash-on-pickup orders must be paid at the
+  // received within these windows. Cash-on-pickup orders must be paid at the
   // shop; online orders must be submitted + verified. Admin-editable under
-  // "Order Rules" as a full duration (hours/minutes/seconds; 0 = no auto-expiry).
-  // Deadlines are wall-clock durations (not store hours) pending client decision.
+  // "Order Rules" as a full duration (hours/minutes/seconds).
+  // The effective deadline is the EARLIER of the window and the shop's closing
+  // time on the day the order was placed, so a window can only make it sooner;
+  // 0 means the closing time itself is the deadline.
   // Stored as total seconds so the admin can pick any granularity down to seconds.
   cashPickupPaymentWindowSeconds: number; // how long a customer has to pay cash at the shop
   onlinePaymentVerificationWindowSeconds: number; // how long an online payment has to be submitted + verified
@@ -67,7 +68,8 @@ const DEFAULT_PRICING: PricingValues = {
   duplexSavings: 0.5,
   downPaymentThreshold: 50,
   fullPaymentThreshold: 100, // client named both ₱100 and ₱150; using ₱100 (admin-editable)
-  // Placeholder deadline windows (seconds — 48h / 24h) — pending client confirmation.
+  // Default deadline windows (seconds — 48h / 24h). The shop's closing time
+  // caps both, so in practice an order must be paid on the day it was placed.
   cashPickupPaymentWindowSeconds: 48 * 3600,
   onlinePaymentVerificationWindowSeconds: 24 * 3600,
 };
@@ -268,7 +270,8 @@ export const PRICING_ITEMS: PricingItemSpec[] = [
   {
     id: 'cashPickupPaymentWindowSeconds',
     label: 'Cash on Pickup Payment Window',
-    description: 'Time to pay in cash at the shop before the order auto-cancels. 0 = never expires. Pending approval.',
+    description:
+      'Time to pay in cash at the shop. The deadline is the earlier of this window and the shop closing time, so 0 means closing time is the deadline.',
     category: 'Order Rules',
     unit: 'duration',
     editable: true,
@@ -276,7 +279,8 @@ export const PRICING_ITEMS: PricingItemSpec[] = [
   {
     id: 'onlinePaymentVerificationWindowSeconds',
     label: 'Online Payment Verification Window',
-    description: 'Time to submit and verify an online payment before the order auto-cancels. 0 = never expires. Pending approval.',
+    description:
+      'Time to submit and verify an online payment. The deadline is the earlier of this window and the shop closing time, so 0 means closing time is the deadline.',
     category: 'Order Rules',
     unit: 'duration',
     editable: true,

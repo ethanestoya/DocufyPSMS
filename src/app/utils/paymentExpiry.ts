@@ -8,9 +8,11 @@
 // and notifies staff/admin and the customer. Expired orders leave the active
 // queue but remain in order history with the reason displayed.
 //
-// Configurable (never hardcoded): the deadline windows themselves are set per
-// order at creation time from pricingStore; if a shop disables expiry
-// (window = 0) no deadline is stored and nothing auto-cancels.
+// Configurable (never hardcoded): each order's deadline is the earlier of the
+// admin-set payment window and the shop's closing time on the day it was
+// placed (see paymentDeadline.ts), stamped onto the order at checkout. A
+// window of 0 means the closing time IS the deadline, so a deadline is only
+// absent when the shop has configured neither.
 //
 // Where the sweep runs: primarily on the SERVER via the `expire_overdue_orders`
 // SECURITY DEFINER function (also scheduled by pg_cron every minute), so
@@ -25,9 +27,9 @@ import { runServerExpiry } from '../../lib/db/paymentExpiryRepo';
 
 export const PAYMENT_DEADLINE_EXPIRED_REASON = 'Payment Deadline Expired';
 
-// True when an awaiting-payment order is actively pending (nothing verified)
-// and its deadline has passed.
-export function isOrderExpired(order: Order, now: Date = new Date()): boolean {
+// True when an order is still waiting on the customer to pay: it is awaiting
+// payment, nothing has been submitted, and nothing has been verified.
+function isAwaitingPaymentOrder(order: Order): boolean {
   if (order.status !== 'Awaiting Payment') return false;
   // Once the customer has submitted their payment reference, the order is
   // waiting on staff verification — never auto-cancel it for deadline expiry
@@ -37,7 +39,13 @@ export function isOrderExpired(order: Order, now: Date = new Date()): boolean {
     order.paymentVerified ||
     order.downPaymentVerified ||
     order.fullPaymentVerified;
-  if (verified) return false;
+  return !verified;
+}
+
+// True when an awaiting-payment order is actively pending (nothing verified)
+// and its deadline has passed.
+export function isOrderExpired(order: Order, now: Date = new Date()): boolean {
+  if (!isAwaitingPaymentOrder(order)) return false;
   if (!order.paymentDeadline) return false;
   return new Date(order.paymentDeadline).getTime() <= now.getTime();
 }
@@ -97,6 +105,71 @@ export async function expireOverdueOrders(): Promise<void> {
     sweeping = false;
   }
 }
+
+// ── Pause restart ───────────────────────────────────────────────────────────
+// Freezing the sweep during a pause protects an order from being cancelled
+// mid-outage, but it would also cost the customer the paused hours: they come
+// back to a deadline one outage shorter than the one they were given. So the
+// clock stops at the pause and resumes at the reopen — every still-awaiting
+// deadline is pushed forward by the paused duration.
+const RESTART_MARKER_KEY = 'docufy_deadline_restart_v1';
+
+async function pushDeadlinesPastPause(pausedMs: number): Promise<void> {
+  for (const order of dataStore.getOrders()) {
+    if (!isAwaitingPaymentOrder(order) || !order.paymentDeadline) continue;
+    const deadline = new Date(order.paymentDeadline).getTime();
+    if (isNaN(deadline)) continue;
+    try {
+      await dataStore.updateOrder(order.id, {
+        paymentDeadline: new Date(deadline + pausedMs).toISOString(),
+      });
+    } catch (err) {
+      console.warn(
+        '[paymentExpiry] failed to restart the deadline of',
+        order.id,
+        err,
+      );
+    }
+  }
+}
+
+let lastShopStatus = shopStatusStore.getStatus();
+// The moment the current non-operational stretch began; `setStatus` stamps
+// `updatedAt` on every flip, so while paused this IS the pause start.
+let pausedSince = shopStatusStore.getState().updatedAt;
+
+shopStatusStore.subscribe(() => {
+  const next = shopStatusStore.getState();
+  const previousStatus = lastShopStatus;
+  lastShopStatus = next.status;
+
+  if (next.status !== 'open') {
+    // Entering an outage from an open shop starts the measured stretch; a
+    // pause that turns into a scheduled close keeps the original start.
+    if (previousStatus === 'open') pausedSince = next.updatedAt;
+    return;
+  }
+  if (previousStatus === 'open') return;
+
+  const reopenedAt = next.updatedAt ? new Date(next.updatedAt).getTime() : Date.now();
+  const pausedFrom = pausedSince ? new Date(pausedSince).getTime() : NaN;
+  pausedSince = next.updatedAt;
+  if (!Number.isFinite(pausedFrom)) return;
+  const pausedMs = reopenedAt - pausedFrom;
+  if (pausedMs <= 0) return;
+
+  // One reopen reaches this browser more than once — the local write, the
+  // cross-tab storage echo and the realtime hydrate — so remember which reopen
+  // has already been applied instead of extending the same orders again.
+  try {
+    if (localStorage.getItem(RESTART_MARKER_KEY) === next.updatedAt) return;
+    localStorage.setItem(RESTART_MARKER_KEY, next.updatedAt ?? '');
+  } catch {
+    // storage unavailable — apply once for this session
+  }
+
+  void pushDeadlinesPastPause(pausedMs);
+});
 
 // Evaluate once on load and then on a lightweight interval so deadlines expire
 // even while the page is sitting open.

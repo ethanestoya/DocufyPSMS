@@ -105,6 +105,12 @@ import {
   shopStatusStore,
   type ShopStatusState,
 } from "../../utils/shopStatusStore";
+import { landingContentStore } from "../../utils/landingContentStore";
+import {
+  NEAR_CLOSING_GRACE_MS,
+  openingTimeLabel,
+  resolvePaymentRequirement,
+} from "../../utils/paymentDeadline";
 
 const ALLOWED_MIME_TYPES = new Set([
   "application/pdf",
@@ -420,6 +426,28 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
     return unsub;
   }, []);
   const shopPaused = shopStatus.status !== "open";
+
+  // The shop's configured closing time is the hard edge of every payment
+  // deadline, so checkout re-reads it whenever an admin edits the shop info.
+  const [landingContent, setLandingContent] = useState(() =>
+    landingContentStore.getContent(),
+  );
+  useEffect(() => {
+    const unsub = landingContentStore.subscribe(() =>
+      setLandingContent(landingContentStore.getContent()),
+    );
+    return unsub;
+  }, []);
+  const shopClosingTime = landingContent.shopClosingTime;
+  const shopOpeningLabel = openingTimeLabel(landingContent.shopHours);
+
+  // Closing time passes while the form is open, so a slow tick keeps the
+  // deadline and the "shop is closed" state honest instead of frozen at mount.
+  const [clockNow, setClockNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = window.setInterval(() => setClockNow(new Date()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   // Classify the upfront-payment requirement for a given order total.
   //   none  → below the down-payment threshold (no upfront payment)
@@ -887,6 +915,28 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
   // is collected at the shop when the order is picked up.
   const isLowValueCash = !isOnline && flowTier === "none";
 
+  // Same-working-day deadline: the closing time on the day the order is placed
+  // caps the admin window, so a 48 h window on Tuesday still ends at Tuesday
+  // closing. At/after closing there is no deadline to give, so ordering stops
+  // for the day rather than inventing a next-working-day rule.
+  const checkoutRequirement = resolvePaymentRequirement({
+    placedAt: clockNow,
+    windowSeconds: isOnline
+      ? pricing.onlinePaymentVerificationWindowSeconds
+      : pricing.cashPickupPaymentWindowSeconds,
+    closingTime: shopClosingTime,
+  });
+  const orderingClosed = !isWalkin && checkoutRequirement.blocked;
+  const minutesToClosing = checkoutRequirement.closingAt
+    ? Math.max(
+        1,
+        Math.round(
+          (checkoutRequirement.closingAt.getTime() - clockNow.getTime()) / 60_000,
+        ),
+      )
+    : 0;
+  const graceMinutes = Math.round(NEAR_CLOSING_GRACE_MS / 60_000);
+
   // Cash on Pickup is unavailable for full-payment tier orders
   // (≥ fullPaymentThreshold → online only) AND — per the finalized second-
   // offense rule — for any customer with >= 2 confirmed unclaimed-order
@@ -1194,6 +1244,25 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
       return;
     }
 
+    // Re-resolved at the click, not at mount: the deadline and the closing
+    // state must reflect the moment the order is actually placed.
+    const submitNow = new Date();
+    const submitRequirement = resolvePaymentRequirement({
+      placedAt: submitNow,
+      windowSeconds: isOnline
+        ? pricing.onlinePaymentVerificationWindowSeconds
+        : pricing.cashPickupPaymentWindowSeconds,
+      closingTime: shopClosingTime,
+    });
+    if (!isWalkin && submitRequirement.blocked) {
+      toast.error(
+        `The shop is closed for the day. New orders open again tomorrow${
+          shopOpeningLabel ? ` at ${shopOpeningLabel}` : ""
+        }.`,
+      );
+      return;
+    }
+
     if (!paymentMethod) {
       toast.error(
         "Please select a payment method before placing your order.",
@@ -1254,17 +1323,14 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
     const requiresFullPayment = flowTier === "full";
     const downPaymentAmount = requiresDownPayment ? total * 0.5 : 0;
 
-    // Payment confirmation/verification deadline from the admin-editable order
-    // rules (seconds; 0 = no auto-expiry). Cash = pay at the shop, online =
-    // submit reference + staff verification. Low-value cash orders get no
-    // deadline because they are already in the queue. Pending client confirmation.
-    const deadlineWindowSeconds = isOnline
-      ? pricing.onlinePaymentVerificationWindowSeconds
-      : pricing.cashPickupPaymentWindowSeconds;
-    const paymentDeadline =
-      !isLowValueCash && deadlineWindowSeconds > 0
-        ? new Date(Date.now() + deadlineWindowSeconds * 1000).toISOString()
-        : undefined;
+    // Payment confirmation/verification deadline: whichever comes first of the
+    // admin window (seconds; 0 = the closing time alone) and the shop's closing
+    // time on the placed day. Cash = pay at the shop, online = submit reference +
+    // staff verification. Low-value cash orders are already in the queue and pay
+    // at the counter, so they carry no deadline.
+    const paymentDeadline = isLowValueCash
+      ? undefined
+      : submitRequirement.deadline;
 
     const newOrder = {
       customerId: user?.email || "customer@example.com",
@@ -3167,6 +3233,56 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                 />
               )}
 
+              {/* Same-working-day payment deadline, stated before the customer
+                  commits so the cutoff is never a surprise. */}
+              {!isWalkin && orderingClosed && (
+                <div className="p-4 sm:p-5 bg-amber-50 border-2 border-amber-400 rounded-lg">
+                  <p className="text-sm font-semibold text-amber-900">
+                    The shop is closed
+                  </p>
+                  <p className="text-sm text-amber-800 mt-1 leading-relaxed">
+                    New orders open again tomorrow
+                    {shopOpeningLabel ? ` at ${shopOpeningLabel}` : ""}. Your
+                    existing orders aren't affected.
+                  </p>
+                </div>
+              )}
+
+              {!isWalkin &&
+                !orderingClosed &&
+                !isLowValueCash &&
+                checkoutRequirement.deadline &&
+                (checkoutRequirement.kind === "grace" ? (
+                  <div className="p-4 sm:p-5 bg-amber-50 border-2 border-amber-400 rounded-lg">
+                    <p className="text-sm font-semibold text-amber-900">
+                      The shop closes in {minutesToClosing} minute
+                      {minutesToClosing === 1 ? "" : "s"}.
+                    </p>
+                    <p className="text-sm text-amber-800 mt-1 leading-relaxed">
+                      You'll get {graceMinutes} extra minutes to pay — until{" "}
+                      <strong>
+                        {formatPHTime(new Date(checkoutRequirement.deadline))}
+                      </strong>
+                      .
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-4 sm:p-5 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                    <p className="text-sm font-semibold text-[#10316B]">
+                      Pay by today,{" "}
+                      {formatPHTime(new Date(checkoutRequirement.deadline))}
+                    </p>
+                    <p className="text-sm text-slate-600 mt-1 leading-relaxed">
+                      {checkoutRequirement.kind === "closing" &&
+                      checkoutRequirement.closingAt
+                        ? `The shop closes at ${formatPHTime(
+                            checkoutRequirement.closingAt,
+                          )}. Unpaid orders are cancelled automatically.`
+                        : "Payment must be received by then. Unpaid orders are cancelled automatically."}
+                    </p>
+                  </div>
+                ))}
+
               {(() => {
                 const total = calculateTotal();
                 const requirement = paymentRequirementFor(total);
@@ -3526,6 +3642,32 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                   </>
                 )
                 : "The shop is currently closed (weekend / holiday schedule). New print requests will be accepted again once we reopen."}
+            </p>
+            <Button
+              variant="primary"
+              onClick={() => navigate(dashboardPath)}
+              className="mt-6 h-11 px-6"
+            >
+              Back to Dashboard
+            </Button>
+          </div>
+        </div>
+      ) : !isWalkin && orderingClosed && files.length === 0 ? (
+        /* Past the configured closing time there is no same-day deadline left,
+           so ordering is closed for the day. An order already in progress keeps
+           its uploaded files and is refused at submit instead of being wiped. */
+        <div className="max-w-3xl mx-auto">
+          <div className="rounded-2xl border-2 bg-white shadow-sm p-6 sm:p-10 text-center">
+            <div className="w-16 h-16 rounded-full bg-slate-200 flex items-center justify-center mx-auto mb-4">
+              <CalendarClock className="w-8 h-8 text-slate-600" />
+            </div>
+            <h2 className="text-2xl font-semibold text-gray-900">
+              The shop is closed
+            </h2>
+            <p className="text-sm mt-2 leading-relaxed text-gray-600">
+              New orders open again tomorrow
+              {shopOpeningLabel ? ` at ${shopOpeningLabel}` : ""}. Your existing
+              orders aren't affected.
             </p>
             <Button
               variant="primary"

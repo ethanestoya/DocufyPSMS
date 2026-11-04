@@ -1,6 +1,9 @@
 // Unclaimed-order payment policy — the single source of truth for what a
-// customer's CONFIRMED unclaimed (cash-on-pickup, past the pickup deadline)
-// order count means for their account.
+// customer's DERIVED unclaimed order count means for their account. An order is
+// unclaimed when it reached printing and still owed money at its pickup
+// deadline; the test is the outstanding balance, not the payment method, so a
+// down-payment order counts when it printed un-paid-up and a fully paid order
+// never does.
 //
 // The count is always DERIVED from real order + status-history data (see
 // utils/unclaimedOrders.ts); it is never stored or hardcoded. This module only

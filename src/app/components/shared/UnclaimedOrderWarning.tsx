@@ -26,6 +26,11 @@ interface UnclaimedOrderWarningProps {
   variant?: "card" | "slim";
 }
 
+// The offence is about money, not the payment method — a down-payment order
+// that printed un-paid-up counts; a fully paid order never does.
+const WHAT_COUNTS =
+  "An order counts as unclaimed when it was printed but not collected and not paid in full by its pickup deadline.";
+
 export function UnclaimedOrderWarning({
   customerKey,
   variant = "card",
@@ -44,10 +49,10 @@ export function UnclaimedOrderWarning({
   const body = severe
     ? `You have ${count} unclaimed ${
         count === 1 ? "order" : "orders"
-      } on record. ${policy.summary}`
+      } on record. ${policy.summary} ${WHAT_COUNTS}`
     : `You have ${count} unclaimed ${
         count === 1 ? "order" : "orders"
-      } on record. Please make sure to collect your future orders within the required pickup period.`;
+      } on record. ${WHAT_COUNTS} Please collect future orders within the required pickup period.`;
 
   const shell = severe
     ? "border-red-200 bg-red-50"

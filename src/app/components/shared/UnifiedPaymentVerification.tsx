@@ -114,6 +114,10 @@ type PaymentType = {
   // The DB `payments` row id for this order's latest submission (present for
   // online/down payments the customer submitted; absent for cash at the shop).
   rowId?: string;
+  // The customer actually submitted a payment reference (online/down). A
+  // pending row WITH a submission is awaiting a staff decision; a pending row
+  // without one is still waiting on the customer to pay.
+  submitted?: boolean;
 };
 
 // Status filters. Every summary card and every Status option maps to exactly
@@ -121,6 +125,7 @@ type PaymentType = {
 type StatusFilter =
   | "all"
   | "pending"
+  | "awaitingReview"
   | "verified"
   | "verifiedToday"
   | "closed"
@@ -137,6 +142,8 @@ function matchesStatusFilter(
   switch (filter) {
     case "pending":
       return payment.status === "pending";
+    case "awaitingReview":
+      return payment.status === "pending" && !!payment.submitted;
     case "verified":
       return payment.status === "verified";
     case "verifiedToday":
@@ -265,6 +272,7 @@ function generatePaymentsFromOrders(): PaymentType[] {
         cancellationReason: order.cancellationReason,
         isLowValueCash,
         downTier,
+        submitted: !!order.paymentReferenceNumber,
         downPaymentAmount:
           order.downPaymentAmount ?? (downTier ? totalAmount * 0.5 : undefined),
       };
@@ -689,16 +697,17 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
       return true;
     })
     .sort((a, b) => {
-      // AUTOMATIC FIFO (verification order): pending items first, oldest
-      // first, so the next payment to verify always sits at the top;
-      // verified/rejected follow newest-first for convenience.
-      const rank: Record<PaymentType["status"], number> = {
-        pending: 0,
-        verified: 1,
-        rejected: 2,
+      // AUTOMATIC FIFO (verification order): submissions waiting on a staff
+      // decision come first, oldest first, so the next payment to verify sits
+      // at the top. Pending rows with nothing submitted yet are still waiting
+      // on the customer, so they sit below the review queue; verified/rejected
+      // follow newest-first for convenience.
+      const rankOf = (p: PaymentType) => {
+        if (p.status === "pending") return p.submitted ? 0 : 1;
+        return p.status === "verified" ? 2 : 3;
       };
-      const aRank = rank[a.status];
-      const bRank = rank[b.status];
+      const aRank = rankOf(a);
+      const bRank = rankOf(b);
       if (aRank !== bRank) return aRank - bRank;
       if (a.status === "pending" && b.status === "pending") {
         return a.submittedAt.getTime() - b.submittedAt.getTime();
@@ -724,23 +733,25 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
     [filteredPayments, currentPage],
   );
 
-  // VERIFICATION SEQUENCE: pending payments ranked oldest-first (FIFO). The
-  // numbers staff see (1, 2, 3...) are the order in which payments should be
-  // verified — the first pending record is always "next to verify".
+  // VERIFICATION SEQUENCE: only submitted payments are ranked (oldest-first,
+  // FIFO). A pending row with no reference yet — cash at the shop — has
+  // nothing to verify, so it never takes a number or the "Next to Verify" tag.
+  const submittedPending = useMemo(
+    () =>
+      payments
+        .filter((p) => p.status === "pending" && p.submitted)
+        .sort((a, b) => a.submittedAt.getTime() - b.submittedAt.getTime()),
+    [payments],
+  );
   const pendingSequenceById = useMemo(() => {
     const map = new Map<string, number>();
-    const pending = payments
-      .filter((p) => p.status === "pending")
-      .sort((a, b) => a.submittedAt.getTime() - b.submittedAt.getTime());
-    pending.forEach((p, i) => map.set(p.id, i + 1));
+    submittedPending.forEach((p, i) => map.set(p.id, i + 1));
     return map;
-  }, [payments]);
-  const nextToVerifyId = useMemo(() => {
-    const pending = payments
-      .filter((p) => p.status === "pending")
-      .sort((a, b) => a.submittedAt.getTime() - b.submittedAt.getTime());
-    return pending[0]?.id;
-  }, [payments]);
+  }, [submittedPending]);
+  const nextToVerifyId = useMemo(
+    () => submittedPending[0]?.id,
+    [submittedPending],
+  );
 
   // Distinct payment methods present in the list (for the Method filter)
   const methodsInList = useMemo(
@@ -787,6 +798,11 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
         return {
           title: "No payments to verify",
           body: "Payment records appear here when customers place orders.",
+        };
+      case "awaitingReview":
+        return {
+          title: "Nothing waiting for review",
+          body: "Payments appear here once a customer submits a reference.",
         };
       case "verifiedToday":
         return {
@@ -922,13 +938,14 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                 onChange={(v) => setStatusFilter(v as typeof statusFilter)}
                 applied={statusFilter !== "pending"}
                 options={[
-                  { value: "pending",       label: "Pending" },
-                  { value: "verifiedToday", label: "Verified Today" },
-                  { value: "verified",      label: "Verified (all time)" },
-                  { value: "closed",        label: "Cancelled / Expired" },
-                  { value: "cancelled",     label: "Cancelled" },
-                  { value: "expired",       label: "Expired" },
-                  { value: "all",           label: "All Statuses" },
+                  { value: "pending",        label: "Pending" },
+                  { value: "awaitingReview", label: "Awaiting Review" },
+                  { value: "verifiedToday",  label: "Verified Today" },
+                  { value: "verified",       label: "Verified (all time)" },
+                  { value: "closed",         label: "Cancelled / Expired" },
+                  { value: "cancelled",      label: "Cancelled" },
+                  { value: "expired",        label: "Expired" },
+                  { value: "all",            label: "All Statuses" },
                 ]}
               />
             </div>
@@ -987,7 +1004,7 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
         {/* Payments Table */}
         <Card className="flex-1 border border-gray-200/80 rounded-xl shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden flex flex-col">
           {hydrating ? (
-            <TableSkeleton columns={7} rows={10} />
+            <TableSkeleton columns={8} rows={10} />
           ) : (
           <>
           <div className="overflow-x-auto">
@@ -1010,6 +1027,9 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                     Amount
                   </th>
                   <th className="px-4 py-3 text-xs font-semibold text-[#10316B] uppercase tracking-wider">
+                    Deadline
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-[#10316B] uppercase tracking-wider">
                     Payment Status
                   </th>
                   <th className="px-4 py-3 text-xs font-semibold text-[#10316B] uppercase tracking-wider text-right">
@@ -1020,7 +1040,7 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
               <tbody className="bg-white divide-y divide-gray-100">
                 {filteredPayments.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-16 text-center">
+                    <td colSpan={8} className="py-16 text-center">
                       <CreditCard className="mx-auto mb-3 h-10 w-10 text-[#1668D9]/35" />
                       <p className="text-sm font-semibold text-gray-500">{emptyState.title}</p>
                       <p className="mt-1 text-xs text-gray-500">{emptyState.body}</p>
@@ -1031,6 +1051,16 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                     payment.status === "pending" &&
                     payment.id === nextToVerifyId;
                   const priority = pendingSequenceById.get(payment.id);
+                  // The deadline only survives while the customer still owes it
+                  // (submitting a reference clears it), so a passed deadline on a
+                  // pending row means the shop is about to auto-cancel it.
+                  const deadlineAt = payment.deadline
+                    ? new Date(payment.deadline).getTime()
+                    : NaN;
+                  const deadlinePassed =
+                    payment.status === "pending" &&
+                    Number.isFinite(deadlineAt) &&
+                    deadlineAt <= Date.now();
                   // Live lock for this row (recomputed on every locksTick).
                   const rowLock = getLock(payment.orderId);
                   const rowLockedByMe = !!rowLock && rowLock.heldBy === myName;
@@ -1043,15 +1073,24 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                     <td className="px-4 py-3 whitespace-nowrap align-top">
                       <div className="flex flex-col items-center gap-1">
                         {payment.status === "pending" ? (
-                          <>
-                            <PriorityBadge
-                              number={priority ?? index + 1}
-                              active={isNext}
-                            />
-                            {isNext && (
-                              <StartHereTag label="Next to Verify" />
-                            )}
-                          </>
+                          payment.submitted ? (
+                            <>
+                              <PriorityBadge
+                                number={priority ?? index + 1}
+                                active={isNext}
+                              />
+                              {isNext && (
+                                <StartHereTag label="Next to Verify" />
+                              )}
+                            </>
+                          ) : (
+                            <span
+                              title="Waiting for the customer to pay"
+                              className="w-7 h-7 rounded-full inline-flex items-center justify-center bg-slate-100 text-slate-500 shrink-0"
+                            >
+                              <Clock className="w-3.5 h-3.5" />
+                            </span>
+                          )
                         ) : payment.status === "verified" ? (
                           <span className="w-7 h-7 rounded-full inline-flex items-center justify-center bg-green-50 text-green-600 shrink-0">
                             <Check className="w-3.5 h-3.5" />
@@ -1130,11 +1169,6 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                               Amount to pay at shop
                             </p>
                           )}
-                          {payment.deadline && (
-                            <p className="text-[11px] text-amber-600 font-semibold mt-0.5">
-                              Due {formatPHDateTime(payment.deadline)}
-                            </p>
-                          )}
                         </div>
                       ) : payment.kind === "online-down" ? (
                         <div className="leading-tight">
@@ -1163,11 +1197,41 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                       )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
+                      {payment.deadline ? (
+                        <div className="leading-tight">
+                          <p
+                            className={`text-sm ${deadlinePassed ? "font-semibold text-red-600" : "font-medium text-[#1c1f26]"}`}
+                          >
+                            {formatPHDateTime(payment.deadline)}
+                          </p>
+                          <p
+                            className={`mt-0.5 text-[11px] ${deadlinePassed ? "font-semibold text-red-600" : "text-gray-500"}`}
+                          >
+                            {deadlinePassed
+                              ? "Overdue — payment not received"
+                              : payment.kind === "cash"
+                                ? "Pay at the shop by"
+                                : "Payment due by"}
+                          </p>
+                          {!deadlinePassed && (
+                            <div className="mt-1">
+                              <PaymentDeadlineCountdown
+                                deadline={payment.deadline}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <StatusBadge
                         status={payment.status}
                         canceled={payment.canceled}
                         expired={payment.expired}
                         lowValueCash={payment.isLowValueCash}
+                        submitted={payment.submitted}
                       />
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-right">
@@ -1282,7 +1346,9 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                       {selectedPayment.customer}
                     </p>
                     <p className="mt-0.5 text-[13px] text-gray-500">
-                      Submitted{" "}
+                      {selectedPayment.submitted
+                        ? "Submitted "
+                        : "Placed "}
                       {formatPHDate(selectedPayment.submittedAt, "short")} ·{" "}
                       {formatPHTime(selectedPayment.submittedAt)}
                     </p>
@@ -1292,6 +1358,7 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                     canceled={selectedPayment.canceled}
                     expired={selectedPayment.expired}
                     lowValueCash={selectedPayment.isLowValueCash}
+                    submitted={selectedPayment.submitted}
                     className="shrink-0"
                   />
                 </div>
@@ -1320,6 +1387,32 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                       {selectedPayment.method}
                     </dd>
                   </div>
+
+                  {selectedPayment.deadline &&
+                    (() => {
+                      const deadlineAt = new Date(selectedPayment.deadline).getTime();
+                      const passed =
+                        selectedPayment.status === "pending" &&
+                        Number.isFinite(deadlineAt) &&
+                        deadlineAt <= Date.now();
+                      return (
+                        <div className="flex items-center justify-between gap-4 py-2.5">
+                          <dt className="text-[13px] text-gray-500">
+                            Payment deadline
+                          </dt>
+                          <dd
+                            className={`text-[13px] font-medium ${passed ? "text-red-600" : "text-[#1c1f26]"}`}
+                          >
+                            {formatPHDateTime(selectedPayment.deadline)}
+                            {passed && (
+                              <span className="ml-1.5 font-semibold">
+                                · not received
+                              </span>
+                            )}
+                          </dd>
+                        </div>
+                      );
+                    })()}
 
                   {selectedPayment.method === "Cash"
                     ? !selectedPayment.isLowValueCash && (
@@ -1741,21 +1834,25 @@ function StatusBadge({
   expired,
   className,
   lowValueCash,
+  submitted,
 }: {
   status: string;
   canceled?: boolean;
   expired?: boolean;
   className?: string;
   lowValueCash?: boolean;
+  submitted?: boolean;
 }) {
   const isPending = status === "pending";
   const label =
     status === "verified"
       ? "Verified"
       : isPending
-        ? lowValueCash
-          ? "Pending Payment"
-          : "Pending"
+        ? submitted
+          ? "Awaiting review"
+          : lowValueCash
+            ? "Pending Payment"
+            : "Pending"
         : expired
           ? "Expired"
           : canceled
@@ -1775,6 +1872,14 @@ function StatusBadge({
       >
         {label}
       </Badge>
+      {isPending && submitted && (
+        <Badge
+          variant="outline"
+          className="text-[10px] font-semibold py-0.5 px-1.5 rounded-full border bg-blue-50 text-[#1668D9] border-blue-200"
+        >
+          Submitted
+        </Badge>
+      )}
       {isPending && lowValueCash && (
         <Badge
           variant="outline"

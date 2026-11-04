@@ -4,13 +4,18 @@
 // data so counts can never drift, double-count, or be erased by a later status.
 //
 // Rules (finalized):
-//   • Only Cash-on-Pickup orders are eligible (walk-in sales are exempt).
-//   • An order qualifies once it reached `Completed` and the pickup deadline
-//     (the shop's configured closing time on the day it became ready) has
-//     passed while it was NOT collected (`Released`) on or before that deadline.
-//   • Collected-before-deadline orders never count. A later `Released` does NOT
-//     erase an order that was once overdue — the timeline keeps the record.
-//   • Advance-paid orders never count (they are never Cash-on-Pickup).
+//   • Walk-in sales are exempt. An order that never reached printing (never
+//     `Completed`) cannot be unclaimed, and one cancelled before printing never
+//     counts.
+//   • The offence test is MONEY, not payment method: an order qualifies once it
+//     became ready (`Completed`) and still owed part of its total at the pickup
+//     deadline (the shop's closing time on the day it became ready), and was not
+//     collected on or before that deadline. A down payment therefore counts if
+//     it reached printing un-paid-up, and a fully paid order never counts.
+//   • A proof submitted on or before the deadline that is still awaiting review
+//     HOLDS the order — no offence is recorded while the shop decides.
+//   • Paying after the deadline does not erase an offence; collecting late does
+//     not erase it either (the timeline keeps the record).
 //   • Unique by order id — the same order can never be counted twice.
 //
 // The timeline comes from `order_status_history`; if that read failed (permissions
@@ -20,6 +25,18 @@
 import { paymentPolicyForCount, type PaymentPolicy } from "./unclaimedPolicy";
 
 export type UnclaimedHistoryEntry = { status: string; at: string | Date };
+
+// One payment row, normalized from either a live order's `paymentTimeline` or
+// the ledger's `payment_details` jsonb. The derivation asks what had actually
+// been paid (and verified) by the pickup deadline.
+export type UnclaimedPaymentEntry = {
+  amount: number;
+  method?: string;
+  status: string;
+  referenceNumber?: string | null;
+  submittedAt: string;
+  verifiedAt?: string | null;
+};
 
 // Minimal shape both the dataStore `Order` and the ordersStore `OrderType`
 // satisfy (see the adapters at the bottom of this file).
@@ -36,6 +53,9 @@ export interface UnclaimedOrderLike {
   balance?: number;
   statusHistory?: UnclaimedHistoryEntry[];
   statusHistoryUnavailable?: boolean;
+  paymentTimeline?: UnclaimedPaymentEntry[];
+  /** Legacy/live flag used only when the order carries no payment rows. */
+  paymentVerified?: boolean;
 }
 
 export interface UnclaimedRecord {
@@ -100,10 +120,63 @@ export function customerKeyOf(order: UnclaimedOrderLike): string {
   return (order.customerName ?? "").trim().toLowerCase();
 }
 
-/** Eligible for an offense: a real Cash-on-Pickup order (walk-ins exempt). */
-export function isCashOnPickupOrder(order: UnclaimedOrderLike): boolean {
-  if ((order.orderSource ?? "").toLowerCase() === "walkin") return false;
-  return (order.paymentMethod ?? "").trim().toLowerCase() === "cash";
+/** Eligible for an offense: a real customer order (walk-in sales are exempt). */
+export function isWalkInOrder(order: UnclaimedOrderLike): boolean {
+  return (order.orderSource ?? "").trim().toLowerCase() === "walkin";
+}
+
+/** Money rounding guard — a fraction of a peso is not a debt. */
+const MONEY_EPSILON = 0.005;
+
+interface PaidAtDeadline {
+  /** Verified money received on or before the deadline. */
+  amountPaid: number;
+  /** A proof submitted on time is still awaiting the shop's decision. */
+  pending: boolean;
+  /** What was still owed at the deadline, when it can be computed. */
+  outstanding: number | null;
+}
+
+function paidAtDeadline(
+  order: UnclaimedOrderLike,
+  deadlineAt: Date,
+): PaidAtDeadline {
+  const total = typeof order.total === "number" ? order.total : null;
+  const timeline = order.paymentTimeline ?? [];
+
+  if (timeline.length > 0) {
+    let verified = 0;
+    let pending = false;
+    for (const entry of timeline) {
+      const at = toDate(entry.submittedAt);
+      if (!at || at.getTime() > deadlineAt.getTime()) continue;
+      if (entry.status === "verified") verified += Number(entry.amount) || 0;
+      else if (entry.status === "pending") pending = true;
+    }
+    return {
+      amountPaid: verified,
+      pending,
+      outstanding: total == null ? null : total - verified,
+    };
+  }
+
+  // Orders carrying no payment rows fall back to their stored money fields.
+  const paid =
+    typeof order.amountPaid === "number"
+      ? order.amountPaid
+      : order.paymentVerified && total != null
+        ? total
+        : 0;
+  return {
+    amountPaid: paid,
+    pending: false,
+    outstanding:
+      typeof order.balance === "number"
+        ? order.balance
+        : total == null
+          ? null
+          : total - paid,
+  };
 }
 
 /**
@@ -140,10 +213,15 @@ export function deriveUnclaimedRecords(
 
   for (const order of orders) {
     if (!order?.id) continue;
-    if (!isCashOnPickupOrder(order)) continue;
+    if (isWalkInOrder(order)) continue;
 
     const readyAt = earliestStatusAt(order.statusHistory, "Completed");
-    if (!readyAt) continue; // never became ready — cannot be unclaimed
+    if (!readyAt) continue; // never reached printing — cannot be unclaimed
+
+    // An order cancelled before it became ready never printed, so it can never
+    // be a pickup offence (payment expiry is tracked separately).
+    const cancelledAt = earliestStatusAt(order.statusHistory, "Canceled");
+    if (cancelledAt && cancelledAt.getTime() <= readyAt.getTime()) continue;
 
     const deadlineAt = closingDeadline(readyAt, closingTime);
     if (!deadlineAt) continue; // closing time not configured — cannot compute
@@ -153,6 +231,12 @@ export function deriveUnclaimedRecords(
     const releasedAt = earliestStatusAt(order.statusHistory, "Released") ?? undefined;
     if (releasedAt && releasedAt.getTime() <= deadlineAt.getTime()) continue; // collected in time
 
+    // The offence is money still owed at the deadline, whatever the method.
+    const paid = paidAtDeadline(order, deadlineAt);
+    if (paid.pending) continue; // proof on file, shop still deciding — hold
+    if (paid.outstanding == null) continue; // no money figures — cannot judge
+    if (paid.outstanding <= MONEY_EPSILON) continue; // nothing owed — not an offence
+
     records.set(order.id, {
       orderId: order.id,
       displayId: order.displayId,
@@ -161,8 +245,8 @@ export function deriveUnclaimedRecords(
       customerEmail: order.customerEmail ?? "",
       paymentMethod: order.paymentMethod ?? undefined,
       orderTotal: typeof order.total === "number" ? order.total : undefined,
-      amountPaid: order.amountPaid,
-      balance: order.balance,
+      amountPaid: paid.amountPaid,
+      balance: paid.outstanding,
       readyAt,
       deadlineAt,
       recordedAt: deadlineAt,
@@ -241,6 +325,39 @@ export function isHistoryUnavailable(orders: UnclaimedOrderLike[]): boolean {
 // ── adapters ────────────────────────────────────────────────────────────────
 // Keep the derivation decoupled from either store's concrete Order shape.
 
+/**
+ * Parse the retention ledger's `payment_details` jsonb (snake_case) into the
+ * shared timeline shape, oldest first. Unknown/malformed rows are dropped
+ * rather than guessed at.
+ */
+export function paymentDetailsToTimeline(
+  details: unknown,
+): UnclaimedPaymentEntry[] {
+  if (!Array.isArray(details)) return [];
+  const entries: UnclaimedPaymentEntry[] = [];
+  for (const raw of details) {
+    if (!raw || typeof raw !== "object") continue;
+    const row = raw as Record<string, unknown>;
+    const submittedAt = toDate(
+      (row.submitted_at ?? row.submittedAt) as string | undefined,
+    );
+    if (!submittedAt) continue;
+    const verifiedAt = toDate(
+      (row.verified_at ?? row.verifiedAt) as string | undefined,
+    );
+    const reference = row.reference_number ?? row.referenceNumber;
+    entries.push({
+      amount: Number(row.amount) || 0,
+      method: typeof row.method === "string" ? row.method : undefined,
+      status: typeof row.status === "string" ? row.status : "unknown",
+      referenceNumber: typeof reference === "string" ? reference : null,
+      submittedAt: submittedAt.toISOString(),
+      verifiedAt: verifiedAt ? verifiedAt.toISOString() : null,
+    });
+  }
+  return entries.sort((a, b) => a.submittedAt.localeCompare(b.submittedAt));
+}
+
 interface OrderishLike {
   id: string;
   displayId?: string;
@@ -257,6 +374,8 @@ interface OrderishLike {
   costBreakdown?: { total?: number } | null;
   statusHistory?: UnclaimedHistoryEntry[];
   statusHistoryUnavailable?: boolean;
+  paymentTimeline?: UnclaimedPaymentEntry[];
+  paymentVerified?: boolean;
 }
 
 function numericTotal(o: OrderishLike): number | undefined {
@@ -282,6 +401,8 @@ export function toUnclaimedOrderLike(o: OrderishLike): UnclaimedOrderLike {
     balance: o.balance,
     statusHistory: o.statusHistory,
     statusHistoryUnavailable: o.statusHistoryUnavailable,
+    paymentTimeline: o.paymentTimeline,
+    paymentVerified: o.paymentVerified,
   };
 }
 

@@ -30,6 +30,7 @@ import {
   findCustomerSummary,
   getCustomerSummaries,
   isHistoryUnavailable,
+  paymentDetailsToTimeline,
   toUnclaimedOrderLikes,
   type CustomerUnclaimedSummary,
   type UnclaimedRecord,
@@ -44,6 +45,7 @@ import {
 import { restrictionsStore } from "./restrictionsStore";
 import { useReleasedOrderTransactions } from "./useReleasedOrderTransactions";
 import { formatOrderNumber } from "../../lib/db/types";
+import type { ReleasedOrderTransactionDto } from "../../lib/db/types";
 import type {
   CustomerRestriction,
   OffenseDecision,
@@ -91,7 +93,26 @@ function archivedTransactionToOrderLike(
     amountPaid: transaction.amountPaid,
     balance: transaction.balance,
     statusHistory: transaction.statusHistory,
+    paymentTimeline: paymentDetailsToTimeline(transaction.paymentDetails),
   };
+}
+
+/**
+ * The exact order-shape set every admin/staff unclaimed surface derives from:
+ * the live orders plus the retained timelines for archived (released) orders.
+ * Exported so Pickup Monitoring derives the same records as the Unclaimed
+ * pages instead of a close-but-different set.
+ */
+export function buildAdminUnclaimedLikes(
+  orders: UnclaimedAdminOrder[],
+  releasedTransactions: ReleasedOrderTransactionDto[],
+): UnclaimedOrderLike[] {
+  const liveLikes = toUnclaimedOrderLikes(orders);
+  const liveIds = new Set(liveLikes.map((order) => order.id));
+  const archivedLikes = releasedTransactions
+    .filter((transaction) => !liveIds.has(transaction.archivedOrderId))
+    .map((transaction) => archivedTransactionToOrderLike(transaction));
+  return [...liveLikes, ...archivedLikes];
 }
 
 export function useUnclaimedOffenses(
@@ -257,14 +278,10 @@ export function useUnclaimedAdminData(): UnclaimedAdminData {
     [],
   );
 
-  const likes = useMemo(() => {
-    const liveLikes = toUnclaimedOrderLikes(orders);
-    const liveIds = new Set(liveLikes.map((order) => order.id));
-    const archivedLikes = releasedTransactions
-      .filter((transaction) => !liveIds.has(transaction.archivedOrderId))
-      .map((transaction) => archivedTransactionToOrderLike(transaction));
-    return [...liveLikes, ...archivedLikes];
-  }, [orders, releasedTransactions]);
+  const likes = useMemo(
+    () => buildAdminUnclaimedLikes(orders, releasedTransactions),
+    [orders, releasedTransactions],
+  );
   const records = useMemo(
     () => deriveUnclaimedRecords(likes, closingTime),
     [likes, closingTime],

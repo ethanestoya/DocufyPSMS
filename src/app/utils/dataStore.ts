@@ -62,6 +62,18 @@ export interface AttachedFile {
   notes?: string;
 }
 
+// One row of the order's payment history, in submission order. Mirrors the
+// ledger's `payment_details` array so a live order and an archived transaction
+// answer "what had been paid by <deadline>?" the same way.
+export interface PaymentTimelineEntry {
+  amount: number;
+  method: string;
+  status: string;
+  referenceNumber: string | null;
+  submittedAt: string;
+  verifiedAt: string | null;
+}
+
 export interface Order {
   id: string;
   // DB sequence number (identity) and its human-facing ORD-0001 form.
@@ -103,6 +115,10 @@ export interface Order {
   // DB payments row id for the order's latest payment (used by staff/admin to
   // mark the customer-submitted row verified/rejected).
   paymentRowId?: string;
+  // Full payment history (oldest-first). The unclaimed derivation asks this what
+  // had actually been paid by the pickup deadline, so an order is judged on the
+  // money owed then, not on the payment method it chose.
+  paymentTimeline?: PaymentTimelineEntry[];
   fileName?: string;
   pages?: number;
   attachedFiles?: AttachedFile[];
@@ -261,6 +277,17 @@ export function orderDtoToApp(dto: OrderDto): Order {
        dto.holdReason?.includes('Cash on Pickup') ? 'Cash' : undefined),
     paymentProof: undefined,
     paymentRowId: latestPayment?.id,
+    paymentTimeline: dto.payments
+      .slice()
+      .sort((a, b) => a.submittedAt.getTime() - b.submittedAt.getTime() || a.id.localeCompare(b.id))
+      .map((p) => ({
+        amount: p.amount,
+        method: p.methodName,
+        status: p.status,
+        referenceNumber: p.referenceNumber,
+        submittedAt: p.submittedAt.toISOString(),
+        verifiedAt: p.verifiedAt ? p.verifiedAt.toISOString() : null,
+      })),
     // The reference + proof belong to the customer's LATEST submission, not only
     // to a verified row — staff review the pending payment's proof/reference, and
     // the invoice, receipt label and expiry guard all treat

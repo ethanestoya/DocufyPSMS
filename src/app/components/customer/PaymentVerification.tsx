@@ -258,6 +258,17 @@ export default function PaymentVerification() {
 
   const isOnline = paymentMethod !== "" && paymentMethod !== "cash";
 
+  // When the customer submitted the reference. Submitting clears the payment
+  // deadline, so the order page would otherwise stop showing any time at all —
+  // the latest entry in the payment timeline is the honest source.
+  const submittedAt = (() => {
+    const timeline = displayOrder?.paymentTimeline ?? [];
+    for (let i = timeline.length - 1; i >= 0; i -= 1) {
+      if (timeline[i].submittedAt) return timeline[i].submittedAt;
+    }
+    return undefined;
+  })();
+
   // Guard against leaving the payment verification step so an accidental
   // navigation doesn't discard the entered reference / proof. Released once the
   // payment has been submitted (success dialog is up) and for already-canceled
@@ -728,6 +739,29 @@ export default function PaymentVerification() {
                     ? "We've received your reference. An administrator will verify the payment, and your order joins the queue once it's approved."
                     : "Send the reference number and a screenshot of the receipt below. An administrator verifies the payment, and your order joins the queue once it's approved."}
                 </p>
+                {displayOrder?.paymentReferenceNumber ? (
+                  submittedAt && (
+                    <p className="mt-1.5 text-sm text-gray-600">
+                      Reference received{" "}
+                      <span className="font-semibold text-gray-900">
+                        {formatPHDateTime(submittedAt)}
+                      </span>
+                    </p>
+                  )
+                ) : (
+                  displayOrder?.paymentDeadline && (
+                    <p className="mt-1.5 text-sm text-gray-600">
+                      Submit it by{" "}
+                      <span className="font-semibold text-gray-900">
+                        {formatPHDateTime(displayOrder.paymentDeadline)}
+                      </span>{" "}
+                      <PaymentDeadlineCountdown
+                        deadline={displayOrder.paymentDeadline}
+                      />
+                      . An unpaid order is cancelled after that time.
+                    </p>
+                  )
+                )}
               </div>
             </div>
           </Card>

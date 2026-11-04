@@ -1,5 +1,6 @@
 // Shared orders store for queue management
 import { dataStore } from './dataStore';
+import type { PaymentTimelineEntry } from './dataStore';
 
 type OrderType = {
   id: string;
@@ -49,6 +50,8 @@ type OrderType = {
   paymentReferenceNumber?: string;
   // When the order's verified payment was recorded (Date), for the receipt.
   paymentVerifiedAt?: Date;
+  // Payment history (oldest-first) used to judge what was owed at the deadline.
+  paymentTimeline?: PaymentTimelineEntry[];
   paymentMethod?: string;
   paymentProofUrl?: string;
   orderSource: 'online' | 'walkin';
@@ -238,6 +241,7 @@ class OrdersStore {
       paymentVerified: order.paymentVerified || false,
       paymentReferenceNumber: order.paymentReferenceNumber,
       paymentVerifiedAt: asDate(order.paymentVerifiedAt),
+      paymentTimeline: order.paymentTimeline,
       paymentMethod: order.paymentMethod,
       orderSource: order.orderSource || (order.paymentMethod === 'Cash' ? 'walkin' : 'online'),
       customerId: order.customerId ?? null,

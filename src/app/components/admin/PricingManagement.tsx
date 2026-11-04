@@ -9,6 +9,7 @@ import {
   StickyNote,
   Layers,
   RotateCcw,
+  Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 import Layout from "../Layout";
@@ -86,6 +87,14 @@ const CATEGORY_ORDER: PricingCategory[] = [
   "Printing Options",
   "Order Rules",
 ];
+
+// A payment window of 0 does not mean "never expires" — the shop's closing
+// time becomes the deadline, so the shared duration label cannot be used here.
+function formatPaymentWindow(seconds: number): string {
+  return Number.isFinite(seconds) && seconds > 0
+    ? formatDuration(seconds)
+    : "Closing time";
+}
 
 // The two order-rule deadline windows are edited as a full duration
 // (hours/minutes/seconds) instead of a single number input.
@@ -264,7 +273,7 @@ export default function PricingManagement() {
       </div>
       <div className="flex items-center gap-3 shrink-0">
         <span className="text-sm font-semibold text-[#10316B] whitespace-nowrap">
-          {formatDuration(pricing[item.id])}
+          {formatPaymentWindow(pricing[item.id])}
         </span>
         <Button
           variant="outline"
@@ -601,6 +610,28 @@ export default function PricingManagement() {
             </Card>
           </TabsContent>
           </Tabs>
+
+          {/* Order Rules — the payment windows every new order is held to. */}
+          <Card className="p-6 mt-4">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-8 h-8 rounded-lg bg-[#F2F7FF] flex items-center justify-center shrink-0">
+                <Clock className="w-4 h-4 text-[#2F6FD6]" />
+              </span>
+              <h3 className="font-bold text-gray-900">Order Rules</h3>
+            </div>
+            <p className="text-sm text-gray-500 mb-2 ml-10">
+              Awaiting-payment orders are cancelled as expired after their
+              deadline — the earlier of this window and the shop's closing time
+              on the day the order was placed.
+            </p>
+            <div className="divide-y divide-gray-200">
+              {PRICING_ITEMS.filter((item) =>
+                DURATION_WINDOW_IDS.includes(item.id),
+              ).map((item) => (
+                <DurationRow key={item.id} item={item} />
+              ))}
+            </div>
+          </Card>
         </div>
       </div>
 
@@ -800,11 +831,12 @@ export default function PricingManagement() {
               <p className="text-sm text-gray-500">
                 Total window:{" "}
                 <span className="font-semibold text-[#10316B]">
-                  {formatDuration(durationTotalSeconds())}
+                  {formatPaymentWindow(durationTotalSeconds())}
                 </span>
               </p>
               <p className="text-xs text-gray-500">
-                Set 0 so orders never auto-expire while awaiting payment.
+                Set 0 so the shop's closing time is the deadline. A window can
+                only shorten that day's deadline, never extend it.
               </p>
             </div>
           </div>
@@ -835,7 +867,7 @@ export default function PricingManagement() {
           onOpenChange={setShowDurationSaveConfirm}
           onConfirm={handleDurationSave}
           title="Update Payment Window?"
-          description={`Set "${durationTarget.label}" to ${formatDuration(durationTotalSeconds())}? Awaiting-payment orders will be auto-cancelled once this window passes.`}
+          description={`Set "${durationTarget.label}" to ${formatPaymentWindow(durationTotalSeconds())}? Awaiting-payment orders are cancelled at their deadline — the earlier of this window and the shop's closing time.`}
           confirmLabel="Save Changes"
           cancelLabel="Go Back"
           destructive={false}

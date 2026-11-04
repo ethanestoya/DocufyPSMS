@@ -1,24 +1,28 @@
 // "Unclaimed Order History" — Admin/Staff detail page listing every
-// automatically DERIVED late-pickup record: a Cash-on-Pickup order that passed
-// its pickup deadline (the shop's configured closing time) and was collected
-// AFTER that deadline. Orders that were collected on time, or that are still
-// uncollected, do NOT appear here (the current offenses live on the Unclaimed
-// Orders page). Reached only from the Unclaimed Orders card, never the sidebar.
+// automatically DERIVED late-pickup record: an order that reached pickup, still
+// owed money at its pickup deadline (the shop's configured closing time), and
+// was collected AFTER that deadline. Fully paid orders never appear (they are
+// not financial offences), and orders still uncollected live on the Unclaimed
+// Orders page. Reached only from the Unclaimed Orders card, never the sidebar.
 //
 // There is no manual review, excuse, or confirm workflow here: a record exists
-// only when the real order + status-history timeline proves it. Display-only —
-// nothing is enforced or written.
+// only when the real order + status-history + payment timeline proves it.
+// Display-only — nothing is enforced or written.
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import {
   Search,
   Eye,
   ClipboardList,
   AlertTriangle,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Users,
+  Banknote,
   ArrowLeft,
 } from "lucide-react";
-import { useNavigate } from "react-router";
 import Layout from "../Layout";
 import StaffTimeInGate from "./StaffTimeInGate";
 import { Card } from "../ui/card";
@@ -26,6 +30,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { SummaryCard } from "../ui/summary-card";
 import { DateRangeFilter } from "../ui/date-range-filter";
 import { TableSkeleton } from "../ui/table-skeleton";
 import { CopyFieldButton } from "../ui/copy-field-button";
@@ -40,7 +45,6 @@ import {
 import { formatPHDate, formatPHTime, formatPHDateTime } from "../../utils/pht";
 import { formatCurrency } from "../../utils/formatNumber";
 import { getStatusBadgeClasses } from "../../utils/orderStatusPalette";
-import { computeOrderPayment } from "./OrderPaymentSummary";
 import {
   isClosingTimeConfigured,
   type UnclaimedRecord,
@@ -63,6 +67,8 @@ const STATUS_LABELS: Record<string, string> = {
 
 const statusLabel = (status: string) => STATUS_LABELS[status] ?? status;
 
+const PAGE_SIZE = 10;
+
 /** Human-readable "how late" between the deadline and the late collection. */
 function formatLateBy(releasedAt: Date, deadlineAt: Date): string {
   const ms = releasedAt.getTime() - deadlineAt.getTime();
@@ -80,8 +86,8 @@ export default function UnclaimedOrderHistory({
   menuItems,
   userRole,
 }: UnclaimedOrderHistoryProps) {
-  const navigate = useNavigate();
   const hydrating = useHydrating();
+  const navigate = useNavigate();
   const { closingTime, latePickups, ordersById, historyUnavailable } =
     useUnclaimedAdminData();
 
@@ -91,6 +97,7 @@ export default function UnclaimedOrderHistory({
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedRecord, setSelectedRecord] = useState<UnclaimedRecord | null>(
     null,
   );
@@ -120,6 +127,24 @@ export default function UnclaimedOrderHistory({
     return rows;
   }, [latePickups, ordersById, search, dateFrom, dateTo]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, dateFrom, dateTo]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / PAGE_SIZE));
+  const pageRows = filteredRecords.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
+
+  const lateCustomerCount = new Set(
+    latePickups.map((r) => r.customerKey.trim().toLowerCase()),
+  ).size;
+  const owedAtDeadline = latePickups.reduce(
+    (sum, r) => sum + (r.balance ?? 0),
+    0,
+  );
+
   return (
     <Layout
       menuItems={menuItems}
@@ -128,19 +153,47 @@ export default function UnclaimedOrderHistory({
       backButtonPath={base}
     >
       <StaffTimeInGate>
-        <div className="flex flex-col space-y-5">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate(base)}
-            className="w-fit"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Unclaimed Orders
-          </Button>
-          <p className="max-w-2xl text-sm text-slate-500">
-            Cash-on-Pickup orders collected after their pickup deadline. Orders still waiting to be collected stay on the Unclaimed Orders page.
-          </p>
+        <div className="flex flex-col space-y-6">
+          {/* Desktop has no header back arrow, so the way out of this detail
+              page is stated here in the same outline button the other
+              drill-down pages (Job Board, Staff) use; below md the header
+              arrow already returns to Unclaimed Orders. */}
+          <div className="hidden md:block">
+            <Button
+              variant="outline"
+              onClick={() => navigate(base)}
+              className="shrink-0"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Unclaimed Orders
+            </Button>
+          </div>
+
+          {/* Same summary row the All Orders workspace opens with. */}
+          <div className="grid grid-cols-1 @min-[560px]:grid-cols-3 gap-2 sm:gap-3 mb-4 shrink-0">
+            <SummaryCard
+              label="Late pick-ups"
+              value={latePickups.length}
+              icon={ClipboardList}
+              iconColor="text-[#2F6FD6]"
+              labelColor="text-[#1668D9]"
+            />
+            <SummaryCard
+              label="Customers"
+              value={lateCustomerCount}
+              icon={Users}
+              iconColor="text-[#2F6FD6]"
+              labelColor="text-[#1668D9]"
+            />
+            <SummaryCard
+              label="Owed at deadline"
+              value={formatCurrency(owedAtDeadline)}
+              valueClassName="text-lg sm:text-xl font-semibold text-[#B91C1C]"
+              icon={Banknote}
+              iconColor="text-[#B91C1C]"
+              labelColor="text-[#B91C1C]"
+            />
+          </div>
 
           {!isClosingTimeConfigured(closingTime) && (
             <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -161,7 +214,7 @@ export default function UnclaimedOrderHistory({
             </div>
           )}
 
-          <Card className="p-4 border border-slate-100 shadow-sm shrink-0">
+          <Card className="p-4 border border-slate-100 shadow-sm mb-6 shrink-0">
             <div className="flex flex-col lg:flex-row lg:items-end gap-4">
               <div className="flex-1 min-w-[200px]">
                 <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
@@ -195,31 +248,30 @@ export default function UnclaimedOrderHistory({
             </p>
           </Card>
 
-          <div className="space-y-2">
-            <h2 className="text-sm font-semibold text-[#10316B]">
-              Late Pick-up History
-            </h2>
-            <Card className="overflow-hidden">
-              {hydrating && <TableSkeleton columns={7} rows={8} />}
-              {!hydrating && (
+          <Card className="overflow-hidden">
+            {hydrating && <TableSkeleton columns={10} rows={8} />}
+            {!hydrating && (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-[#F2F7FF] border-b border-[#1668D9]/10">
                     <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-[#10316B] uppercase tracking-wider w-14 whitespace-nowrap">
+                        #
+                      </th>
                       {[
                         "Customer",
                         "Order ID",
-                        "Order Status",
-                        "Payment & Balance",
-                        "Ready for Pickup",
-                        "Claim Deadline",
-                        "Collected (Late)",
-                        "Late By",
+                        "Status",
+                        "Owed",
+                        "Ready",
+                        "Deadline",
+                        "Collected",
+                        "Late by",
                         "Action",
                       ].map((h) => (
                         <th
                           key={h}
-                          className="px-4 py-3 text-left text-xs font-semibold text-[#10316B] uppercase tracking-wider"
+                          className="px-4 py-3 text-left text-xs font-semibold text-[#10316B] uppercase tracking-wider whitespace-nowrap"
                         >
                           {h}
                         </th>
@@ -229,7 +281,7 @@ export default function UnclaimedOrderHistory({
                   <tbody className="bg-white">
                     {filteredRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="px-4 py-14">
+                        <td colSpan={10} className="px-4 py-14">
                           <div className="flex flex-col items-center text-center">
                             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#1668D9] ring-1 ring-[#1668D9]/15">
                               <ClipboardList className="h-6 w-6" />
@@ -238,24 +290,26 @@ export default function UnclaimedOrderHistory({
                               No late pickups yet
                             </p>
                             <p className="mt-1 max-w-md text-xs text-gray-500">
-                              A Cash-on-Pickup order appears here once it is
-                              collected after its pickup deadline.
+                              An order appears here once it is collected after a
+                              pickup deadline it had still owed money at.
                             </p>
                           </div>
                         </td>
                       </tr>
                     ) : (
-                      filteredRecords.map((record) => {
+                      pageRows.map((record, index) => {
                         const order = ordersById.get(record.orderId);
-                        const payment = order
-                          ? computeOrderPayment(order, order.manualTotal ?? 0)
-                          : null;
+                        const listPosition =
+                          (currentPage - 1) * PAGE_SIZE + index + 1;
                         return (
                           <tr
                             key={record.orderId}
                             className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors cursor-pointer"
                             onClick={() => setSelectedRecord(record)}
                           >
+                            <td className="px-4 py-3 text-sm font-semibold text-[#10316B]">
+                              {listPosition}
+                            </td>
                             <td className="px-4 py-3">
                               <div className="text-sm font-semibold text-gray-900">
                                 {record.customerName}
@@ -270,7 +324,7 @@ export default function UnclaimedOrderHistory({
                                 />
                               </div>
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-3 whitespace-nowrap">
                               <span className="font-mono text-xs text-gray-700">
                                 {order?.displayId ?? record.displayId ?? record.orderId}
                               </span>
@@ -299,21 +353,15 @@ export default function UnclaimedOrderHistory({
                               )}
                             </td>
                             <td className="px-4 py-3">
-                              {payment ? (
+                              {record.balance != null ? (
                                 <>
-                                  <div className="text-sm font-semibold text-gray-900">
-                                    {formatCurrency(payment.total)}
+                                  <div className="text-sm font-semibold text-red-700">
+                                    {formatCurrency(record.balance)}
                                   </div>
-                                  <div
-                                    className={`text-xs ${
-                                      payment.remaining > 0
-                                        ? "text-amber-700"
-                                        : "text-gray-500"
-                                    }`}
-                                  >
-                                    {payment.remaining > 0
-                                      ? `Balance ${formatCurrency(payment.remaining)}`
-                                      : "Fully paid"}
+                                  <div className="text-xs text-gray-500">
+                                    {record.amountPaid && record.amountPaid > 0
+                                      ? `${formatCurrency(record.amountPaid)} paid by deadline`
+                                      : "Nothing paid by deadline"}
                                   </div>
                                 </>
                               ) : (
@@ -374,9 +422,65 @@ export default function UnclaimedOrderHistory({
                   </tbody>
                 </table>
               </div>
+            )}
+
+            {/* Pagination */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-t border-gray-100 bg-white">
+              <p className="text-sm text-slate-500">
+                Showing{" "}
+                <span className="font-semibold text-slate-700">
+                  {totalPages === 1
+                    ? filteredRecords.length
+                    : `${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(
+                        currentPage * PAGE_SIZE,
+                        filteredRecords.length,
+                      )}`}
+                </span>{" "}
+                of{" "}
+                <span className="font-semibold text-slate-700">
+                  {filteredRecords.length}
+                </span>{" "}
+                late pick-up{filteredRecords.length === 1 ? "" : "s"}
+              </p>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className="h-9 px-3"
+                  >
+                    <ChevronLeft className="h-4 w-4" /> Previous
+                  </Button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (pg) => (
+                      <Button
+                        key={pg}
+                        type="button"
+                        variant={pg === currentPage ? "primary" : "outline"}
+                        size="icon"
+                        onClick={() => setCurrentPage(pg)}
+                      >
+                        {pg}
+                      </Button>
+                    ),
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={currentPage === totalPages}
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(totalPages, p + 1))
+                    }
+                    className="h-9 px-3"
+                  >
+                    Next <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               )}
-            </Card>
-          </div>
+            </div>
+          </Card>
         </div>
       </StaffTimeInGate>
 
@@ -471,7 +575,22 @@ export default function UnclaimedOrderHistory({
                       : "—"}
                   </p>
                 </div>
-                <div className="rounded-xl border border-slate-200 p-4 sm:col-span-2">
+                <div className="rounded-xl border border-slate-200 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Owed at Deadline
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-red-700">
+                    {selectedRecord.balance != null
+                      ? formatCurrency(selectedRecord.balance)
+                      : "—"}
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    {selectedRecord.amountPaid && selectedRecord.amountPaid > 0
+                      ? `${formatCurrency(selectedRecord.amountPaid)} paid by then`
+                      : "Nothing paid by then"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Order Total
                   </p>
@@ -484,7 +603,10 @@ export default function UnclaimedOrderHistory({
               </div>
 
               <p className="text-xs text-gray-500">
-                Not collected by its pickup deadline, then collected afterwards.
+                Not collected by its pickup deadline, then collected afterwards
+                {selectedRecord.balance != null
+                  ? ` — ${formatCurrency(selectedRecord.balance)} was still owed at that deadline.`
+                  : "."}
               </p>
             </>
           )}

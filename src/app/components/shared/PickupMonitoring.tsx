@@ -2,11 +2,14 @@
 // pickup phase (ready for pickup, overdue for pickup, collected) and the
 // automatically DERIVED unclaimed-order records.
 //
-// There is no manual review workflow here: an order counts as unclaimed only
-// when the real order + status-history timeline proves it reached Completed and
-// was not collected by the shop's configured closing time. The page is otherwise
-// display-only (view an order's details); the one thing it can change is the
-// pickup itself — a staff/admin can mark a waiting order as released.
+// The records here come from the SAME derivation the Unclaimed Orders pages
+// use — the live orders plus the retained timelines for archived released
+// orders — so the two pages cannot disagree. An order is overdue only when it
+// still owed part of its total at the pickup deadline; a fully paid order that
+// is never collected stays "Ready for pickup" and is not an offence.
+//
+// There is no manual review workflow here. The page is display-only except for
+// the pickup itself: a staff/admin can mark a waiting order as released.
 
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -17,6 +20,9 @@ import {
   ClipboardList,
   ChevronLeft,
   ChevronRight,
+  Clock3,
+  LayoutGrid,
+  PackageCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import Layout from "../Layout";
@@ -32,6 +38,7 @@ import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { Label } from "../ui/label";
 import { DateRangeFilter } from "../ui/date-range-filter";
 import {
   Dialog,
@@ -45,15 +52,19 @@ import { formatCurrency } from "../../utils/formatNumber";
 import { getStatusBadgeClasses } from "../../utils/orderStatusPalette";
 import { computeOrderPayment } from "./OrderPaymentSummary";
 import { TableSkeleton } from "../ui/table-skeleton";
+import { SummaryCard } from "../ui/summary-card";
 import { useHydrating } from "../../utils/useHydrating";
 import {
   closingDeadline,
   deriveUnclaimedRecords,
   isClosingTimeConfigured,
-  toUnclaimedOrderLikes,
   type UnclaimedRecord,
 } from "../../utils/unclaimedOrders";
-import { useShopClosingTime } from "../../utils/useUnclaimedOffenses";
+import {
+  buildAdminUnclaimedLikes,
+  useShopClosingTime,
+} from "../../utils/useUnclaimedOffenses";
+import { useReleasedOrderTransactions } from "../../utils/useReleasedOrderTransactions";
 
 type OrderRow = ReturnType<typeof ordersStore.getOrders>[number];
 
@@ -62,18 +73,31 @@ interface PickupMonitoringProps {
   userRole: "admin" | "staff";
 }
 
-type PickupState = "ready" | "overdue" | "collected";
-type PickupFilter = "all" | PickupState | "unclaimed";
+// The four operational pickup states. There is deliberately no "unclaimed"
+// filter here: an overdue order IS the unclaimed one, so a second card showing
+// the same set (and the same figure) duplicated both the Overdue card and the
+// dedicated Unclaimed Orders workspace.
+type PickupState = "ready" | "overdue" | "collected" | "late";
+type PickupFilter = "all" | PickupState;
+
+// Only these two are still waiting to be collected.
+const isWaitingState = (state: PickupState | undefined) =>
+  state === "ready" || state === "overdue";
 
 const PAGE_SIZE = 10;
 
-const PICKUP_FILTERS: { key: PickupFilter; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "ready", label: "Ready" },
-  { key: "overdue", label: "Overdue" },
-  { key: "collected", label: "Picked up" },
-  { key: "unclaimed", label: "Unclaimed" },
-];
+// One line under the cards, so "Overdue" and "Picked up late" say what they
+// mean instead of leaving staff to guess.
+const FILTER_NOTES: Partial<Record<PickupFilter, string>> = {
+  ready:
+    "Finished and waiting to be collected. A fully paid order stays here after its deadline — it is not an unclaimed order.",
+  overdue:
+    "Past the pickup deadline and still owing part of the total. These are the orders the Unclaimed Orders page lists.",
+  collected:
+    "Handed over on or before the pickup deadline.",
+  late:
+    "Collected after the pickup deadline while money was still owed at that deadline. The late-pickup record stays on the order.",
+};
 
 const STATUS_LABELS: Record<string, string> = {
   inqueue: "In Queue",
@@ -87,13 +111,10 @@ const STATUS_LABELS: Record<string, string> = {
 const statusLabel = (status: string) =>
   STATUS_LABELS[status?.toLowerCase()] ?? status;
 
-// The Status column combines the pickup state with whether the order also
-// carries a derived unclaimed record: a collection made after the deadline
-// reads as "Picked up late" rather than a plain "Picked up".
-function rowStatus(
-  state: PickupState,
-  unclaimed: boolean,
-): { label: string; classes: string } {
+// The Status column reads the pickup state itself: a collection made after the
+// deadline is its own state, so the row label and the "Picked up late" chip
+// count the same orders.
+function rowStatus(state: PickupState): { label: string; classes: string } {
   if (state === "overdue") {
     return {
       label: "Overdue",
@@ -106,7 +127,7 @@ function rowStatus(
       classes: "bg-[#EAF3FF] text-[#1668D9] border-[#1668D9]/30",
     };
   }
-  if (unclaimed) {
+  if (state === "late") {
     return {
       label: "Picked up late",
       classes: "bg-[#FDE8E8] text-[#B91C1C] border-[#DC2626]/40",
@@ -145,6 +166,7 @@ export default function PickupMonitoring({
   menuItems,
 }: PickupMonitoringProps) {
   const closingTime = useShopClosingTime();
+  const releasedTransactions = useReleasedOrderTransactions();
   const hydrating = useHydrating();
 
   const [orders, setOrders] = useState<OrderRow[]>(() => ordersStore.getOrders());
@@ -168,22 +190,27 @@ export default function PickupMonitoring({
   const payFor = (order: OrderRow) =>
     computeOrderPayment(order, order.manualTotal ?? 0);
 
+  const records = useMemo(
+    () =>
+      deriveUnclaimedRecords(
+        buildAdminUnclaimedLikes(orders, releasedTransactions),
+        closingTime,
+      ),
+    [orders, releasedTransactions, closingTime],
+  );
+
   const recordById = useMemo(() => {
-    const records = deriveUnclaimedRecords(
-      toUnclaimedOrderLikes(orders),
-      closingTime,
-    );
     const map = new Map<string, UnclaimedRecord>();
     records.forEach((r) => map.set(r.orderId, r));
     return map;
-  }, [orders, closingTime]);
+  }, [records]);
 
   const pickupStateOf = (order: OrderRow): PickupState | null => {
     const status = order.status?.toLowerCase();
     const released = status === "released";
     const hasRecord = recordById.has(order.id);
     if (hasRecord && !released) return "overdue";
-    if (released) return "collected";
+    if (released) return hasRecord ? "late" : "collected";
     if (status === "completed") return "ready";
     return null;
   };
@@ -207,19 +234,75 @@ export default function PickupMonitoring({
     let ready = 0;
     let overdue = 0;
     let collected = 0;
+    let late = 0;
     stateById.forEach((s) => {
       if (s === "ready") ready += 1;
       else if (s === "overdue") overdue += 1;
       else if (s === "collected") collected += 1;
+      else if (s === "late") late += 1;
     });
-    return { ready, overdue, collected, unclaimed: recordById.size };
-  }, [stateById, recordById]);
+    return { ready, overdue, collected, late };
+  }, [stateById]);
+
+  // Same card row as All Orders: the cards ARE the filter, so the page keeps
+  // one control for the four pickup states plus All. The accent colours match
+  // the status the card stands for.
+  const pickupCards = [
+    {
+      key: "all" as PickupFilter,
+      label: "All",
+      count: pickupOrders.length,
+      icon: LayoutGrid,
+      iconColor: "text-[#2F6FD6]",
+      labelColor: "text-[#1668D9]",
+      activeBorder: "border-[#1668D9]",
+      activeBg: "bg-[#EAF3FF]",
+    },
+    {
+      key: "ready" as PickupFilter,
+      label: "Ready",
+      count: counts.ready,
+      icon: PackageCheck,
+      iconColor: "text-[#1668D9]",
+      labelColor: "text-[#1668D9]",
+      activeBorder: "border-[#1668D9]",
+      activeBg: "bg-[#EAF3FF]",
+    },
+    {
+      key: "overdue" as PickupFilter,
+      label: "Overdue",
+      count: counts.overdue,
+      icon: AlertTriangle,
+      iconColor: "text-[#B91C1C]",
+      labelColor: "text-[#B91C1C]",
+      activeBorder: "border-[#DC2626]",
+      activeBg: "bg-[#FDE8E8]",
+    },
+    {
+      key: "collected" as PickupFilter,
+      label: "Picked up",
+      count: counts.collected,
+      icon: CheckCircle2,
+      iconColor: "text-slate-500",
+      labelColor: "text-slate-600",
+      activeBorder: "border-slate-400",
+      activeBg: "bg-slate-50",
+    },
+    {
+      key: "late" as PickupFilter,
+      label: "Picked up late",
+      count: counts.late,
+      icon: Clock3,
+      iconColor: "text-[#B91C1C]",
+      labelColor: "text-[#B91C1C]",
+      activeBorder: "border-[#DC2626]",
+      activeBg: "bg-[#FDE8E8]",
+    },
+  ];
 
   const tableRows = useMemo(() => {
     let rows = [...pickupOrders];
-    if (filter === "unclaimed") {
-      rows = rows.filter((o) => recordById.has(o.id));
-    } else if (filter !== "all") {
+    if (filter !== "all") {
       rows = rows.filter((o) => stateById.get(o.id) === filter);
     }
     const q = search.trim().toLowerCase();
@@ -239,12 +322,12 @@ export default function PickupMonitoring({
       rows = rows.filter((o) => o.submittedAt.getTime() <= to);
     }
     return rows.sort((a, b) => {
-      const aActive = stateById.get(a.id) !== "collected";
-      const bActive = stateById.get(b.id) !== "collected";
-      if (aActive !== bActive) return aActive ? -1 : 1;
+      const aWaiting = isWaitingState(stateById.get(a.id));
+      const bWaiting = isWaitingState(stateById.get(b.id));
+      if (aWaiting !== bWaiting) return aWaiting ? -1 : 1;
       return b.submittedAt.getTime() - a.submittedAt.getTime();
     });
-  }, [pickupOrders, filter, stateById, recordById, search, dateFrom, dateTo]);
+  }, [pickupOrders, filter, stateById, search, dateFrom, dateTo]);
 
   // Narrowing the list (filter, search or date range) sends it back to page 1,
   // so a filter change can never leave you staring at an empty page 3.
@@ -284,7 +367,7 @@ export default function PickupMonitoring({
   // A row can be released only while it is still waiting to be collected —
   // an order already marked Released has nothing left to do here.
   const canRelease = (order: OrderRow): boolean =>
-    stateById.get(order.id) !== "collected";
+    isWaitingState(stateById.get(order.id));
 
   // The customer address to notify, or null when the order has no real account
   // behind it — a walk-in has no signed-in customer to receive the alert.
@@ -361,7 +444,7 @@ export default function PickupMonitoring({
   return (
     <Layout menuItems={menuItems} title="Pickup Monitoring" showBackButton>
       <StaffTimeInGate>
-        <div className="flex flex-col space-y-5">
+        <div className="flex flex-col space-y-6">
           {!isClosingTimeConfigured(closingTime) && (
             <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
@@ -380,10 +463,38 @@ export default function PickupMonitoring({
             </div>
           )}
 
-          <Card className="p-4 border border-slate-100 shadow-sm shrink-0">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="group relative w-full sm:max-w-md">
+          {/* Summary cards - the same row the All Orders page opens with, and
+              the cards themselves are the filter. */}
+          <div className="grid grid-cols-2 @min-[720px]:grid-cols-3 @min-[840px]:grid-cols-5 gap-2 sm:gap-3 mb-4 shrink-0">
+            {pickupCards.map((card) => (
+              <SummaryCard
+                key={card.key}
+                label={card.label}
+                value={card.count}
+                icon={card.icon}
+                iconColor={card.iconColor}
+                labelColor={card.labelColor}
+                active={filter === card.key}
+                activeBorder={card.activeBorder}
+                activeBg={card.activeBg}
+                onClick={() =>
+                  setFilter(filter === card.key ? "all" : card.key)
+                }
+              />
+            ))}
+          </div>
+
+          {filter !== "all" && FILTER_NOTES[filter] && (
+            <p className="text-xs text-slate-500">{FILTER_NOTES[filter]}</p>
+          )}
+
+          <Card className="p-4 border border-slate-100 shadow-sm mb-6 shrink-0">
+            <div className="flex flex-col lg:flex-row lg:items-end gap-4">
+              <div className="flex-1 min-w-[200px]">
+                <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  Search
+                </Label>
+                <div className="group relative mt-1.5">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#98A2B3] transition-colors group-focus-within:text-[#2F6FD6]" />
                   <Input
                     aria-label="Search pickup orders"
@@ -393,75 +504,57 @@ export default function PickupMonitoring({
                     className="pl-10"
                   />
                 </div>
-                <DateRangeFilter
-                  value={{ from: dateFrom, to: dateTo }}
-                  onChange={(next) => {
-                    setDateFrom(next.from);
-                    setDateTo(next.to);
-                  }}
-                  compact
-                  className="w-full sm:w-[18rem]"
-                />
               </div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {PICKUP_FILTERS.map(({ key, label }) => {
-                  const active = filter === key;
-                  const count =
-                    key === "all"
-                      ? pickupOrders.length
-                      : counts[key as Exclude<PickupFilter, "all">];
-                  return (
-                    <Button
-                      key={key}
-                      type="button"
-                      size="sm"
-                      variant={active ? "primary" : "outline"}
-                      onClick={() => setFilter(key)}
-                      className="group h-8 rounded-lg"
-                    >
-                      {label}
-                      <span
-                        className={`ml-1.5 text-[11px] font-semibold ${
-                          active ? "text-white/80" : "text-slate-400 group-hover:text-white/80"
-                        }`}
-                      >
-                        {count}
-                      </span>
-                    </Button>
-                  );
-                })}
-              </div>
+              <DateRangeFilter
+                value={{ from: dateFrom, to: dateTo }}
+                onChange={(next) => {
+                  setDateFrom(next.from);
+                  setDateTo(next.to);
+                }}
+                fromLabel="From"
+                toLabel="To"
+                className="w-full lg:w-[21rem]"
+              />
             </div>
           </Card>
 
           <Card className="overflow-hidden">
-            {hydrating && <TableSkeleton columns={5} rows={10} />}
+            {hydrating && <TableSkeleton columns={6} rows={10} />}
             {!hydrating && (
             <>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-[#F2F7FF] border-b border-[#1668D9]/10">
                   <tr>
-                    {[
-                      "Order / Customer",
-                      "Status",
-                      "Payment",
-                      "Pickup Deadline",
-                      "Action",
-                    ].map((h) => (
-                      <th
-                        key={h}
-                        className="px-4 py-3 text-left text-xs font-semibold text-[#10316B] uppercase tracking-wider"
-                      >
-                        {h}
-                      </th>
-                    ))}
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-[#10316B] uppercase tracking-wider w-14">
+                      #
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-[#10316B] uppercase tracking-wider">
+                      <div className="flex flex-col leading-tight">
+                        Customer
+                        <span className="text-[10px] font-medium text-[#10316B]/60 normal-case tracking-normal">
+                          Order ID
+                        </span>
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-[#10316B] uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-[#10316B] uppercase tracking-wider">
+                      Payment
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-[#10316B] uppercase tracking-wider">
+                      Pickup Deadline
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-[#10316B] uppercase tracking-wider">
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white">
                   {pageRows.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-14">
+                      <td colSpan={6} className="px-4 py-14">
                         <div className="flex flex-col items-center text-center">
                           <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#1668D9] ring-1 ring-[#1668D9]/15">
                             <ClipboardList className="h-6 w-6" />
@@ -476,24 +569,30 @@ export default function PickupMonitoring({
                       </td>
                     </tr>
                   ) : (
-                    pageRows.map((order) => {
+                    pageRows.map((order, index) => {
                       const payment = payFor(order);
+                      const record = recordById.get(order.id);
                       const state = stateById.get(order.id) ?? "collected";
-                      const isUnclaimed = recordById.has(order.id);
-                      const status = rowStatus(state, isUnclaimed);
+                      const isUnclaimed = !!record;
+                      const status = rowStatus(state);
                       const deadline = deadlineFor(order);
+                      const listPosition =
+                        (currentPage - 1) * PAGE_SIZE + index + 1;
                       return (
                         <tr
                           key={order.id}
                           className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors cursor-pointer"
                           onClick={() => setSelected(order)}
                         >
+                          <td className="px-4 py-3 text-sm font-semibold text-[#10316B]">
+                            {listPosition}
+                          </td>
                           <td className="px-4 py-3">
-                            <div className="font-mono text-xs text-gray-700">
-                              {order.displayId ?? order.id}
-                            </div>
                             <div className="text-sm font-semibold text-gray-900">
                               {order.customer}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              {order.displayId ?? order.id}
                             </div>
                           </td>
                           <td className="px-4 py-3">
@@ -505,7 +604,18 @@ export default function PickupMonitoring({
                             </Badge>
                           </td>
                           <td className="px-4 py-3">
-                            {payment.remaining > 0 ? (
+                            {record ? (
+                              <>
+                                <div className="text-xs font-semibold text-red-700">
+                                  {record.balance != null
+                                    ? formatCurrency(record.balance)
+                                    : "—"}
+                                </div>
+                                <div className="text-[11px] text-gray-500">
+                                  Owed at deadline
+                                </div>
+                              </>
+                            ) : payment.remaining > 0 ? (
                               <span className="text-xs font-semibold text-amber-700">
                                 {formatCurrency(payment.remaining)} due
                               </span>
@@ -601,7 +711,7 @@ export default function PickupMonitoring({
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     className="h-9 px-3"
                   >
-                    <ChevronLeft className="h-4 w-4" /> Prev
+                    <ChevronLeft className="h-4 w-4" /> Previous
                   </Button>
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
                     <Button
@@ -675,12 +785,30 @@ export default function PickupMonitoring({
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Payment
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-gray-900">
-                    {payFor(selected).status}
-                  </p>
-                  <p className="mt-0.5 text-xs text-gray-500">
-                    Remaining {formatCurrency(payFor(selected).remaining)}
-                  </p>
+                  {recordById.get(selected.id) ? (
+                    <>
+                      <p className="mt-1 text-sm font-semibold text-red-700">
+                        {recordById.get(selected.id)!.balance != null
+                          ? `${formatCurrency(
+                              recordById.get(selected.id)!.balance!,
+                            )} owed at deadline`
+                          : "Owed at deadline"}
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        Now {payFor(selected).status.toLowerCase()} · remaining{" "}
+                        {formatCurrency(payFor(selected).remaining)}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="mt-1 text-sm font-semibold text-gray-900">
+                        {payFor(selected).status}
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        Remaining {formatCurrency(payFor(selected).remaining)}
+                      </p>
+                    </>
+                  )}
                 </div>
                 <div className="rounded-xl border border-slate-200 p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -701,8 +829,14 @@ export default function PickupMonitoring({
                   </p>
                   {recordById.get(selected.id) && (
                     <p className="mt-1.5 text-xs text-red-700">
-                      This order passed its pickup deadline without being
-                      collected{recordById.get(selected.id)?.releasedAt ? " on time" : ""}.
+                      {recordById.get(selected.id)!.releasedAt
+                        ? "Collected after this deadline — "
+                        : "Not collected by this deadline — "}
+                      {recordById.get(selected.id)!.balance != null
+                        ? `${formatCurrency(
+                            recordById.get(selected.id)!.balance!,
+                          )} was still owed at that time.`
+                        : "part of the total was still owed at that time."}
                     </p>
                   )}
                 </div>

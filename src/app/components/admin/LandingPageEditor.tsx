@@ -640,7 +640,7 @@ export default function LandingPageEditor() {
                 />
                 <div>
                   <Label className="text-sm font-medium text-slate-700">
-                    Pickup deadline — shop closing time
+                    Shop closing time
                   </Label>
                   <Input
                     type="time"
@@ -649,7 +649,9 @@ export default function LandingPageEditor() {
                     className="mt-1.5 h-9 w-full sm:w-48"
                   />
                   <p className="mt-1.5 text-xs text-slate-500">
-                    Orders not collected by this time count as unclaimed. Leave blank to disable.
+                    Payment deadlines never extend past this time, and orders not
+                    collected by it count as unclaimed. Leave blank to use the
+                    payment windows alone; pickup deadlines are then not tracked.
                   </p>
                 </div>
                 <div>

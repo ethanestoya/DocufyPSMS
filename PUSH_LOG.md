@@ -1570,3 +1570,17 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Left `package-lock.json` out of this commit; its only change is npm's own "peer" bookkeeping, unrelated to this work.
 - Promoted this batch to `deployment` from the same commit, so production and the work branch stay identical.
 - Typecheck and production build pass. The payment continuation button, the Google notice and the restored direct login were not exercised in a signed-in session.
+
+## 2026-11-05 - Prans (2:56 AM PHT)
+
+- Rebuilt the pickup and unclaimed screens to match All Orders: Pickup Monitoring, Unclaimed Orders, Late Pick-up History and Customer Restrictions now share one summary-card row, one search card, a numbered table and a paging footer, so moving between them reads as one workspace instead of four different products.
+- Gave Pickup Monitoring all four operational states: "Picked up late" is its own filter card instead of only a badge on a row that was counted under "Picked up", so Ready + Overdue + Picked up + Picked up late add up to All.
+- Dropped Pickup Monitoring's "Unclaimed" card: an overdue order and an unclaimed one are the same orders, so that card repeated the Overdue figure while the Unclaimed Orders page already lists them; the remaining cards now split the list cleanly.
+- Replaced the chip strip and loose toolbar with filter cards, a labelled Search and From/To dates, and a two-line customer and order cell, so the Action button stays inside the table instead of being pushed off-screen.
+- Restored a way back on desktop: Late Pick-up History and Customer Restrictions gained a "Back to Unclaimed Orders" button, because the header arrow only renders on a phone and a desktop user had no route to their hub.
+- Moved the payment deadline onto the same working day: an order's deadline is now the earlier of the admin window and the shop's closing time on the day it was placed, with a 30-minute grace for an order placed close to closing and no invented next-day deadline for one placed after it.
+- Made unclaimed a question of money rather than of payment method: an order counts as unclaimed when it was ready, uncollected and still owed something at the shop's closing time, so a down-payment order that printed unpaid counts while a fully paid one never does and a submitted proof holds it.
+- Shifted pending deadlines forward when the shop reopens after a pause, so no order expires while nobody could pay.
+- Added a Deadline column and an "Awaiting review" filter to Payment Verification, so staff can see which payments are running out of time and which ones the customer has already answered.
+- Confirmed the submitted reference back to the customer and updated the unclaimed notice to say the order was printed but not collected and not paid in full by its pickup deadline.
+- Typecheck and production build pass. The admin-only screens were reviewed against the code rather than a signed-in session, so the Order Rules card and the new Deadline column were not opened live.

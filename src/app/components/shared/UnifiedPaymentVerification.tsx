@@ -84,9 +84,9 @@ type PaymentType = {
   verifiedAt?: Date;
   time: string;
   reference?: string;
-  proofImageUrl?: string;
   // Raw storage path of the uploaded proof (private `payment-proofs` bucket);
-  // used to sign the image URL at read time.
+  // used to sign the image URL at read time. Its presence is also what makes
+  // the "Proof of payment" row appear — there is no fake placeholder image.
   proofStoragePath?: string;
   // Payment-kind-aware fields (see generatePaymentsFromOrders):
   //  - cash       → Cash on Pickup: paid at the shop, Amount to Pay + Deadline
@@ -165,9 +165,6 @@ function parseOrderTotal(order: {
 }): number {
   return parseFloat((order.total || '₱0').replace('₱', '').replace(',', ''));
 }
-
-const SAMPLE_PROOF_IMAGE =
-  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzY2NiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+UGF5bWVudCBQcm9vZiBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg==";
 
 // Helper function to generate payments from orders
 // SYSTEM-WIDE: This pulls data directly from dataStore to ensure sync with Order List
@@ -255,7 +252,6 @@ function generatePaymentsFromOrders(): PaymentType[] {
           : undefined,
         time: formatPHTime(orderDate).toLowerCase(),
         reference: order.paymentReferenceNumber || (isCashOnPickup ? 'Cash on Pickup' : ''),
-        proofImageUrl: order.paymentProofUrl || SAMPLE_PROOF_IMAGE,
         proofStoragePath: order.proofStoragePath,
         kind,
         totalAmount,
@@ -304,9 +300,10 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
   const [rejectionReason, setRejectionReason] = useState("");
   const [showProofImage, setShowProofImage] = useState(false);
   // Resolved signed URL for the proof image currently being previewed. The
-  // payment-proofs bucket is private, so the public URL stored on the order
-  // won't load — we sign it when the preview opens.
+  // payment-proofs bucket is private, so the object can only be read by
+  // signing its path when the preview opens.
   const [proofSignedUrl, setProofSignedUrl] = useState<string | undefined>(undefined);
+  const [proofIsLoading, setProofIsLoading] = useState(false);
   const [pendingVerifyAction, setPendingVerifyAction] = useState<
     "verified" | "rejected" | null
   >(null);
@@ -325,13 +322,18 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
   useEffect(() => {
     if (!showProofImage || !selectedPayment?.proofStoragePath) {
       setProofSignedUrl(undefined);
+      setProofIsLoading(false);
       return;
     }
     let cancelled = false;
     setProofSignedUrl(undefined);
+    setProofIsLoading(true);
     getSignedObjectUrl(BUCKETS.paymentProofs, selectedPayment.proofStoragePath).then(
       (url) => {
-        if (!cancelled) setProofSignedUrl(url ?? undefined);
+        if (!cancelled) {
+          setProofSignedUrl(url ?? undefined);
+          setProofIsLoading(false);
+        }
       },
     );
     return () => {
@@ -837,7 +839,10 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
 
         {/* Summary Cards — every card that shows a count filters the list; the
             money total is display-only and deliberately does not look clickable. */}
-        <div className="grid grid-cols-2 @min-[1100px]:grid-cols-4 gap-3 mb-4 shrink-0">
+        {/* The breakpoint is the CONTENT width, not the screen: expanding the
+            256px rail narrows it, and the four cards squeeze instead of the row
+            dropping to two lines. Phones (below 640px) stay on the 2x2 grid. */}
+        <div className="grid grid-cols-2 @min-[640px]:grid-cols-4 gap-2 sm:gap-3 mb-4 shrink-0">
           <SummaryCard
             label="Pending Verification"
             value={stats.pending}
@@ -1363,7 +1368,7 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
                       );
                     })()}
 
-                  {selectedPayment.proofImageUrl && (
+                  {selectedPayment.proofStoragePath && (
                     <div className="flex items-center justify-between gap-4 py-2.5">
                       <dt className="text-[13px] text-gray-500">
                         Proof of payment
@@ -1652,11 +1657,21 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
               View uploaded payment proof image
             </DialogDescription>
           </DialogHeader>
-          <img
-            src={proofSignedUrl || selectedPayment?.proofImageUrl}
-            alt="Proof"
-            className="w-full h-auto rounded-lg border border-[#1668D9]/10"
-          />
+          {proofIsLoading ? (
+            <p className="py-10 text-center text-sm text-gray-500">
+              Loading proof…
+            </p>
+          ) : proofSignedUrl ? (
+            <img
+              src={proofSignedUrl}
+              alt="Uploaded payment proof"
+              className="w-full h-auto rounded-lg border border-[#1668D9]/10"
+            />
+          ) : (
+            <p className="py-10 text-center text-sm text-gray-500">
+              Couldn't load this proof. Ask the customer to upload it again.
+            </p>
+          )}
           <div className="flex justify-end mt-4">
             <Button
               variant="outline"

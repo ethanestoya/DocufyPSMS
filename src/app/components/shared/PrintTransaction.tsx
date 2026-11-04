@@ -697,6 +697,11 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                     ...f,
                     pageCount: analyzed.pageCount,
                     colorAnalysis: analyzed.analysis,
+                    // Detection decides the mode: a file carrying any real color
+                    // is a color job, and leaving it on "bw" would price color
+                    // pages at the grayscale rate. Still overridable by hand.
+                    colorMode:
+                      analyzed.analysis.colorPages.length > 0 ? "colored" : f.colorMode,
                   }
                 : f,
             ),
@@ -2902,8 +2907,11 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                             </p>
                             <div className="font-medium text-gray-900 text-xs space-y-0.5">
                               {(() => {
+                                // Buckets are the pricing tiers, not literal
+                                // ranges: a 0.2% logo page and a 40% chart page
+                                // both land in the partial-color tier.
                                 const buckets: Array<{ label: string; pct: number; count: number }> = [
-                                  { label: "25-50%", pct: 50, count: 0 },
+                                  { label: "≤50%", pct: 50, count: 0 },
                                   { label: "51-75%", pct: 75, count: 0 },
                                   { label: "76-100%", pct: 100, count: 0 },
                                 ];

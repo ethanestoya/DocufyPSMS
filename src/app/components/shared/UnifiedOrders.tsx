@@ -1287,8 +1287,11 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
           </div>
         )}
 
-        {/* Summary Cards - one row on wide screens so the queue stays above the fold */}
-        <div className="grid grid-cols-2 @min-[720px]:grid-cols-3 @min-[1120px]:grid-cols-6 gap-2 sm:gap-3 mb-4 shrink-0">
+        {/* Summary Cards - one row on wide screens so the queue stays above the fold.
+            The breakpoints read the CONTENT width, not the screen: with the 256px rail
+            open a 1366px laptop has ~1062px here, so the six cards squeeze their own
+            width rather than dropping the last three onto a second row. */}
+        <div className="grid grid-cols-2 @min-[720px]:grid-cols-3 @min-[840px]:grid-cols-6 gap-2 sm:gap-3 mb-4 shrink-0">
           {([
             ["all", "Active Queue", LayoutGrid, queueOrders.length],
             ["inQueue", "In Queue", Clock, stats.inQueue],

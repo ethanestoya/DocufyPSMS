@@ -31,7 +31,7 @@ import {
 } from "pdf-lib";
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import { PAGE_COLOR_THRESHOLD_PCT } from "./colorThreshold";
+import { PAGE_COLOR_THRESHOLD_PCT, PAGE_COLOR_MIN_PIXELS } from "./colorThreshold";
 
 // Load the pdf.js worker as a Vite asset and hand its URL to pdfjs once.
 if (!GlobalWorkerOptions.workerSrc) {
@@ -127,14 +127,21 @@ function scanPixels(data: Uint8ClampedArray | number[]): PixelScan {
   return { colored, total };
 }
 
-// Raw color fraction of a page as a percentage, to one decimal. The gate always
-// runs on the un-rounded value so a 0.6% page can never be promoted to 1%.
+// Raw color fraction of a page as a percentage. Below 1% the value keeps two
+// decimals so the presence gate isn't decided by display rounding.
 export function colorFractionPct(scan: PixelScan): number {
   if (scan.total <= 0) return 0;
-  return Math.round((scan.colored / scan.total) * 1000) / 10;
+  const pct = (scan.colored / scan.total) * 100;
+  return pct < 1 ? Math.round(pct * 100) / 100 : Math.round(pct * 10) / 10;
 }
 
-function buildAnalysis(totalPages: number, perPage: number[], estimated: boolean, method: NonNullable<ColorAnalysis["method"]>): ColorAnalysis {
+// One page's measurement: the colored fraction plus how many pixels produced it.
+// `coloredPx` is Infinity for the heuristic paths (operator scan, office
+// estimate), which work in paints/pages rather than pixels, so only their
+// percentage is gated.
+type PageScan = { pct: number; coloredPx: number };
+
+function buildAnalysis(totalPages: number, perPage: PageScan[], estimated: boolean, method: NonNullable<ColorAnalysis["method"]>): ColorAnalysis {
   const analysis: ColorAnalysis = {
     totalPages,
     colorPages: [],
@@ -144,14 +151,13 @@ function buildAnalysis(totalPages: number, perPage: number[], estimated: boolean
     method,
   };
   for (let i = 1; i <= totalPages; i++) {
-    const pct = perPage[i - 1] ?? 0;
-    // A page needs PAGE_COLOR_THRESHOLD_PCT of its pixels colored to count as a
-    // color page — a stray logo, underline, or antialiased edge must not
-    // repaint the whole page as colored. The gate runs on `pct` before any
-    // display rounding, and the detected value stays visible either way so the
-    // analysis panel never claims a B&W page is "1% color".
-    const isColored = pct >= PAGE_COLOR_THRESHOLD_PCT;
-    analysis.colorPercentages[i] = pct;
+    const page = perPage[i - 1] ?? { pct: 0, coloredPx: 0 };
+    // Color PRESENCE is what matters: a page with a small logo, a colored
+    // heading or a chart still has to print in color. Both halves of the gate
+    // exist — the fraction is relative to the page, the pixel floor stops a
+    // couple of specks on a small page from repainting it.
+    const isColored = page.pct >= PAGE_COLOR_THRESHOLD_PCT && page.coloredPx >= PAGE_COLOR_MIN_PIXELS;
+    analysis.colorPercentages[i] = page.pct;
     if (isColored) analysis.colorPages.push(i);
     else analysis.bwPages.push(i);
   }
@@ -210,15 +216,15 @@ export async function analyzePdfDocument(
     const pdf = await loadPdfOnce(file);
     const totalPages = Math.max(1, pdf.numPages);
     const cap = totalPages > 60 ? LARGE_DOC_CAP : CAP;
-    const perPage: number[] = [];
+    const perPage: PageScan[] = [];
     for (let i = 1; i <= totalPages; i++) {
       const imageData = await renderPageToCanvas(pdf, i, cap);
       if (!imageData) {
-        perPage.push(0);
+        perPage.push({ pct: 0, coloredPx: 0 });
         continue;
       }
       const { colored, total } = scanPixels(imageData.data);
-      perPage.push(colorFractionPct({ colored, total }));
+      perPage.push({ pct: colorFractionPct({ colored, total }), coloredPx: colored });
     }
     pdf.cleanup();
     return { pageCount: totalPages, analysis: buildAnalysis(totalPages, perPage, false, "pdf") };
@@ -597,12 +603,13 @@ export async function analyzePdfByOperators(
   });
   const pages = pdf.getPages();
   const totalPages = Math.max(1, pages.length);
-  const perPage: number[] = [];
+  const perPage: PageScan[] = [];
   for (const page of pages) {
     const res = analyzePageContent(page.node);
-    perPage.push(
-      res.paints > 0 ? Math.round((res.colored / res.paints) * 100) : 0,
-    );
+    perPage.push({
+      pct: res.paints > 0 ? Math.round((res.colored / res.paints) * 100) : 0,
+      coloredPx: Infinity,
+    });
   }
   return { pageCount: totalPages, analysis: buildAnalysis(totalPages, perPage, true, "pdf") };
 }
@@ -637,7 +644,7 @@ export async function analyzeImageColors(
     if (!ctx) throw new Error("canvas-unavailable");
     ctx.drawImage(img, 0, 0, w, h);
     const { colored, total } = scanPixels(ctx.getImageData(0, 0, w, h).data);
-    return buildAnalysis(1, [colorFractionPct({ colored, total })], false, "image");
+    return buildAnalysis(1, [{ pct: colorFractionPct({ colored, total }), coloredPx: colored }], false, "image");
   } finally {
     URL.revokeObjectURL(url);
   }
@@ -824,9 +831,9 @@ async function analyzeOfficeEstimate(file: File): Promise<AnalyzedDocument> {
     (mediaCount * 0.7 + Math.min(colorMarks, pageCount * 2)) / Math.max(1, pageCount),
   );
   const coloredCount = Math.min(pageCount, Math.max(0, Math.round(pageCount * coloredShare)));
-  const perPage: number[] = [];
+  const perPage: PageScan[] = [];
   for (let i = 1; i <= pageCount; i++) {
-    perPage.push(i <= coloredCount ? 50 : 0);
+    perPage.push({ pct: i <= coloredCount ? 50 : 0, coloredPx: Infinity });
   }
   return { pageCount, analysis: buildAnalysis(pageCount, perPage, true, "office") };
 }

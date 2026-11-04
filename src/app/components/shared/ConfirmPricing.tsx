@@ -311,14 +311,18 @@ export function ConfirmPricingDialog({
         const percentages: Record<number, number> = {};
         for (let page = 1; page <= pageCount; page += 1) {
           const raw = doc.analysis.colorPercentages?.[page];
+          // The analyzer owns the page decision (fraction + pixel floor); this
+          // path only buckets a page it flagged into partial/full, so a page it
+          // rejected can't be re-admitted by a different rule here.
+          const isColorPage = doc.analysis.colorPages.includes(page);
           const pct =
             typeof raw === "number"
               ? raw
-              : doc.analysis.colorPages.includes(page)
+              : isColorPage
                 ? 100
                 : 0;
           percentages[page] = pct;
-          pageTiers[page] = resolveColorTier("colored", pct);
+          pageTiers[page] = isColorPage ? resolveColorTier("colored", pct) : "bw";
         }
         setAnalysis({
           status: "ready",

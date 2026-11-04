@@ -97,7 +97,6 @@ export interface Order {
   paymentVerified?: boolean;
   // When the order's verified payment was recorded (ISO), for the receipt.
   paymentVerifiedAt?: string;
-  paymentProofUrl?: string;
   // Raw storage path of the upload payment proof (private `payment-proofs`
   // bucket) — needed to generate a signed URL at read time.
   proofStoragePath?: string;
@@ -262,11 +261,14 @@ export function orderDtoToApp(dto: OrderDto): Order {
        dto.holdReason?.includes('Cash on Pickup') ? 'Cash' : undefined),
     paymentProof: undefined,
     paymentRowId: latestPayment?.id,
-    paymentReferenceNumber: vp?.referenceNumber ?? undefined,
+    // The reference + proof belong to the customer's LATEST submission, not only
+    // to a verified row — staff review the pending payment's proof/reference, and
+    // the invoice, receipt label and expiry guard all treat
+    // "reference present but paymentVerified false" as pending-verification.
+    paymentReferenceNumber: latestPayment?.referenceNumber ?? undefined,
     paymentVerified: hasVerifiedPayment(dto.payments.map((p) => p.status)),
     paymentVerifiedAt: vp?.verifiedAt?.toISOString(),
-    paymentProofUrl: resolveStorageUrl(BUCKETS.paymentProofs, vp?.proofStoragePath ?? null) || undefined,
-    proofStoragePath: vp?.proofStoragePath ?? undefined,
+    proofStoragePath: latestPayment?.proofStoragePath ?? undefined,
     fileName: firstFile?.originalName,
     pages: pages || firstFile?.pageCount || undefined,
     attachedFiles: dto.files.map(toAttachedFile),

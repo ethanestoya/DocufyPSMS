@@ -40,6 +40,34 @@ const GOOGLE_ATTEMPT_TTL_MS = 60_000;
 const GOOGLE_CANCELLED_MESSAGE =
   "Sign in with Google was cancelled or didn't finish. Try again, or log in with your email and password.";
 
+function readGoogleAttemptStartedAt(): number | null {
+  try {
+    const value = sessionStorage.getItem(GOOGLE_ATTEMPT_KEY);
+    if (!value) return null;
+    const startedAt = Number(value);
+    return Number.isFinite(startedAt) ? startedAt : null;
+  } catch (error) {
+    console.warn("[auth:google] Could not read the sign-in recovery marker:", error);
+    return null;
+  }
+}
+
+function writeGoogleAttemptStartedAt(): void {
+  try {
+    sessionStorage.setItem(GOOGLE_ATTEMPT_KEY, String(Date.now()));
+  } catch (error) {
+    console.warn("[auth:google] Could not save the sign-in recovery marker:", error);
+  }
+}
+
+function clearGoogleAttemptStartedAt(): void {
+  try {
+    sessionStorage.removeItem(GOOGLE_ATTEMPT_KEY);
+  } catch (error) {
+    console.warn("[auth:google] Could not clear the sign-in recovery marker:", error);
+  }
+}
+
 export default function LoginPage() {
   const navigate = useNavigate();
   usePageTitle("Log in");
@@ -87,7 +115,7 @@ export default function LoginPage() {
   React.useEffect(() => {
     if (user) {
       // Signed in — any marker from the round trip that got us here is spent.
-      sessionStorage.removeItem(GOOGLE_ATTEMPT_KEY);
+      clearGoogleAttemptStartedAt();
       if (user.role === "customer") {
         navigate(
           pendingJobId
@@ -110,13 +138,13 @@ export default function LoginPage() {
   // and on every history restore, so it is the one place that can unwind it.
   React.useEffect(() => {
     const unwind = () => {
-      const startedAt = sessionStorage.getItem(GOOGLE_ATTEMPT_KEY);
-      if (!startedAt) return;
-      sessionStorage.removeItem(GOOGLE_ATTEMPT_KEY);
+      const startedAt = readGoogleAttemptStartedAt();
+      if (startedAt === null) return;
+      clearGoogleAttemptStartedAt();
       setGoogleLoading(false);
       setSubmitting(false);
       setUatAction(null);
-      if (!user && Date.now() - Number(startedAt) < GOOGLE_ATTEMPT_TTL_MS) {
+      if (!user && Date.now() - startedAt < GOOGLE_ATTEMPT_TTL_MS) {
         setError(GOOGLE_CANCELLED_MESSAGE);
       }
     };
@@ -153,13 +181,13 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     setError("");
-    sessionStorage.setItem(GOOGLE_ATTEMPT_KEY, String(Date.now()));
+    writeGoogleAttemptStartedAt();
     const result = await signInWithGoogle();
     if (!result.success) {
       // The browser never left, so this same page can clear its own marker.
-      sessionStorage.removeItem(GOOGLE_ATTEMPT_KEY);
+      clearGoogleAttemptStartedAt();
       setGoogleLoading(false);
-      setError("Could not start Google sign-in. Please try again.");
+      setError(result.message);
     }
   };
 

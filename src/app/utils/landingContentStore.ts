@@ -16,6 +16,7 @@ import { authReady, supabase } from '../../lib/supabaseClient';
 import { fetchLandingContent, upsertLandingContent } from '../../lib/db/siteContentRepo';
 import type { Json } from '../../lib/database.types';
 import { auditLogStore } from './auditLogStore';
+import { cloneJson } from './cloneJson';
 
 export interface ServiceCardContent {
   title: string;
@@ -235,12 +236,12 @@ function migrateLegacyToContent(raw: unknown): Record<string, any> {
 function confirmServiceCards(source: Record<string, any>): Record<string, any> {
   const out = { ...source };
   if (!Array.isArray(out.serviceCards)) {
-    out.serviceCards = structuredClone(defaults.serviceCards);
+    out.serviceCards = cloneJson(defaults.serviceCards);
     return out;
   }
   const cards = [...out.serviceCards];
   while (cards.length < defaults.serviceCards.length) {
-    cards.push(structuredClone(defaults.serviceCards[cards.length]));
+    cards.push(cloneJson(defaults.serviceCards[cards.length]));
   }
   out.serviceCards = cards;
   return out;
@@ -348,7 +349,7 @@ subscribeTableChanges('landing_content', () => {
 void hydrate();
 
 export const landingContentStore = {
-  getDefaults: () => structuredClone(defaults),
+  getDefaults: () => cloneJson(defaults),
   getContent: read,
   saveContent: (content: LandingPageContent) => {
     save(content);

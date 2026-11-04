@@ -60,6 +60,9 @@ export interface PasswordResetUpdateResult {
 // reports its own outcome so a page can name the half that failed and the real
 // reason, instead of one generic sentence blaming the whole save.
 export type ProfileSyncResult = { ok: true } | { ok: false; message: string };
+export type GoogleSignInResult =
+  | { success: true }
+  | { success: false; message: string };
 
 export interface AuthContextType {
   user: User | null;
@@ -69,7 +72,7 @@ export interface AuthContextType {
   // instead of showing a generic "sign-in was not completed" message.
   emailPolicyBlocked: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; reason?: 'inactive' | 'domain' | 'invalid' }>;
-  signInWithGoogle: () => Promise<{ success: boolean }>;
+  signInWithGoogle: () => Promise<GoogleSignInResult>;
   signup: (data: any) => Promise<boolean>;
   registerStaff: (data: { name: string; email: string; password: string; role?: 'staff' | 'admin' }) => Promise<{ success: boolean; message?: string }>;
   updateStaffAccount: (currentEmail: string, updates: { email?: string; name?: string; role?: 'staff' | 'admin'; active?: boolean }) => boolean;
@@ -370,21 +373,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { success: true };
   };
 
-  // Kick off the Google OAuth flow. Supabase redirects the whole tab to Google,
-  // then back to window.location.origin/auth/callback with a session, which the
-  // AuthProvider session-restore effect picks up like any other login.
-  const signInWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-    if (error) {
-      console.warn('[auth:google] failed to start OAuth:', error.message);
-      return { success: false };
+  // Request the Google URL without auto-redirecting so a stalled request can
+  // time out safely; then navigate the tab to Google and return to the callback.
+  const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
+    let timeoutId: number | undefined;
+    try {
+      const request = supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          skipBrowserRedirect: true,
+        },
+      });
+      const result = await Promise.race([
+        request.then((value) => ({ kind: 'result' as const, value })),
+        new Promise<{ kind: 'timeout' }>((resolve) => {
+          timeoutId = window.setTimeout(
+            () => resolve({ kind: 'timeout' }),
+            15_000,
+          );
+        }),
+      ]);
+
+      if (result.kind === 'timeout') {
+        console.warn('[auth:google] OAuth initiation timed out.');
+        return {
+          success: false,
+          message:
+            'Google sign-in is taking too long to start. Check your internet connection and try again.',
+        };
+      }
+
+      if (result.value.error || !result.value.data.url) {
+        console.warn(
+          '[auth:google] failed to start OAuth:',
+          result.value.error?.message ?? 'No authorization URL was returned.',
+        );
+        return {
+          success: false,
+          message:
+            'Could not start Google sign-in. Check your internet connection and try again.',
+        };
+      }
+
+      window.location.assign(result.value.data.url);
+      return { success: true };
+    } catch (error) {
+      console.warn('[auth:google] failed to start OAuth:', error);
+      return {
+        success: false,
+        message:
+          'Could not start Google sign-in. Check your internet connection and try again.',
+      };
+    } finally {
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
     }
-    return { success: true };
   };
 
   const signup = async (data: any) => {

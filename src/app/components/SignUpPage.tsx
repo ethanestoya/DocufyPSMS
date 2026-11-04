@@ -91,7 +91,7 @@ export default function SignUpPage() {
     const result = await signInWithGoogle();
     if (!result.success) {
       setGoogleLoading(false);
-      showPopup("Could not start Google sign-in. Please try again.", "error");
+      showPopup(result.message, "error");
     }
   };
 

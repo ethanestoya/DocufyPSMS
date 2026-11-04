@@ -15,6 +15,7 @@ import { authReady, supabase } from '../../lib/supabaseClient';
 import { fetchLegalPolicies, saveLegalPolicy } from '../../lib/db/siteContentRepo';
 import type { LegalPolicyInsert, LegalPolicyRow } from '../../lib/db/types';
 import { auditLogStore } from './auditLogStore';
+import { cloneJson } from './cloneJson';
 
 export interface LegalSection {
   title: string;
@@ -161,9 +162,9 @@ const defaults: LegalContent = {
 
 function defaultClone(): LegalContent {
   return {
-    ...structuredClone(defaults),
-    termsSections: sanitizeSections(structuredClone(defaults.termsSections)),
-    privacySections: sanitizeSections(structuredClone(defaults.privacySections)),
+    ...cloneJson(defaults),
+    termsSections: sanitizeSections(cloneJson(defaults.termsSections)),
+    privacySections: sanitizeSections(cloneJson(defaults.privacySections)),
   } as LegalContent;
 }
 

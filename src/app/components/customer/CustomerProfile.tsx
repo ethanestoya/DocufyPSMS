@@ -265,8 +265,17 @@ export default function CustomerProfile() {
 
     console.log('All validations passed, calling resetPassword');
 
-    // Use the resetPassword function from AuthContext (with user email)
-    if (user && await resetPassword(user.email, passwordData.currentPassword, passwordData.newPassword)) {
+    if (!user) {
+      toast.error('You are signed out — sign in again to change your password.');
+      return;
+    }
+
+    const result = await resetPassword(
+      user.email,
+      passwordData.currentPassword,
+      passwordData.newPassword,
+    );
+    if (result.success) {
       console.log('Password reset successful');
       toast.success('Password changed successfully!');
       setShowChangePasswordDialog(false);
@@ -277,7 +286,11 @@ export default function CustomerProfile() {
       });
     } else {
       console.log('Password reset failed');
-      toast.error('Current password is incorrect or password was previously used');
+      toast.error(
+        result.reason === 'current_password'
+          ? 'Your current password is incorrect.'
+          : 'That new password was refused. Please choose a different one.',
+      );
     }
   };
 

@@ -16,6 +16,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { TableSkeleton } from "../ui/table-skeleton";
+import { CopyFieldButton } from "../ui/copy-field-button";
 import { useHydrating } from "../../utils/useHydrating";
 import {
   Dialog,
@@ -156,8 +157,14 @@ export default function UnclaimedRestrictions({
                             <div className="text-sm font-semibold text-gray-900">
                               {summary.name || summary.customerKey}
                             </div>
-                            <div className="text-xs text-gray-500">
-                              {summary.email || summary.customerKey}
+                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                              <span className="min-w-0">
+                                {summary.email || summary.customerKey}
+                              </span>
+                              <CopyFieldButton
+                                value={summary.email}
+                                label="customer email"
+                              />
                             </div>
                           </td>
                           <td className="px-4 py-3">
@@ -227,9 +234,15 @@ export default function UnclaimedRestrictions({
                 <DialogTitle className="text-[22px] font-bold text-[#10316B]">
                   {selectedCustomer.name || selectedCustomer.customerKey}
                 </DialogTitle>
-                <DialogDescription className="mt-1 text-sm text-gray-500">
-                  {selectedCustomer.email || selectedCustomer.customerKey}
-                </DialogDescription>
+                <div className="mt-1 flex items-center gap-1.5">
+                  <DialogDescription className="min-w-0 text-sm text-gray-500">
+                    {selectedCustomer.email || selectedCustomer.customerKey}
+                  </DialogDescription>
+                  <CopyFieldButton
+                    value={selectedCustomer.email}
+                    label="customer email"
+                  />
+                </div>
               </DialogHeader>
 
               <div className="flex flex-wrap items-center gap-2">

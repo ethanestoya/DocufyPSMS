@@ -66,6 +66,7 @@ import { ZoomSafeDropdown } from "../ui/zoom-safe-dropdown";
 import { FileAttachments } from "../ui/file-attachments";
 import { ConfirmationDialog } from "../ui/confirmation-dialog";
 import { TableSkeleton } from "../ui/table-skeleton";
+import { CopyFieldButton } from "../ui/copy-field-button";
 import { useHydrating } from "../../utils/useHydrating";
 import { generateReceiptData } from "../../utils/invoiceUtils";
 import { OrderReceiptDialog } from "./OrderReceipt";
@@ -2521,8 +2522,14 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
               </div>
 
               {selectedReleasedTransaction.customerEmail && (
-                <p className="text-sm text-slate-600">
-                  Customer email: {selectedReleasedTransaction.customerEmail}
+                <p className="flex flex-wrap items-center gap-1.5 text-sm text-slate-600">
+                  <span className="min-w-0 break-all">
+                    Customer email: {selectedReleasedTransaction.customerEmail}
+                  </span>
+                  <CopyFieldButton
+                    value={selectedReleasedTransaction.customerEmail}
+                    label="customer email"
+                  />
                 </p>
               )}
               {selectedReleasedTransaction.paymentReferenceNumber && (

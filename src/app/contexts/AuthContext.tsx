@@ -56,6 +56,13 @@ export interface PasswordResetUpdateResult {
   code?: string;
 }
 
+// Which half of a signed-in password change failed: the check of the CURRENT
+// password (a sign-in attempt) or Supabase refusing the NEW one. This system
+// keeps no history of past passwords, so no message may claim a reused one.
+export type PasswordChangeResult =
+  | { success: true }
+  | { success: false; reason: 'current_password' | 'rejected' };
+
 // A profile save is two separate writes (text details, then the picture). Each
 // reports its own outcome so a page can name the half that failed and the real
 // reason, instead of one generic sentence blaming the whole save.
@@ -81,7 +88,7 @@ export interface AuthContextType {
   updateProfileImage: (image: string | null) => Promise<ProfileSyncResult>;
   syncProfileDetails: (patch: Database['public']['Tables']['profiles']['Update']) => Promise<ProfileSyncResult>;
   logout: () => void;
-  resetPassword: (email: string, currentPassword: string, newPassword: string) => Promise<boolean>;
+  resetPassword: (email: string, currentPassword: string, newPassword: string) => Promise<PasswordChangeResult>;
   resetForgottenPassword: (email: string, newPassword: string) => Promise<PasswordResetUpdateResult>;
   requestPasswordReset: (email: string) => Promise<PasswordResetRequestResult>;
 }
@@ -94,14 +101,14 @@ export const useAuth = () => {
   return context;
 };
 
-// Test accounts for local UI testing only
+// Roster mirror for the Staff page's list, role and active state only. It is
+// NOT an authentication path — sign-in always goes to Supabase, which stores a
+// bcrypt hash — so this shape deliberately has no password field.
 type MockUser = {
   email: string;
-  password: string;
   name: string;
   role: 'customer' | 'staff' | 'admin';
   active: boolean;
-  passwordHistory: string[];
   profileImage?: string;
   isAdminRegistered?: boolean;
 };
@@ -109,38 +116,33 @@ type MockUser = {
 const mockUsers: MockUser[] = [
   {
     email: 'customer@test.com',
-    password: 'customer123',
     name: 'Customer User',
     role: 'customer' as const,
     active: true,
-    passwordHistory: [] as string[],
     profileImage: undefined,
   },
   {
     email: 'staff@test.com',
-    password: 'staff123',
     name: 'Staff User',
     role: 'staff' as const,
     active: true,
-    passwordHistory: [] as string[],
     profileImage: undefined,
   },
   {
     email: 'admin@test.com',
-    password: 'admin123',
     name: 'Admin User',
     role: 'admin' as const,
     active: true,
-    passwordHistory: [] as string[],
     profileImage: undefined,
   },
 ];
 
-// Staff/admin sign-in accounts persist to localStorage so role and status
+// The staff/admin roster mirror persists to localStorage so role and status
 // changes made in Staff Management survive a page refresh — otherwise the
 // freshly-updated MockUser list is re-seeded to the defaults on reload and the
 // changed role reverts. Only staff/admin accounts are persisted (customer
-// sign-ups stay in-memory, matching the original prototype behavior).
+// sign-ups stay in-memory, matching the original prototype behavior), and what
+// is stored is display data only: no password, ever.
 const STAFF_ACCOUNTS_KEY = 'docufy_auth_users_v1';
 
 function loadStaffAccounts(): void {
@@ -149,9 +151,24 @@ function loadStaffAccounts(): void {
     if (!raw) return;
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return;
+    const accounts: MockUser[] = [];
+    let hadCredentials = false;
     for (const acc of parsed) {
       if (!acc || typeof acc !== 'object') continue;
       if (!acc.email || !acc.name || !acc.role) continue;
+      if ('password' in acc || 'passwordHistory' in acc) hadCredentials = true;
+      // Rebuilt field by field rather than spread, so a stored `password` from
+      // an older build can never ride along into the mirror.
+      accounts.push({
+        email: acc.email,
+        name: acc.name,
+        role: acc.role,
+        active: acc.active !== false,
+        profileImage: acc.profileImage,
+        isAdminRegistered: acc.isAdminRegistered,
+      });
+    }
+    for (const acc of accounts) {
       const idx = mockUsers.findIndex(u => u.email.toLowerCase() === acc.email.toLowerCase());
       if (idx >= 0) {
         mockUsers[idx] = { ...mockUsers[idx], ...acc };
@@ -159,6 +176,9 @@ function loadStaffAccounts(): void {
         mockUsers.push(acc);
       }
     }
+    // A browser left holding the old credential-bearing blob is scrubbed on its
+    // next load by rewriting the key from the now password-free mirror.
+    if (hadCredentials) persistStaffAccounts();
   } catch {
     // storage unavailable — in-memory accounts are enough
   }
@@ -567,14 +587,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.warn('[auth:registerStaff] could not elevate the new profile role:', roleUpdate.error.message);
     }
 
-    // Keep the local mirror (roster display + demo reset codes) in sync too.
-    const newStaff: any = {
+    // Keep the local roster mirror in sync so Staff Management lists the new
+    // account immediately. The password deliberately is NOT copied here: the
+    // real credential lives only as Supabase's server-side hash.
+    const newStaff: MockUser = {
       email: data.email,
-      password: data.password,
       name: data.name,
       role: data.role || 'staff',
       active: true,
-      passwordHistory: [] as string[],
       profileImage: undefined,
       isAdminRegistered: true,
     };
@@ -757,15 +777,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void supabase.auth.signOut();
   };
 
-  const resetPassword = async (email: string, currentPassword: string, newPassword: string) => {
+  const resetPassword = async (
+    email: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<PasswordChangeResult> => {
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password: currentPassword,
     });
-    if (signInError) return false;
+    if (signInError) return { success: false, reason: 'current_password' };
 
     const { error } = await supabase.auth.updateUser({ password: newPassword });
-    return !error;
+    if (error) {
+      console.warn('[auth] password change refused:', error.code, error.message);
+      return { success: false, reason: 'rejected' };
+    }
+    return { success: true };
   };
 
   const resetForgottenPassword = async (

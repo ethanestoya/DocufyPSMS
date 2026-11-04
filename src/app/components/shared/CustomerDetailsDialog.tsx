@@ -10,6 +10,7 @@ import {
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { PersonAvatar } from "../ui/person-avatar";
+import { CopyFieldButton } from "../ui/copy-field-button";
 import { Spinner } from "../ui/spinner";
 import { dataStore, type Order } from "../../utils/dataStore";
 import { useShopClosingTime } from "../../utils/useUnclaimedOffenses";
@@ -175,9 +176,16 @@ export function CustomerDetailsDialog({
               <DialogTitle className="break-words text-[20px] font-bold leading-tight text-[#111827]">
                 {displayName}
               </DialogTitle>
-              <DialogDescription className="mt-1 break-words text-[14px] leading-relaxed text-[#4B5563]">
-                {displayEmail || "No email on this order"}
-              </DialogDescription>
+              <div className="mt-1 flex items-start gap-1.5">
+                <DialogDescription className="min-w-0 break-words text-[14px] leading-relaxed text-[#4B5563]">
+                  {displayEmail || "No email on this order"}
+                </DialogDescription>
+                <CopyFieldButton
+                  value={displayEmail}
+                  label="customer email"
+                  className="mt-0.5"
+                />
+              </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 {profile ? (
                   profile.suspended ? (
@@ -253,8 +261,13 @@ export function CustomerDetailsDialog({
                     <dt className="text-[12px] font-semibold text-[#6B7280]">
                       Email
                     </dt>
-                    <dd className="break-words text-[14px] text-[#111827]">
-                      {displayEmail || "—"}
+                    <dd className="flex items-start gap-1.5 break-words text-[14px] text-[#111827]">
+                      <span className="min-w-0">{displayEmail || "—"}</span>
+                      <CopyFieldButton
+                        value={profile.email}
+                        label="customer email"
+                        className="mt-0.5"
+                      />
                     </dd>
                     {profile.phone ? (
                       <>

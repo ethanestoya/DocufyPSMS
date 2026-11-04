@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Payment verification confirmation — density options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --brand:#1668D9; --accent:#2F6FD6; --deep:#10316B;
+    --line:#E5E7EB; --line2:#CBD5E1; --ink:#111827; --ink2:#6B7280;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#F8FAFC;font-family:'Inter',system-ui,'Segoe UI',sans-serif;
+       color:var(--ink);-webkit-font-smoothing:antialiased}
+  .page{width:1560px;padding:44px 48px 40px}
+
+  header.top h1{font-family:'Poppins','Inter',sans-serif;font-size:29px;font-weight:600;margin:0;letter-spacing:-.01em}
+  header.top p{margin:8px 0 0;font-size:14px;color:#64748B;max-width:1060px;line-height:1.55}
+  header.top p b{color:#334155;font-weight:600}
+
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:34px;margin-top:34px;align-items:start}
+
+  .col{display:flex;flex-direction:column;gap:14px}
+  .tagrow{display:flex;align-items:center;gap:10px}
+  .tag{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+       padding:5px 10px;border-radius:999px;background:#EAF2FF;color:var(--brand);white-space:nowrap}
+  .tag.rec{background:#E8F7D8;color:#3F7A15}
+  .tag.now{background:#F1F5F9;color:#64748B}
+  .col h2{font-family:'Poppins','Inter',sans-serif;font-size:18px;font-weight:600;margin:10px 0 0}
+  .col .desc{font-size:12.5px;line-height:1.55;color:#64748B;margin:6px 0 0}
+  .col .desc b{color:#334155;font-weight:600}
+
+  .phone{width:100%;height:610px;background:#EEF2F7;border:10px solid #0F172A;border-radius:40px;
+         position:relative;overflow:hidden;box-shadow:0 24px 50px rgba(15,23,42,.18)}
+  .phone::before{content:"";position:absolute;top:10px;left:50%;transform:translateX(-50%);
+                 width:110px;height:7px;border-radius:99px;background:#0F172A;z-index:5}
+  .screen{position:absolute;inset:0;background:#F5F8FC;padding-top:34px}
+
+  /* faint page behind the dialog, so it reads as a modal */
+  .bg-strip{position:absolute;left:16px;right:16px;background:#fff;border:1px solid #E8EDF4;border-radius:14px}
+  .bg-1{top:56px;height:56px}
+  .bg-2{top:124px;height:150px}
+  .bg-line{height:8px;border-radius:99px;background:#E8EDF4}
+  .backdrop{position:absolute;inset:0;background:rgba(15,23,42,.42)}
+
+  .dialog{position:absolute;left:14px;right:14px;top:74px;background:#fff;border-radius:16px;
+          padding:22px 20px 18px;box-shadow:0 22px 48px rgba(15,23,42,.28)}
+  .dhead{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+  .dicon{width:40px;height:40px;border-radius:50%;background:#F2F7FF;box-shadow:inset 0 0 0 1px rgba(22,104,217,.12);
+         display:flex;align-items:center;justify-content:center;flex:none}
+  .dicon svg{width:20px;height:20px;stroke:#1668D9;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .dtitle{font-family:'Poppins','Inter',sans-serif;font-size:19px;font-weight:600;line-height:1.25;margin:0}
+
+  /* current dialog copy */
+  .body-current{font-size:15px;line-height:1.5;color:#4B5563;display:flex;flex-direction:column;gap:11px}
+  .body-current strong{color:#111827;font-weight:600}
+  .not-placed{color:#DC2626;font-weight:600}
+  .amber{display:block;border:1px solid #FDE68A;background:#FFFBEB;border-radius:9px;
+         padding:9px 11px;font-size:13.5px;font-weight:500;color:#92400E;line-height:1.45}
+
+  /* option A */
+  .optA{display:flex;flex-direction:column;gap:11px}
+  .tiny{font-size:12.5px;color:#94A3B8;font-weight:500}
+  .amountrow{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .amount{font-family:'Poppins','Inter',sans-serif;font-size:27px;font-weight:700;color:#0F172A;letter-spacing:-.02em}
+  .chip{font-size:11.5px;font-weight:600;padding:4px 9px;border-radius:999px;white-space:nowrap}
+  .chip.method{background:#EAF2FF;color:#1668D9;border:1px solid #CFE0FA}
+  .chip.req{background:#FFF7E6;color:#A16207;border:1px solid #F3D9A4}
+  .reqline{font-size:12px;font-weight:600;color:#A16207;background:#FFF9EE;border:1px solid #F3D9A4;
+           border-radius:8px;padding:7px 10px}
+  .note{font-size:13px;line-height:1.5;color:#64748B}
+  .note b{color:#334155;font-weight:600}
+
+  /* option B */
+  .optB{display:flex;flex-direction:column;gap:11px;padding-top:2px}
+  .oneline{font-size:13.5px;line-height:1.5;color:#64748B}
+  .oneline b{color:#334155;font-weight:600}
+
+  .dfoot{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+  .btn{height:36px;padding:0 15px;border-radius:8px;font-size:13.5px;font-weight:600;
+       display:inline-flex;align-items:center;justify-content:center;white-space:nowrap}
+  .btn.outline{background:#fff;border:1.5px solid #DBEAFE;color:#334155}
+  .btn.primary{background:#1668D9;border:1.5px solid #1668D9;color:#fff;
+               box-shadow:0 6px 14px rgba(22,104,217,.25)}
+
+  .removed{display:flex;flex-wrap:wrap;gap:6px}
+  .removed code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;
+                color:#334155;background:#fff;border:1px solid #E2E8F0;border-radius:6px;padding:3px 7px}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <h1>“Go to Payment Verification?” — density options</h1>
+    <p>
+      The payment step directly above the button already shows the <b>total, payment method, and full-payment rule</b>,
+      so the confirmation dialog only needs to confirm the hand-off. Same title, same two buttons in every option.
+    </p>
+  </header>
+
+  <div class="grid">
+
+    <!-- CURRENT -->
+    <div class="col">
+      <div class="tagrow"><span class="tag now">Current</span></div>
+      <h2>Everything repeated</h2>
+      <p class="desc">Five separate messages, including a repeated amount and a second explanation of the upload step.</p>
+      <div class="phone">
+        <div class="screen">
+          <div class="bg-strip bg-1"></div>
+          <div class="bg-strip bg-2"></div>
+          <div class="backdrop"></div>
+          <div class="dialog">
+            <div class="dhead">
+              <span class="dicon"><svg viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+              <h2 class="dtitle">Go to Payment Verification?</h2>
+            </div>
+            <div class="body-current">
+              <span>Your print request for <strong>1 file(s)</strong>, <strong>274 pages</strong>, total <strong>₱822</strong> via <strong>GCash</strong>.</span>
+              <span>Continuing will take you to payment verification, where you will upload your <strong>GCash payment receipt</strong> and submit your <strong>reference number</strong>.</span>
+              <span class="amber">Full payment of <strong>₱822</strong> is required before printing (no 50% option).</span>
+              <span>Your order is <span class="not-placed">NOT placed</span> in the system until you submit your reference. Review your details before confirming.</span>
+            </div>
+            <div class="dfoot">
+              <span class="btn outline">Go Back</span>
+              <span class="btn primary">Go to Payment Verification</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="removed">
+        <code>4 paragraphs</code><code>amount ×3</code><code>amber box</code>
+      </div>
+    </div>
+
+    <!-- OPTION A -->
+    <div class="col">
+      <div class="tagrow"><span class="tag">Option A</span></div>
+      <h2>Trimmed</h2>
+      <p class="desc">Keeps the file/page context and a one-line requirement, drops the repeated upload explanation.</p>
+      <div class="phone">
+        <div class="screen">
+          <div class="bg-strip bg-1"></div>
+          <div class="bg-strip bg-2"></div>
+          <div class="backdrop"></div>
+          <div class="dialog">
+            <div class="dhead">
+              <span class="dicon"><svg viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+              <h2 class="dtitle">Go to Payment Verification?</h2>
+            </div>
+            <div class="optA">
+              <span class="tiny">1 file · 274 pages</span>
+              <div class="amountrow">
+                <span class="amount">₱822</span>
+                <span class="chip method">GCash</span>
+                <span class="chip req">Full payment</span>
+              </div>
+              <span class="reqline">Full payment required before printing.</span>
+              <span class="note">Your order is placed after you submit your <b>GCash reference</b>.</span>
+            </div>
+            <div class="dfoot">
+              <span class="btn outline">Go Back</span>
+              <span class="btn primary">Go to Payment Verification</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="removed">
+        <code>removed: upload explanation</code><code>removed: “review details”</code><code>amount ×1</code>
+      </div>
+    </div>
+
+    <!-- OPTION B -->
+    <div class="col">
+      <div class="tagrow"><span class="tag rec">Option B — recommended</span></div>
+      <h2>Minimal</h2>
+      <p class="desc">Amount, method, and the one consequence that isn't visible above: the order is placed only after the reference.</p>
+      <div class="phone">
+        <div class="screen">
+          <div class="bg-strip bg-1"></div>
+          <div class="bg-strip bg-2"></div>
+          <div class="backdrop"></div>
+          <div class="dialog">
+            <div class="dhead">
+              <span class="dicon"><svg viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+              <h2 class="dtitle">Go to Payment Verification?</h2>
+            </div>
+            <div class="optB">
+              <div class="amountrow">
+                <span class="amount">₱822</span>
+                <span class="chip method">GCash</span>
+                <span class="chip req">Full payment</span>
+              </div>
+              <span class="oneline">Your order is placed after you submit your <b>reference number</b>.</span>
+            </div>
+            <div class="dfoot">
+              <span class="btn outline">Go Back</span>
+              <span class="btn primary">Go to Payment Verification</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="removed">
+        <code>2 lines total</code><code>keeps: amount, method, requirement, consequence</code>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   Search,
   AlertTriangle,
+  Wallet,
 } from "lucide-react";
 import Layout from "../Layout";
 import { Card } from "../ui/card";
@@ -27,6 +28,7 @@ import ShopStatusBanner from "../shared/ShopStatusBanner";
 import { UnclaimedOrderWarning } from "../shared/UnclaimedOrderWarning";
 import { useUnclaimedOffenses } from "../../utils/useUnclaimedOffenses";
 import { getStatusBadgeClasses, getCustomerStatusLabel } from "../../utils/orderStatusPalette";
+import { paymentContinuationPath } from "../../utils/paymentContinuation";
 import { formatPHDate, formatPHTime } from "../../utils/pht";
 import { TableSkeleton } from "../ui/table-skeleton";
 import { useHydrating } from "../../utils/useHydrating";
@@ -328,7 +330,9 @@ export default function CustomerOrders() {
                     </td>
                   </tr>
                 ) : (
-                  paginatedOrders.map((order) => (
+                  paginatedOrders.map((order) => {
+                    const continuePath = paymentContinuationPath(order);
+                    return (
                     <tr
                       key={order.id}
                       className={`cursor-pointer border-b transition-colors ${
@@ -373,6 +377,23 @@ export default function CustomerOrders() {
                         >
                           {getCustomerStatusLabel(order)}
                         </Badge>
+                        {continuePath && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="primary"
+                            title="Continue with payment verification"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              navigate(continuePath);
+                            }}
+                            onKeyDown={(event) => event.stopPropagation()}
+                            className="mt-2 rounded-lg px-2.5 text-xs"
+                          >
+                            <Wallet />
+                            Continue with Payment Verification
+                          </Button>
+                        )}
                       </td>
                       <td className="hidden sm:table-cell py-4 px-4 text-sm text-gray-600">
                         {order.pages || 0}
@@ -387,7 +408,8 @@ export default function CustomerOrders() {
                         {formatPHTime(order.createdAt || order.date)}
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>

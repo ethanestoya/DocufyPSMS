@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate, useLocation } from "react-router";
+import { useParams, useNavigate } from "react-router";
 import {
   LayoutDashboard,
   FileText,
@@ -23,6 +23,7 @@ import {
   Copy,
   Wallet,
   ReceiptText,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import Layout from "../Layout";
@@ -54,9 +55,16 @@ import { generateReceiptData } from "../../utils/invoiceUtils";
 import { pricingStore, formatPrice, type PricingValues } from "../../utils/pricingStore";
 import { landingContentStore, DEFAULT_MAP_EMBED } from "../../utils/landingContentStore";
 import { computeOrderPayment, type OrderPaymentSummary } from "../shared/OrderPaymentSummary";
+import { paymentContinuationPath } from "../../utils/paymentContinuation";
 import { shopPhotosStore, type ShopPhoto } from "../../utils/shopPhotosStore";
 import { useUnclaimedOffenses } from "../../utils/useUnclaimedOffenses";
-import { UatSurveyDialog, hasSeenUatSurvey } from "../shared/UatSurveyDialog";
+import { DocumentAnalysisPanel } from "../shared/DocumentAnalysisPanel";
+import {
+  analyzeDocument,
+  isSupportedImageName,
+  type ColorAnalysis,
+} from "../../utils/colorAnalysis";
+import { BUCKETS, downloadObjectToBlob } from "../../../lib/db/storage";
 
 const OFFENSE_WORDS: Record<number, string> = {
   1: "First",
@@ -225,24 +233,26 @@ const menuItems = [
   },
 ];
 
+/**
+ * A placed order stores the money it was billed at, not the colour of each
+ * page, so the customer view re-reads the stored file and re-runs the analyzer
+ * — the same recovery the staff pricing review does.
+ */
+type PageAnalysis =
+  | { status: "loading" }
+  | { status: "unavailable"; message: string }
+  | { status: "ready"; results: { name: string; analysis: ColorAnalysis }[] };
+
 export default function OrderTracking() {
   const hydrating = useHydrating();
   const { orderId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  // Set when the cash down-payment page hands the customer here as the last
-  // step they take for that order; the UAT survey is asked once for it.
-  const [uatSurveyOrderId, setUatSurveyOrderId] = useState<string | null>(null);
-  React.useEffect(() => {
-    const wasSentHere = (location.state as { uatSurvey?: boolean } | null)
-      ?.uatSurvey;
-    if (!wasSentHere || !orderId || hasSeenUatSurvey(orderId)) return;
-    setUatSurveyOrderId(orderId);
-  }, [location.state, orderId]);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [showPaymentDetails, setShowPaymentDetails] = useState(false);
-  const [showColorBreakdown, setShowColorBreakdown] = useState(false);
+  // Page-by-page colour read for this order, produced by re-analysing the
+  // stored file (see the effect below); null until the Cost Breakdown opens.
+  const [pageAnalysis, setPageAnalysis] = useState<PageAnalysis | null>(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
   const [orderData, setOrderData] = useState(
@@ -353,6 +363,8 @@ export default function OrderTracking() {
     currentOrderStatus === "Completed" ||
     currentOrderStatus === "Released";
   const isAwaitingPayment = currentOrderStatus === "Awaiting Payment";
+  // Resume point for an unpaid order — null for every other status.
+  const paymentContinuationHref = paymentContinuationPath(orderData);
 
   // Derived unclaimed-offense state for this order's customer (shared source of
   // truth — recomputed from the authoritative order data + status timeline,
@@ -478,6 +490,62 @@ export default function OrderTracking() {
   };
 
   const attachedFiles = orderData?.attachedFiles || [];
+
+  // Photo prints are single images, so page-by-page analysis only covers the
+  // document files of the order.
+  const analysisFiles = useMemo(
+    () =>
+      attachedFiles.filter(
+        (file: any) => file.storagePath && !isSupportedImageName(file.name || ""),
+      ),
+    [attachedFiles],
+  );
+  const analysisKey = analysisFiles
+    .map((file: any) => `${file.storagePath}:${file.pageCount || 0}`)
+    .join("|");
+
+  // The per-page colour read is not persisted on the order, so the first time
+  // the Cost Breakdown sheet opens the stored file is downloaded and re-run
+  // through the analyzer. The result is kept for the rest of the visit.
+  useEffect(() => {
+    if (activeSheet !== "cost" || pageAnalysis || !analysisKey) return;
+    let cancelled = false;
+    setPageAnalysis({ status: "loading" });
+    (async () => {
+      const results: { name: string; analysis: ColorAnalysis }[] = [];
+      for (const file of analysisFiles) {
+        const downloaded = await downloadObjectToBlob(
+          BUCKETS.orderFiles,
+          file.storagePath,
+        );
+        if (!downloaded) continue;
+        try {
+          const doc = await analyzeDocument(
+            // `File` is shadowed by the lucide icon imported above.
+            new globalThis.File([downloaded.blob], file.name, {
+              type: file.mimeType || downloaded.blob.type || "application/pdf",
+            }),
+          );
+          results.push({ name: file.name, analysis: doc.analysis });
+        } catch (error) {
+          console.warn("[order-tracking] colour analysis failed:", error);
+        }
+      }
+      if (cancelled) return;
+      setPageAnalysis(
+        results.length > 0
+          ? { status: "ready", results }
+          : {
+              status: "unavailable",
+              message:
+                "The uploaded file could not be read, so page color detection is unavailable for this order.",
+            },
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSheet, analysisKey]);
 
   const getFileOption = (file: any, key: string, fallback: any) =>
     file?.[key] ?? orderData?.[key as keyof typeof orderData] ?? fallback;
@@ -799,6 +867,17 @@ export default function OrderTracking() {
                     )}
                 </div>
               </div>
+              {paymentContinuationHref && (
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={() => navigate(paymentContinuationHref)}
+                  className="mt-3 h-11 w-full rounded-xl"
+                >
+                  <Wallet />
+                  Continue with Payment Verification
+                </Button>
+              )}
             </section>
           )}
 
@@ -948,6 +1027,20 @@ export default function OrderTracking() {
                 </span>
               </button>
             )}
+
+            {canCancelOrder && (
+              <Button
+                type="button"
+                variant="destructive-outline"
+                onClick={() => {
+                  setCancellationReason("");
+                  setShowCancelDialog(true);
+                }}
+                className="h-11 w-full rounded-xl"
+              >
+                Cancel Order
+              </Button>
+            )}
           </section>
 
           <p className="px-1 pb-1 text-center text-[11px] leading-relaxed text-slate-400">
@@ -1095,10 +1188,7 @@ export default function OrderTracking() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    setActiveSheet(null);
-                    setShowColorBreakdown(true);
-                  }}
+                  onClick={() => setActiveSheet("cost")}
                   className="flex-shrink-0 text-[11px] font-semibold text-[#1668D9] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1668D9]"
                 >
                   View Page Color Breakdown
@@ -1258,19 +1348,49 @@ export default function OrderTracking() {
               </div>
             </div>
 
-            {canCancelOrder && (
-              <Button
-                type="button"
-                variant="destructive-outline"
-                onClick={() => {
-                  setActiveSheet(null);
-                  setCancellationReason("");
-                  setShowCancelDialog(true);
-                }}
-                className="mt-3 h-11 w-full rounded-xl"
-              >
-                Cancel Order
-              </Button>
+            {orderData?.colorMode === "colored" && analysisFiles.length > 0 && (
+              <div className="mt-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.07em] text-slate-400">
+                  Document Analysis
+                </p>
+                <div className="mt-2 rounded-xl border border-slate-200 p-3.5">
+                  {!pageAnalysis || pageAnalysis.status === "loading" ? (
+                    <p
+                      role="status"
+                      className="flex items-center gap-2 text-sm text-slate-500"
+                    >
+                      <Loader2
+                        className="h-4 w-4 animate-spin text-[#1668D9]"
+                        aria-hidden="true"
+                      />
+                      Checking the color on each page…
+                    </p>
+                  ) : pageAnalysis.status === "unavailable" ? (
+                    <p className="text-sm text-slate-500">
+                      {pageAnalysis.message}
+                    </p>
+                  ) : (
+                    <div className="space-y-5">
+                      {pageAnalysis.results.map((result) => (
+                        <div key={result.name}>
+                          {pageAnalysis.results.length > 1 && (
+                            <p className="mb-2 truncate text-xs font-semibold text-slate-700">
+                              {result.name}
+                            </p>
+                          )}
+                          {/* The sheet body is this surface's scrollbar, so the
+                              list grows inline instead of nesting a second one. */}
+                          <DocumentAnalysisPanel
+                            analysis={result.analysis}
+                            listClassName="space-y-2"
+                            fadeList={false}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </MobileSheet>
         </div>
@@ -1624,7 +1744,7 @@ export default function OrderTracking() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowColorBreakdown(true)}
+                onClick={() => setActiveSheet("cost")}
                 className="w-full"
               >
                 <Eye className="w-4 h-4 mr-2" />
@@ -1712,22 +1832,6 @@ export default function OrderTracking() {
                 <span className="text-2xl font-bold text-[#2F6FD6]">{orderData?.total || "₱0.00"}</span>
               </div>
             </div>
-
-            {canCancelOrder && (
-              <div className="mt-5 pt-4 border-t border-gray-200">
-                <Button
-                  type="button"
-                  variant="destructive-outline"
-                  onClick={() => {
-                    setCancellationReason("");
-                    setShowCancelDialog(true);
-                  }}
-                  className="w-full h-11 rounded-xl active:scale-[0.99]"
-                >
-                  Cancel Order
-                </Button>
-              </div>
-            )}
           </div>
           </div>
         </Card>
@@ -1918,6 +2022,22 @@ export default function OrderTracking() {
           </Card>
         )}
 
+        {canCancelOrder && (
+          <Card className="p-4 bg-white shadow-sm">
+            <Button
+              type="button"
+              variant="destructive-outline"
+              onClick={() => {
+                setCancellationReason("");
+                setShowCancelDialog(true);
+              }}
+              className="w-full h-11 rounded-xl active:scale-[0.99]"
+            >
+              Cancel Order
+            </Button>
+          </Card>
+        )}
+
         </div>
       </div>
       )}
@@ -1928,40 +2048,6 @@ export default function OrderTracking() {
         onOpenChange={setShowReceipt}
         data={receiptData}
       />
-
-      {/* Color Page Breakdown Dialog */}
-      <Dialog open={showColorBreakdown} onOpenChange={setShowColorBreakdown}>
-        <DialogContent className="max-w-3xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-[#2F6FD6]" />
-              Page Color Breakdown - Order {displayOrderId}
-            </DialogTitle>
-            <DialogDescription>
-              Detailed color analysis for each page in your document
-            </DialogDescription>
-          </DialogHeader>
-          <div className="overflow-auto max-h-[60vh] p-4">
-            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">
-                This analysis shows the color intensity detected on each page of your document.
-                Pages with more than 50% color are charged at a higher rate.
-              </p>
-            </div>
-            <p className="text-sm text-gray-500 text-center py-8">
-              Detailed color breakdown is no longer available.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowColorBreakdown(false)}
-            >
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
         <DialogContent className="sm:max-w-md">
@@ -2121,13 +2207,6 @@ export default function OrderTracking() {
           </DialogContent>
         </Dialog>
       )}
-      {/* UAT feedback survey — asked once, only when the cash down-payment
-          choice sent the customer here as their final step for this order. */}
-      <UatSurveyDialog
-        orderId={uatSurveyOrderId}
-        open={uatSurveyOrderId !== null}
-        onDismiss={() => setUatSurveyOrderId(null)}
-      />
     </Layout>
   );
 }

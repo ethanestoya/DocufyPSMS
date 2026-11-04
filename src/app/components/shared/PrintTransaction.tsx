@@ -37,6 +37,7 @@ import {
 import { toast } from "sonner";
 import Layout from "../Layout";
 import StaffTimeInGate from "./StaffTimeInGate";
+import { DocumentAnalysisPanel } from "./DocumentAnalysisPanel";
 import { UnclaimedOrderWarning } from "./UnclaimedOrderWarning";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
@@ -100,7 +101,6 @@ import {
 } from "../../utils/unclaimedPolicy";
 import { useUnclaimedOffenses } from "../../utils/useUnclaimedOffenses";
 import LegalPolicyDialog from "./LegalPolicyDialog";
-import { UatSurveyDialog, hasSeenUatSurvey } from "./UatSurveyDialog";
 import {
   shopStatusStore,
   type ShopStatusState,
@@ -406,7 +406,6 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
   const [showColorPricing, setShowColorPricing] = useState(false);
   const [breakdownFileId, setBreakdownFileId] = useState<string | null>(null);
   const [analysisFileId, setAnalysisFileId] = useState<string | null>(null);
-  const [analysisShowAll, setAnalysisShowAll] = useState(false);
   const [pricing, setPricing] = useState<PricingValues>(pricingStore.getPricing());
   const downPaymentThreshold = pricing.downPaymentThreshold;
   const fullPaymentThreshold = pricing.fullPaymentThreshold;
@@ -468,9 +467,6 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
     [key: string]: number;
   }>({});
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  // The UAT survey is asked once for a placed order, stacked over the success
-  // modal — Cash on Pickup included, since this is where those orders finish.
-  const [uatSurveyOrderId, setUatSurveyOrderId] = useState<string | null>(null);
   const [showPlaceOrderConfirm, setShowPlaceOrderConfirm] = useState(false);
   const [showLegalPolicy, setShowLegalPolicy] = useState(false);
   const [legalPolicyTab, setLegalPolicyTab] = useState<"terms" | "privacy">("terms");
@@ -1510,9 +1506,6 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
     lastUploadPercentRef.current = -1;
     lastUploadFileIndexRef.current = 0;
     setShowSuccessModal(true);
-    if (!hasSeenUatSurvey(orderId)) {
-      setUatSurveyOrderId(orderId);
-    }
   };
 
   const handleCancelOrder = () => {
@@ -2044,10 +2037,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                           {fileData.colorAnalysis && (
                             <button
                               type="button"
-                              onClick={() => {
-                                setAnalysisFileId(fileData.id);
-                                setAnalysisShowAll(false);
-                              }}
+                              onClick={() => setAnalysisFileId(fileData.id)}
                               className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-50"
                             >
                               <AlertCircle className="h-4 w-4 shrink-0 text-[#2F6FD6]" />
@@ -3663,14 +3653,15 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
           if (!open) setAnalysisFileId(null);
         }}
       >
-        <DialogContent className="sm:max-w-lg max-h-[82dvh] sm:max-h-[80vh] flex flex-col overflow-hidden p-0">
-          <DialogHeader className="shrink-0 border-b border-gray-100 px-6 pt-6 pb-5">
+        <DialogContent className="sm:max-w-lg max-h-[86dvh] sm:max-h-[86vh] flex flex-col overflow-hidden p-0">
+          <DialogHeader className="shrink-0 border-b border-gray-100 px-6 pt-5 pb-4">
             <DialogTitle>Document Analysis</DialogTitle>
-            <DialogDescription>
-              Page-by-page color breakdown for your uploaded file.
+            <DialogDescription className="break-words">
+              Page-by-page color breakdown for{" "}
+              {files.find((f) => f.id === analysisFileId)?.fileName ?? "your uploaded file"}.
             </DialogDescription>
           </DialogHeader>
-          <div className="min-h-0 grow overflow-y-auto px-6 pb-6">
+          <div className="min-h-0 grow overflow-y-auto px-6 pb-5">
             {(() => {
               const aFile = files.find((f) => f.id === analysisFileId) || null;
               if (!aFile || !aFile.colorAnalysis) {
@@ -3680,112 +3671,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
                   </p>
                 );
               }
-              const ca = aFile.colorAnalysis;
-              return (
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
-                  <p className="font-semibold text-gray-900 break-words">
-                    Document Analysis — {aFile.fileName}
-                  </p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    {ca.totalPages} page{ca.totalPages !== 1 ? "s" : ""} detected ·{" "}
-                    {ca.colorPages.length} color page{ca.colorPages.length !== 1 ? "s" : ""} ·{" "}
-                    {ca.bwPages.length} black &amp; white page{ca.bwPages.length !== 1 ? "s" : ""}
-                  </p>
-                  <div className="mt-2 space-y-2">
-                    {ca.bwPages.length > 0 && (
-                      <div className="rounded-lg border border-gray-200 bg-white p-2.5">
-                        <p className="text-xs font-semibold text-gray-700">
-                          Black and White Pages
-                        </p>
-                        <p className="text-xs text-gray-600 mt-1 leading-relaxed">
-                          Page {ca.bwPages.join(", ")}
-                        </p>
-                      </div>
-                    )}
-                    {(() => {
-                      const colorPages = ca.colorPages;
-                      const hasMore = colorPages.length > 3;
-                      const renderRow = (page: number) => (
-                        <div
-                          key={page}
-                          className="flex items-center justify-between gap-2 rounded border border-blue-100 bg-[#F2F7FF] px-2.5 py-1.5"
-                        >
-                          <span className="min-w-0 truncate text-gray-700">
-                            Page {page}
-                          </span>
-                          <span className="whitespace-nowrap font-medium text-gray-900">
-                            {ca.colorPercentages[page] ?? 0}% color
-                          </span>
-                        </div>
-                      );
-                      return (
-                        <div
-                          onClick={() => {
-                            if (analysisShowAll) setAnalysisShowAll(false);
-                          }}
-                          title={analysisShowAll ? "Click to collapse" : undefined}
-                          className={`rounded-lg border p-2.5 transition-colors ${
-                            analysisShowAll
-                              ? "cursor-pointer select-none border-blue-200 bg-blue-50/70"
-                              : "border-gray-200 bg-white"
-                          }`}
-                        >
-                          <p className="text-xs font-semibold text-gray-700">Colored Pages</p>
-                          {colorPages.length > 0 ? (
-                            hasMore ? (
-                              <>
-                                {!analysisShowAll && (
-                                  <div className="mt-1.5 space-y-1">
-                                    {colorPages.slice(0, 3).map(renderRow)}
-                                  </div>
-                                )}
-                                {/* The rows expand into the dialog's own scroll
-                                    area. A second scrollbar inside a fixed 9rem
-                                    box showed barely two pages and made the
-                                    list scroll inside a scrolling window. */}
-                                <div
-                                  className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
-                                    analysisShowAll ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-                                  }`}
-                                >
-                                  <div className="min-h-0 overflow-hidden">
-                                    <div className="mt-1.5 space-y-1">
-                                      {colorPages.map(renderRow)}
-                                    </div>
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  aria-expanded={analysisShowAll}
-                                  onClick={() => setAnalysisShowAll(!analysisShowAll)}
-                                  className="mt-2 flex w-full items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-[#2F6FD6] hover:bg-[#F2F7FF]"
-                                >
-                                  {analysisShowAll
-                                    ? "Collapse"
-                                    : `Show All (${colorPages.length} pages)`}
-                                  <ChevronDown
-                                    className={`h-3.5 w-3.5 transition-transform duration-300 ${
-                                      analysisShowAll ? "rotate-180" : ""
-                                    }`}
-                                  />
-                                </button>
-                              </>
-                            ) : (
-                              <div className="mt-1.5 space-y-1">
-                                {colorPages.map(renderRow)}
-                              </div>
-                            )
-                          ) : (
-                            <p className="text-xs text-gray-500 mt-1">
-                              No color detected on any page.
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-              );
+              return <DocumentAnalysisPanel analysis={aFile.colorAnalysis} />;
             })()}
           </div>
         </DialogContent>
@@ -4011,17 +3897,6 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
         </Dialog>
       )}
 
-      {/* UAT feedback survey — asked once per placed order (Cash on Pickup
-          included), stacked over the success modal. Dismissing it returns to
-          that modal so the customer still picks their own next step. */}
-      {!isWalkin && (
-        <UatSurveyDialog
-          orderId={uatSurveyOrderId}
-          open={uatSurveyOrderId !== null}
-          onDismiss={() => setUatSurveyOrderId(null)}
-        />
-      )}
-
       {/* Place Order / Go to Payment Verification Confirmation (customer only) */}
       {!isWalkin && showPlaceOrderConfirm && (
         <ConfirmationDialog
@@ -4035,76 +3910,52 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
           }
           description={(() => {
             const total = calculateTotal();
-            const pages = files.reduce(
-              (s, f) => s + f.pageCount * f.copies,
-              0,
-            );
-            const payVia =
-              paymentMethod === "" ? "your selected method" : paymentMethod;
-            const strong = (text: React.ReactNode) => (
-              <strong className="font-semibold text-gray-900">{text}</strong>
-            );
-            // Inside the amber requirement box the emphasis stays amber and only
-            // gets heavier, so the figure never turns grey against the tint.
-            const inBox = (text: React.ReactNode) => (
-              <strong className="font-bold">{text}</strong>
-            );
-            const requirement = requiresFullPayment ? (
-              <>
-                Full payment of {inBox(formatCurrency(total))} is required before
-                printing (no 50% option).
-              </>
-            ) : requiresDownPayment ? (
-              <>
-                A 50% down payment of {inBox(formatCurrency(total * 0.5))} is
-                required before printing.
-              </>
-            ) : isOnline ? (
-              <>
-                Full payment of {inBox(formatCurrency(total))} is required before
-                printing.
-              </>
-            ) : (
-              <>
-                You selected {inBox("Cash on Pickup")} — you must pay{" "}
-                {inBox(formatCurrency(total))} in cash at the shop before your
-                order can be printed.
-              </>
-            );
-
+            const methodLabel =
+              paymentMethod === "cash"
+                ? "Cash on Pickup"
+                : paymentMethod || "your selected method";
+            // The payment step above already states the amount, method, and
+            // requirement, so the dialog only restates them compactly and adds
+            // the one consequence that isn't visible there: when the order is
+            // actually placed.
             return (
               <span className="block space-y-3 text-left">
-                <span className="block">
-                  {isOnline ? "Your" : "Submit your"} print request for{" "}
-                  {strong(`${files.length} file(s)`)}, {strong(`${pages} pages`)},{" "}
-                  total {strong(formatCurrency(total))} via {strong(payVia)}.
-                </span>
-
-                {isOnline && (
-                  <span className="block">
-                    Continuing will take you to payment verification, where you
-                    will upload your {strong(`${paymentMethod} payment receipt`)}{" "}
-                    and submit your {strong("reference number")}.
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="text-2xl font-bold text-gray-900">
+                    {formatCurrency(total)}
                   </span>
-                )}
-
-                <span className="block rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
-                  {requirement}
+                  <span className="rounded-full border border-[#CFE0FA] bg-[#EAF2FF] px-2.5 py-1 text-xs font-semibold text-[#1668D9]">
+                    {methodLabel}
+                  </span>
+                  {isOnline && requiresFullPayment && (
+                    <span className="rounded-full border border-[#F3D9A4] bg-[#FFF7E6] px-2.5 py-1 text-xs font-semibold text-[#A16207]">
+                      Full payment
+                    </span>
+                  )}
+                  {isOnline && requiresDownPayment && (
+                    <span className="rounded-full border border-[#F3D9A4] bg-[#FFF7E6] px-2.5 py-1 text-xs font-semibold text-[#A16207]">
+                      50% down
+                    </span>
+                  )}
+                  {!isOnline && (
+                    <span className="rounded-full border border-[#F3D9A4] bg-[#FFF7E6] px-2.5 py-1 text-xs font-semibold text-[#A16207]">
+                      Pay at shop
+                    </span>
+                  )}
                 </span>
 
-                <span className="block">
+                <span className="block text-sm leading-relaxed text-gray-600">
                   {isOnline ? (
                     <>
-                      Your order is{" "}
-                      <strong className="font-semibold text-red-600">
-                        NOT placed
-                      </strong>{" "}
-                      in the system until you submit your reference.{" "}
+                      Your order is placed after you submit your{" "}
+                      <strong className="font-semibold text-gray-900">
+                        reference number
+                      </strong>
+                      .
                     </>
                   ) : (
-                    "This will create your order, reserve paper stock, and notify staff. "
+                    "Your order is created now — pay in cash at the shop before printing."
                   )}
-                  Review your details before confirming.
                 </span>
               </span>
             );

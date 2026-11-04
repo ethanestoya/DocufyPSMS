@@ -150,9 +150,7 @@ export default function DownPaymentMethod() {
          decision.isFull ? "Full payment selected" : "Down payment selected",
        );
        clearPrintDraft();
-       // This is the end of the customer's part for a cash down payment, so the
-       // UAT survey is asked once when the tracking page opens.
-       navigate(`/customer/track/${orderId}`, { state: { uatSurvey: true } });
+       navigate(`/customer/track/${orderId}`);
     }
   };
 

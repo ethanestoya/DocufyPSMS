@@ -82,28 +82,62 @@ function getOcrWorker() {
 // Upscales, converts to grayscale, and boosts contrast / darkens so faint text
 // (e.g. GCash "Ref No." labels in light gray) becomes clearly readable black.
 async function preprocessImage(file: File): Promise<HTMLCanvasElement> {
-  const bitmap = await createImageBitmap(file);
+  let source: CanvasImageSource;
+  let width: number;
+  let height: number;
+  let cleanup = () => {};
+
+  if (typeof createImageBitmap === "function") {
+    const bitmap = await createImageBitmap(file);
+    source = bitmap;
+    width = bitmap.width;
+    height = bitmap.height;
+    cleanup = () => bitmap.close();
+  } else {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new window.Image();
+    try {
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error("The selected image could not be decoded."));
+        image.src = objectUrl;
+      });
+    } catch (error) {
+      URL.revokeObjectURL(objectUrl);
+      throw error;
+    }
+    source = image;
+    width = image.naturalWidth;
+    height = image.naturalHeight;
+    cleanup = () => URL.revokeObjectURL(objectUrl);
+  }
+
   const scale = 2;
   const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width * scale;
-  canvas.height = bitmap.height * scale;
-  const ctx = canvas.getContext("2d")!;
-  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  try {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Image processing is unavailable in this browser.");
+    ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
 
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const d = imageData.data;
-  const contrast = 1.7;
-  const brightness = -35;
-  for (let i = 0; i < d.length; i += 4) {
-    const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-    const adjusted = (gray - 128) * contrast + 128 + brightness;
-    const v = Math.max(0, Math.min(255, adjusted));
-    d[i] = v;
-    d[i + 1] = v;
-    d[i + 2] = v;
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const d = imageData.data;
+    const contrast = 1.7;
+    const brightness = -35;
+    for (let i = 0; i < d.length; i += 4) {
+      const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      const adjusted = (gray - 128) * contrast + 128 + brightness;
+      const v = Math.max(0, Math.min(255, adjusted));
+      d[i] = v;
+      d[i + 1] = v;
+      d[i + 2] = v;
+    }
+    ctx.putImageData(imageData, 0, 0);
+    return canvas;
+  } finally {
+    cleanup();
   }
-  ctx.putImageData(imageData, 0, 0);
-  return canvas;
 }
 
 // Extract a GCash-style reference number from the OCR text. Prefers the digits

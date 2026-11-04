@@ -5,6 +5,7 @@
   import { syncInternetTime } from "./app/utils/pht.ts";
   import { supabaseEnvError } from "./lib/supabaseClient.ts";
   import SupabaseSetupNotice from "./app/components/SupabaseSetupNotice.tsx";
+  import AppCrashBoundary from "./app/components/ui/AppCrashBoundary.tsx";
   import { purgeLocalAvatarKeys } from "./app/utils/supabaseAvatar";
 
   // Avatars are Supabase-only (see supabaseAvatar.ts); clear any leftover
@@ -27,6 +28,10 @@
       />,
     );
   } else {
-    root.render(<App />);
+    root.render(
+      <AppCrashBoundary>
+        <App />
+      </AppCrashBoundary>,
+    );
   }
   

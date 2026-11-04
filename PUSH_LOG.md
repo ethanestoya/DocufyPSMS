@@ -1533,3 +1533,14 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Left `package-lock.json` out of this commit; its only change is npm's own "peer" bookkeeping, unrelated to this work.
 - This push also carries the two `deployment` fixes merged into the work branch beforehand, `Fix: Auto Delete Policy` and `Fix: Log-in Access`. The immediate order cleanup is still NOT live: the retention migration and the purge Edge Function have to be deployed on Supabase, and a Vercel build alone does not apply them.
 - Typecheck and production build pass. The local-storage repair was verified live - a legacy blob holding two staff accounts with their passwords came back after a reload containing no password text at all, with both accounts, their roles and their active states intact. The copy buttons and the new-account write are verified structurally only; this session has no signed-in staff or admin account.
+
+
+## 2026-11-04 - Prans (7:46 PM PHT)
+
+- Promoted the merged work branch to `deployment`: Ethan's cross-browser fixes were merged into `frontend-dev` first, then both branches were pushed from the same commit so production and the work branch are identical - no work was dropped and none of today's earlier fixes were overwritten.
+- Made every page load on demand: the app previously pulled all screens into one large bundle before showing the first one, so a slow connection waited on admin, inventory and reporting code just to open the login page. Each route now loads only when it is opened, with a visible loading state and a route set proven unchanged.
+- Added a crash screen for a blank-page failure: if a screen throws while rendering, the user now sees an explanation and a reload button instead of an empty white page.
+- Fixed photo upload on older Safari and Firefox: the receipt-image step relied on a browser feature those versions lack, so it now falls back to a standard image read and no longer fails silently.
+- Checked the merge before shipping: the incoming commit sat directly on top of the previous work, deleted nothing, and kept every route, the copy-email buttons and the password fixes intact.
+- Typecheck and production build pass. Verified structurally only - this session has no signed-in staff, admin or customer session, so the lazy-loaded pages and the upload fallback were not exercised end to end.
+- The immediate order cleanup is still NOT live: the retention migration, the purge Edge Function and the schedule have to be applied on Supabase, and a Vercel build alone does not apply them.

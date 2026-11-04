@@ -1,51 +1,8 @@
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider } from './contexts/AuthContext';
-import LandingPage from './components/LandingPage';
-import LoginPage from './components/LoginPage';
-import SignUpPage from './components/SignUpPage';
-import AuthCallbackPage from './components/AuthCallbackPage';
-import ForgotPassword from './components/ForgotPassword';
-import ResetPasswordPage from './components/ResetPasswordPage';
-import CustomerDashboard from './components/customer/CustomerDashboard';
-import CustomerProfile from './components/customer/CustomerProfile';
-import NewPrintRequest from './components/customer/NewPrintRequest';
-import CustomerOrders from './components/customer/CustomerOrders';
-import CustomerPaymentVerification from './components/customer/PaymentVerification';
-import DownPaymentMethod from './components/customer/DownPaymentMethod';
-import StaffOrdersUnified from './components/staff/StaffOrdersUnified';
-import StaffPickupMonitoring from './components/staff/StaffPickupMonitoring';
-import StaffUnclaimedOrders from './components/staff/StaffUnclaimedOrders';
-import StaffUnclaimedOrderHistory from './components/staff/StaffUnclaimedOrderHistory';
-import StaffUnclaimedRestrictions from './components/staff/StaffUnclaimedRestrictions';
-import WalkInTransactions from './components/staff/WalkInTransactions';
-import StaffDashboard from './components/staff/StaffDashboard';
-import StaffProfile from './components/staff/StaffProfile';
-import StaffTimesheet from './components/staff/StaffTimesheet';
-import StaffPaymentVerificationUnified from './components/staff/StaffPaymentVerificationUnified';
-import AdminDashboard from './components/admin/AdminDashboard';
-import AdminProfile from './components/admin/AdminProfile';
-import AdminPaymentVerificationUnified from './components/admin/AdminPaymentVerificationUnified';
-import AdminOrdersUnified from './components/admin/AdminOrdersUnified';
-import AdminPickupMonitoring from './components/admin/AdminPickupMonitoring';
-import AdminUnclaimedOrders from './components/admin/AdminUnclaimedOrders';
-import AdminUnclaimedOrderHistory from './components/admin/AdminUnclaimedOrderHistory';
-import AdminUnclaimedRestrictions from './components/admin/AdminUnclaimedRestrictions';
-import Staff from './components/admin/Staff';
-import InventoryManagement from './components/admin/InventoryManagement';
-import PaymentMethodsManagement from './components/admin/PaymentMethodsManagement';
-import PricingManagement from './components/admin/PricingManagement';
-import LandingPageEditor from './components/admin/LandingPageEditor';
-import LegalManagement from './components/admin/LegalManagement';
-import AuditLogManagement from './components/admin/AuditLogManagement';
-import JobBoardManagement from './components/admin/JobBoardManagement';
-import AdminWalkInTransactions from './components/admin/WalkInTransactions';
-import OrderTracking from './components/customer/OrderTracking';
-import JobBoard from './components/customer/JobBoard';
-import JobApplyForm from './components/customer/JobApplyForm';
-import NotificationsPage from './components/shared/NotificationsPage';
 import ProtectedRoute from './components/ProtectedRoute';
-import StaffInventory from './components/staff/StaffInventory';
 import { MobileNavProvider } from './contexts/MobileNavContext';
 import { PopupProvider } from './contexts/PopupContext';
 import MobileNavSheet from './components/shared/MobileNavSheet';
@@ -58,6 +15,51 @@ import './utils/paymentExpiry';
 // Seeds the single-row settings tables + pricing matrix cells (best-effort).
 import '../lib/db/bootstrap';
 
+const LandingPage = lazy(() => import('./components/LandingPage'));
+const LoginPage = lazy(() => import('./components/LoginPage'));
+const SignUpPage = lazy(() => import('./components/SignUpPage'));
+const AuthCallbackPage = lazy(() => import('./components/AuthCallbackPage'));
+const ForgotPassword = lazy(() => import('./components/ForgotPassword'));
+const ResetPasswordPage = lazy(() => import('./components/ResetPasswordPage'));
+const CustomerDashboard = lazy(() => import('./components/customer/CustomerDashboard'));
+const CustomerProfile = lazy(() => import('./components/customer/CustomerProfile'));
+const NewPrintRequest = lazy(() => import('./components/customer/NewPrintRequest'));
+const CustomerOrders = lazy(() => import('./components/customer/CustomerOrders'));
+const CustomerPaymentVerification = lazy(() => import('./components/customer/PaymentVerification'));
+const DownPaymentMethod = lazy(() => import('./components/customer/DownPaymentMethod'));
+const StaffOrdersUnified = lazy(() => import('./components/staff/StaffOrdersUnified'));
+const StaffPickupMonitoring = lazy(() => import('./components/staff/StaffPickupMonitoring'));
+const StaffUnclaimedOrders = lazy(() => import('./components/staff/StaffUnclaimedOrders'));
+const StaffUnclaimedOrderHistory = lazy(() => import('./components/staff/StaffUnclaimedOrderHistory'));
+const StaffUnclaimedRestrictions = lazy(() => import('./components/staff/StaffUnclaimedRestrictions'));
+const WalkInTransactions = lazy(() => import('./components/staff/WalkInTransactions'));
+const StaffDashboard = lazy(() => import('./components/staff/StaffDashboard'));
+const StaffProfile = lazy(() => import('./components/staff/StaffProfile'));
+const StaffTimesheet = lazy(() => import('./components/staff/StaffTimesheet'));
+const StaffPaymentVerificationUnified = lazy(() => import('./components/staff/StaffPaymentVerificationUnified'));
+const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
+const AdminProfile = lazy(() => import('./components/admin/AdminProfile'));
+const AdminPaymentVerificationUnified = lazy(() => import('./components/admin/AdminPaymentVerificationUnified'));
+const AdminOrdersUnified = lazy(() => import('./components/admin/AdminOrdersUnified'));
+const AdminPickupMonitoring = lazy(() => import('./components/admin/AdminPickupMonitoring'));
+const AdminUnclaimedOrders = lazy(() => import('./components/admin/AdminUnclaimedOrders'));
+const AdminUnclaimedOrderHistory = lazy(() => import('./components/admin/AdminUnclaimedOrderHistory'));
+const AdminUnclaimedRestrictions = lazy(() => import('./components/admin/AdminUnclaimedRestrictions'));
+const Staff = lazy(() => import('./components/admin/Staff'));
+const InventoryManagement = lazy(() => import('./components/admin/InventoryManagement'));
+const PaymentMethodsManagement = lazy(() => import('./components/admin/PaymentMethodsManagement'));
+const PricingManagement = lazy(() => import('./components/admin/PricingManagement'));
+const LandingPageEditor = lazy(() => import('./components/admin/LandingPageEditor'));
+const LegalManagement = lazy(() => import('./components/admin/LegalManagement'));
+const AuditLogManagement = lazy(() => import('./components/admin/AuditLogManagement'));
+const JobBoardManagement = lazy(() => import('./components/admin/JobBoardManagement'));
+const AdminWalkInTransactions = lazy(() => import('./components/admin/WalkInTransactions'));
+const OrderTracking = lazy(() => import('./components/customer/OrderTracking'));
+const JobBoard = lazy(() => import('./components/customer/JobBoard'));
+const JobApplyForm = lazy(() => import('./components/customer/JobApplyForm'));
+const NotificationsPage = lazy(() => import('./components/shared/NotificationsPage'));
+const StaffInventory = lazy(() => import('./components/staff/StaffInventory'));
+
 // Simple error boundary component
 function ErrorBoundary() {
   return (
@@ -66,6 +68,18 @@ function ErrorBoundary() {
       <p>Please try refreshing the page or contact support.</p>
       <button onClick={() => window.location.href = '/login'}>Go to Login</button>
     </div>
+  );
+}
+
+function PageLoading() {
+  return (
+    <main
+      role="status"
+      aria-live="polite"
+      className="flex min-h-screen items-center justify-center bg-[#f6f7f9] px-4 text-sm font-medium text-slate-600"
+    >
+      Loading page…
+    </main>
   );
 }
 
@@ -316,7 +330,9 @@ export default function App() {
     <PopupProvider>
       <AuthProvider>
         <MobileNavProvider>
-          <RouterProvider router={router} />
+          <Suspense fallback={<PageLoading />}>
+            <RouterProvider router={router} />
+          </Suspense>
           <MobileNavSheet router={router} />
           <Toaster richColors position="top-center" />
         </MobileNavProvider>

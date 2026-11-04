@@ -1463,11 +1463,120 @@ export type Database = {
           }
         ]
       }
+      released_order_transactions: {
+        Row: {
+          archived_order_id: string
+          order_number: number
+          customer_id: string | null
+          customer_name: string
+          customer_email: string | null
+          order_source: string
+          customer_type: string | null
+          service_category: string
+          subtotal: number
+          printing_cost: number
+          addons_cost: number
+          total: number
+          amount_paid: number
+          balance: number
+          payment_status: string
+          payment_method: string
+          payment_reference_number: string | null
+          payment_details: Json
+          status_history: Json
+          transaction_number: number | null
+          placed_at: string
+          released_at: string
+          archived_at: string
+        }
+        Insert: {
+          archived_order_id: string
+          order_number: number
+          customer_id?: string | null
+          customer_name: string
+          customer_email?: string | null
+          order_source: string
+          customer_type?: string | null
+          service_category: string
+          subtotal: number
+          printing_cost: number
+          addons_cost: number
+          total: number
+          amount_paid: number
+          balance: number
+          payment_status: string
+          payment_method: string
+          payment_reference_number?: string | null
+          payment_details?: Json
+          status_history?: Json
+          transaction_number?: number | null
+          placed_at: string
+          released_at: string
+          archived_at?: string
+        }
+        Update: {
+          archived_order_id?: string
+          order_number?: number
+          customer_id?: string | null
+          customer_name?: string
+          customer_email?: string | null
+          order_source?: string
+          customer_type?: string | null
+          service_category?: string
+          subtotal?: number
+          printing_cost?: number
+          addons_cost?: number
+          total?: number
+          amount_paid?: number
+          balance?: number
+          payment_status?: string
+          payment_method?: string
+          payment_reference_number?: string | null
+          payment_details?: Json
+          status_history?: Json
+          transaction_number?: number | null
+          placed_at?: string
+          released_at?: string
+          archived_at?: string
+        }
+        Relationships: []
+      }
+      order_retention_queue: {
+        Row: {
+          order_id: string
+          terminal_status: string
+          enqueued_at: string
+          attempts: number
+          locked_until: string | null
+          last_error: string | null
+        }
+        Insert: {
+          order_id: string
+          terminal_status: string
+          enqueued_at?: string
+          attempts?: number
+          locked_until?: string | null
+          last_error?: string | null
+        }
+        Update: {
+          order_id?: string
+          terminal_status?: string
+          enqueued_at?: string
+          attempts?: number
+          locked_until?: string | null
+          last_error?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      capture_released_order_transaction: {
+        Args: { p_order_id: string }
+        Returns: undefined
+      }
       current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database['public']['Enums']['app_role']
@@ -1475,6 +1584,14 @@ export type Database = {
       has_role: {
         Args: { required_role: Database['public']['Enums']['app_role'] }
         Returns: boolean
+      }
+      claim_order_retention_jobs: {
+        Args: { p_limit?: number }
+        Returns: { order_id: string; terminal_status: string }[]
+      }
+      release_order_retention_job: {
+        Args: { p_order_id: string; p_error: string }
+        Returns: undefined
       }
     }
     Enums: {

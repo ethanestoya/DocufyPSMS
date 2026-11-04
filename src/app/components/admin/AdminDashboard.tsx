@@ -62,6 +62,8 @@ import ShopStatusControl from "../shared/ShopStatusControl";
 import CreateNotificationCard from "../shared/CreateNotificationCard";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
+import { useReleasedOrderTransactions } from "../../utils/useReleasedOrderTransactions";
+import type { ReleasedOrderTransactionDto } from "../../../lib/db/types";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 // Sales used to be a third tab, but it led with its own four KPI cards and
@@ -79,7 +81,23 @@ const DATE_RANGES = [
   { id: "custom", label: "Custom Range" },
 ] as const;
 
-function parseTotal(order: Order): number {
+type DashboardMetricOrder = Pick<
+  Order,
+  | "status"
+  | "createdAt"
+  | "date"
+  | "total"
+  | "costBreakdown"
+  | "orderSource"
+  | "customerEmail"
+  | "printType"
+  | "colorMode"
+  | "customerType"
+  | "attachedFiles"
+  | "addons"
+> & { archivedServiceCategory?: string };
+
+function parseTotal(order: DashboardMetricOrder): number {
   if (order.costBreakdown && typeof order.costBreakdown.total === "number")
     return order.costBreakdown.total;
   if (!order.total) return 0;
@@ -165,25 +183,33 @@ function getPrevPeriod(range: { start: Date; end: Date }) {
   };
 }
 
-function ordersInRange(orders: Order[], range: { start: Date; end: Date }): Order[] {
+function ordersInRange(
+  orders: DashboardMetricOrder[],
+  range: { start: Date; end: Date },
+): DashboardMetricOrder[] {
   return orders.filter((o) => {
     const d = new Date(o.createdAt || o.date);
     return !isNaN(d.getTime()) && d >= range.start && d <= range.end;
   });
 }
 
-function totalSales(orders: Order[]): number {
+function totalSales(orders: DashboardMetricOrder[]): number {
   return orders.reduce((s, o) => s + (o.status !== "Canceled" ? parseTotal(o) : 0), 0);
 }
 
-const SERVICE_NAMES = ["Black & White Printing", "Colored Printing", "Photocopy", "School Supplies", "Others"] as const;
+const SERVICE_NAMES = ["Black & White Printing", "Colored Printing", "Photo Printing", "Photocopy", "School Supplies", "Others"] as const;
 
-function deriveService(order: Order): string {
+function deriveService(order: DashboardMetricOrder): string {
+  if (order.archivedServiceCategory) return order.archivedServiceCategory;
   const pt = (order.printType || "").toLowerCase();
   const cm = (order.colorMode || "").toLowerCase();
+  if (order.customerType === "photocopy" || pt.includes("photocopy")) return "Photocopy";
+  if (order.attachedFiles?.some((file) => file.printType?.toLowerCase() === "photo")) {
+    return "Photo Printing";
+  }
+  if (pt.includes("photo")) return "Photo Printing";
   if (cm === "bw" || pt.includes("bw") || pt.includes("black")) return "Black & White Printing";
   if (cm === "color" || pt.includes("color") || pt.includes("coloured")) return "Colored Printing";
-  if (pt.includes("photocopy") || pt.includes("photo")) return "Photocopy";
   if (order.addons && order.addons.length > 0) return "School Supplies";
   return "Others";
 }
@@ -200,7 +226,10 @@ interface DashboardMetrics {
   prevActiveCustomers: number;
 }
 
-function computeMetrics(orders: Order[], dateRange: { start: Date; end: Date }): DashboardMetrics {
+function computeMetrics(
+  orders: DashboardMetricOrder[],
+  dateRange: { start: Date; end: Date },
+): DashboardMetrics {
   const filtered = ordersInRange(orders, dateRange);
   const prevRange = getPrevPeriod(dateRange);
   const prevFiltered = ordersInRange(orders, prevRange);
@@ -264,7 +293,10 @@ function trendLabel(date: Date, unit: TrendUnit): string {
  * the future, and drawing the rest of it would draw sales that have not
  * happened.
  */
-function buildTrendSeries(orders: Order[], range: { start: Date; end: Date }): TrendSeries {
+function buildTrendSeries(
+  orders: DashboardMetricOrder[],
+  range: { start: Date; end: Date },
+): TrendSeries {
   const start = startOfDay(range.start);
   const end = new Date(Math.min(range.end.getTime(), Date.now()));
   const spanDays = Math.floor((end.getTime() - start.getTime()) / DAY_MS) + 1;
@@ -290,6 +322,40 @@ function buildTrendSeries(orders: Order[], range: { start: Date; end: Date }): T
     else cursor.setMonth(cursor.getMonth() + 1);
   }
   return { points, unit };
+}
+
+function mergeDashboardOrders(
+  orders: Order[],
+  transactions: ReleasedOrderTransactionDto[],
+): DashboardMetricOrder[] {
+  const archivedIds = new Set(
+    transactions.map((transaction) => transaction.archivedOrderId),
+  );
+  const liveOrders = orders.filter(
+    (order) => order.status !== "Released" || !archivedIds.has(order.id),
+  );
+  const archivedOrders: DashboardMetricOrder[] = transactions.map((transaction) => ({
+    status: "Released",
+    createdAt: transaction.placedAt.toISOString(),
+    date: transaction.placedAt.toISOString(),
+    total: String(transaction.total),
+    costBreakdown: {
+      printingCost: transaction.printingCost,
+      addonsCost: transaction.addonsCost,
+      total: transaction.total,
+    },
+    orderSource: transaction.orderSource === "walkin" ? "walkin" : "online",
+    customerEmail: transaction.customerEmail ?? "",
+    printType: undefined,
+    colorMode: undefined,
+    customerType: transaction.customerType === "photocopy" ? "photocopy" : "printing",
+    attachedFiles: [],
+    addons: transaction.addonsCost > 0
+      ? [{ name: "Archived add-ons", quantity: 1, price: transaction.addonsCost }]
+      : [],
+    archivedServiceCategory: transaction.serviceCategory,
+  }));
+  return [...liveOrders, ...archivedOrders];
 }
 
 // ─── sub-components ───────────────────────────────────────────────────────────
@@ -552,7 +618,7 @@ function OverviewTab({
   metrics: DashboardMetrics;
   navigate: ReturnType<typeof useNavigate>;
   items: InventoryItem[];
-  orders: Order[];
+  orders: DashboardMetricOrder[];
   role?: "admin" | "staff";
   trend: TrendSeries;
   /** The Overview's single date control, rendered in the Sales Trend card header. */
@@ -727,15 +793,15 @@ function buildServiceCatalog() {
   ];
 }
 
-function ServicesTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
+function ServicesTab({
+  navigate,
+  orders,
+}: {
+  navigate: ReturnType<typeof useNavigate>;
+  orders: DashboardMetricOrder[];
+}) {
   const [rangeId, setRangeId] = useState<ServicesRangeId>("this-month");
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [orders, setOrders] = useState(dataStore.getOrders());
-
-  useEffect(() => {
-    const unsub = dataStore.subscribe(() => setOrders(dataStore.getOrders()));
-    return () => unsub();
-  }, []);
 
   const range = useMemo(() => getDateRange(rangeId), [rangeId]);
 
@@ -1093,7 +1159,12 @@ export default function AdminDashboard({
   const [customEnd, setCustomEnd] = useState("");
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
   const [orders, setOrders] = useState(dataStore.getOrders());
+  const releasedTransactions = useReleasedOrderTransactions();
   const [inventoryItems, setInventoryItems] = useState(inventoryStore.getActiveItems());
+  const dashboardOrders = useMemo(
+    () => mergeDashboardOrders(orders, releasedTransactions),
+    [orders, releasedTransactions],
+  );
 
   const dateRange = useMemo(() => getDateRange(dateRangeId, customStart, customEnd), [dateRangeId, customStart, customEnd]);
 
@@ -1101,8 +1172,8 @@ export default function AdminDashboard({
   // Trend card header, so a chart-only window would be a trap — the control
   // would sit in the card it does not drive.
   const trend = useMemo(
-    () => buildTrendSeries(orders, { start: dateRange.start, end: dateRange.end }),
-    [orders, dateRange],
+    () => buildTrendSeries(dashboardOrders, { start: dateRange.start, end: dateRange.end }),
+    [dashboardOrders, dateRange],
   );
 
   useEffect(() => {
@@ -1111,7 +1182,10 @@ export default function AdminDashboard({
     return () => { unsubOrders(); unsubInv(); };
   }, []);
 
-  const metrics = useMemo(() => computeMetrics(orders, dateRange), [orders, dateRange]);
+  const metrics = useMemo(
+    () => computeMetrics(dashboardOrders, dateRange),
+    [dashboardOrders, dateRange],
+  );
 
   const selectedRangeLabel = DATE_RANGES.find((r) => r.id === dateRangeId)?.label || "This Month";
 
@@ -1174,13 +1248,13 @@ export default function AdminDashboard({
             <DetailSkeleton blocks={2} />
           </div>
         ) : activeTab === "Services" && role === "admin" ? (
-          <ServicesTab navigate={navigate} />
+          <ServicesTab navigate={navigate} orders={dashboardOrders} />
         ) : (
           <OverviewTab
             metrics={metrics}
             navigate={navigate}
             items={inventoryItems}
-            orders={orders}
+            orders={dashboardOrders}
             role={role}
             trend={trend}
             dateSelector={overviewDateSelector}

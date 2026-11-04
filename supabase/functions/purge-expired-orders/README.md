@@ -1,60 +1,68 @@
-# Scheduled order retention
+# Immediate order retention
 
-The function permanently removes Supabase orders that have been `Released` or
-`Canceled` for at least seven days. It does not purge `Completed` orders until
-they are released, or any order that is still in progress.
+When an order reaches `Released` or `Canceled`, a database trigger places it
+in a durable cleanup queue. The Edge Function processes queued orders in
+batches of up to 50, usually within one minute of the status change. Completed
+orders are not eligible unless they are subsequently Released or Canceled.
 
-It deletes order file objects from `order-files` and payment proof objects from
-`payment-proofs`, then removes the associated payments, files, add-ons, cost
-breakdown, status history, walk-in transaction, notifications, and locks. It
-keeps inventory movements and audit-log entries, but clears their direct order
-ID links.
+Released orders are first copied into the compact `released_order_transactions`
+ledger. It retains order number, customer identity, source/service category,
+stored totals, paid/balance amounts, payment method/status/reference/timestamps,
+placed/released times, the short status timeline needed for unclaimed-order
+history, and the walk-in transaction number. Uploaded files, proof images,
+file lists, print settings, and canceled-order transactions are not retained.
+The worker refreshes that snapshot immediately before cleanup so status-history
+events written after the release update are included.
 
-The function processes at most 50 orders per invocation. Storage is removed
-before database rows; if a Storage or database operation fails, the order is
-reported in the response/logs and can be retried by a later scheduled run.
+The worker removes order-file and payment-proof objects before deleting
+dependent rows. Released walk-in transaction rows are retained and unlinked
+from their deleted orders; canceled walk-in transaction rows are deleted.
+Inventory movements and audit entries are retained with their order links
+cleared. Failed jobs have their lease released for retry; each successful
+cleanup clears its queue row. The migration backfills the compact ledger for
+currently retained Released orders and queues all existing Released/Canceled
+orders. Applying the migration does not itself run the cleanup.
 
-## Deploy and schedule
+## Rollout
 
-1. Link the Supabase CLI to the correct project if needed:
-
-   ```powershell
-   supabase link --project-ref YOUR_PROJECT_REF
-   ```
-
-2. Generate a strong random URL-safe secret (for example, 32 random bytes
-   encoded as hex). Set it for the Edge Function and keep it private:
-
-   ```powershell
-   supabase secrets set ORDER_RETENTION_CRON_SECRET=YOUR_RANDOM_SECRET
-   ```
-
-3. Deploy with JWT verification disabled because the function authenticates
-   the scheduled caller using the dedicated secret header. Do not remove the
-   secret check in the function:
+1. Deploy the updated worker before applying the migration. If the existing
+   daily schedule calls it before the migration is applied, that invocation
+   will fail to claim the not-yet-created queue; it will not delete orders.
 
    ```powershell
    supabase functions deploy purge-expired-orders --no-verify-jwt
    ```
 
-4. In Supabase SQL Editor, run `supabase/order-retention-schedule.sql` once.
-   The script installs a database trigger to timestamp all status transitions,
-   gives existing terminal orders a fresh seven-day grace period, stores the
-   project URL and cron secret in Vault, and schedules the function.
-   Ensure the Vault extension is enabled in the Supabase project.
-   Replace the project URL and secret placeholders in its two `vault.create_secret`
-   statements with the exact values from steps 1-2. Keep the secret out of
-   source control and do not paste it into application code. If changing the
-   schedule later, re-run only the `cron.unschedule` / `cron.schedule` block;
-   do not re-run the one-time timestamp backfill or secret creation statements.
+2. In Supabase SQL Editor, paste and run the complete contents of
+   `supabase/migrations/20261104000000_immediate_order_retention_ledger.sql`.
+   It creates the ledger, durable queue, triggers and RPCs, snapshots existing
+   Released orders, and queues existing terminal orders. This backfill is
+   intentional: those existing orders are eligible for cleanup once the
+   schedule is switched on.
 
-The SQL schedules the function daily at 18:00 UTC (02:00 PHT). The seven-day
-cutoff uses `orders.status_updated_at`, so cleanup can occur on the first
-scheduled run after the seven-day threshold.
+3. Keep the existing `ORDER_RETENTION_CRON_SECRET` Edge Function secret and its
+   two Vault secrets (`docufy_order_retention_project_url` and
+   `docufy_order_retention_cron_secret`). Do not rerun the previous secret
+   creation statements or the old seven-day timestamp backfill.
+
+4. In Supabase SQL Editor, paste and run
+   `supabase/order-retention-schedule.sql`. It
+   replaces the old daily job with a one-minute schedule and reuses the
+   existing Vault secrets. The queue is durable, so brief worker outages do
+   not lose queued cleanup requests.
+
+5. Push the application branch to Vercel separately. Vercel deploys the
+   frontend only; it does not apply the migration, deploy the Edge Function,
+   or change the Supabase cron schedule.
 
 ## Monitoring
 
-Inspect the Edge Function's invocation logs for `[order-retention]` failures.
-Successful calls return counts for eligible and deleted orders plus per-order
-errors. A Storage deletion error prevents deletion of that order's database
-rows so the next run can retry it.
+Inspect the Edge Function invocation logs for `[order-retention]` failures.
+Successful calls return `claimed`, `deleted`, `skipped`, and per-order failure
+counts/details. Query `public.order_retention_queue` as the database owner to
+inspect pending entries, `attempts`, and `last_error`. A job stays queued when
+Storage or database cleanup fails, and is retried by a later invocation.
+
+Released-order history is read from `public.released_order_transactions`;
+staff/admin users have full read access, customers can read their own rows for
+unclaimed-order history, and writes are trigger-only.

@@ -76,6 +76,9 @@ import { ORDER_STATUS_STYLES, getStatusBadgeClasses } from "../../utils/orderSta
 import { inventoryStore } from "../../utils/inventoryStore";
 import { PriorityBadge, StartHereTag } from "../ui/priority-badge";
 import { computeOrderPayment } from "./OrderPaymentSummary";
+import type { ReleasedOrderTransactionDto } from "../../../lib/db/types";
+import { formatOrderNumber, formatWalkInNumber } from "../../../lib/db/types";
+import { useReleasedOrderTransactions } from "../../utils/useReleasedOrderTransactions";
 import {
   getLock,
   claimLock,
@@ -180,7 +183,37 @@ type OrderType = {
   statusUpdatedAt?: Date;
   createdAt?: Date;
   lastUpdatedAt?: Date;
+  retainedTransaction?: ReleasedOrderTransactionDto;
 };
+
+type RetainedPaymentDetail = {
+  amount: number;
+  method: string;
+  status: string;
+  referenceNumber: string | null;
+  submittedAt: string | null;
+  verifiedAt: string | null;
+};
+
+function getRetainedPaymentDetails(
+  value: ReleasedOrderTransactionDto["paymentDetails"],
+): RetainedPaymentDetail[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+    const entry = item as Record<string, unknown>;
+    if (typeof entry.amount !== "number") return [];
+    return [{
+      amount: entry.amount,
+      method: typeof entry.method === "string" ? entry.method : "Online",
+      status: typeof entry.status === "string" ? entry.status : "unknown",
+      referenceNumber:
+        typeof entry.reference_number === "string" ? entry.reference_number : null,
+      submittedAt: typeof entry.submitted_at === "string" ? entry.submitted_at : null,
+      verifiedAt: typeof entry.verified_at === "string" ? entry.verified_at : null,
+    }];
+  });
+}
 
 // ── Print details ────────────────────────────────────────────────────────────
 // What the job will actually be printed as, built only from settings the order
@@ -391,6 +424,10 @@ interface UnifiedOrdersProps {
 
 export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProps) {
   const [orders, setOrders] = useState<OrderType[]>([]);
+  const releasedTransactions = useReleasedOrderTransactions();
+  const [selectedReleasedTransaction, setSelectedReleasedTransaction] =
+    useState<ReleasedOrderTransactionDto | null>(null);
+  const [releasedDetailsOpen, setReleasedDetailsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] =
     useState<OrderType | null>(null);
@@ -444,6 +481,50 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
     cancellationReason: "",
     holdReason: "",
   });
+
+  const listOrders = useMemo(() => {
+    const archivedIds = new Set(
+      releasedTransactions.map((transaction) => transaction.archivedOrderId),
+    );
+    const currentOrders = orders.filter(
+      (order) => order.status !== "released" || !archivedIds.has(order.id),
+    );
+    const archivedOrders: OrderType[] = releasedTransactions.map((transaction) => ({
+      id: transaction.archivedOrderId,
+      displayId: formatOrderNumber(transaction.orderNumber),
+      customer: transaction.customerName,
+      customerEmail: transaction.customerEmail ?? undefined,
+      customerId: transaction.customerId,
+      customerType:
+        transaction.customerType === "photocopy" ? "photocopy" : "printing",
+      pages: 0,
+      type: transaction.serviceCategory,
+      notes: "",
+      status: "released",
+      time: transaction.placedAt.toISOString(),
+      paperSize: "",
+      copies: 0,
+      submittedAt: transaction.placedAt,
+      orderSource: transaction.orderSource === "walkin" ? "walkin" : "online",
+      paymentMethod: transaction.paymentMethod,
+      costBreakdown: {
+        printingCost: transaction.printingCost,
+        addonsCost: transaction.addonsCost,
+        total: transaction.total,
+      },
+      manualTotal: transaction.total,
+      paymentVerified: transaction.paymentStatus === "Paid",
+      downPaymentRequired: transaction.paymentStatus === "Partially Paid",
+      downPaymentVerified: transaction.paymentStatus === "Partially Paid",
+      downPaymentAmount: transaction.amountPaid,
+      fullPaymentRequired: transaction.paymentStatus === "Paid",
+      fullPaymentVerified: transaction.paymentStatus === "Paid",
+      statusUpdatedAt: transaction.releasedAt,
+      createdAt: transaction.placedAt,
+      retainedTransaction: transaction,
+    }));
+    return [...currentOrders, ...archivedOrders];
+  }, [orders, releasedTransactions]);
   const [showReceipt, setShowReceipt] = useState(false);
   const [showPricing, setShowPricing] = useState(false);
 
@@ -1020,14 +1101,14 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
   // specific status filter is selected.
   const queueOrders = useMemo(
     () =>
-      orders.filter(
+      listOrders.filter(
         (o) =>
           o.status !== "awaitingPayment" &&
           o.status !== "completed" &&
           o.status !== "released" &&
           o.status !== "canceled",
       ),
-    [orders],
+    [listOrders],
   );
 
   // PROCESSING SEQUENCE: queue orders ranked oldest-submitted first (FIFO) -
@@ -1062,7 +1143,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
     // (so completed/released/canceled appear when their filter is chosen).
     // When "all", show only the active queue (excludes awaitingPayment + terminal statuses).
     const base =
-      statusFilter !== "all" ? orders : queueOrders;
+      statusFilter !== "all" ? listOrders : queueOrders;
     let filtered = [...base];
 
     // PROCESSING ORDER (default): sort by submission time oldest-first (FIFO),
@@ -1079,6 +1160,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
       filtered = filtered.filter(
         (o) =>
           o.id.toLowerCase().includes(lowerQ) ||
+          (o.displayId ?? "").toLowerCase().includes(lowerQ) ||
           o.customer.toLowerCase().includes(lowerQ) ||
           o.type.toLowerCase().includes(lowerQ),
       );
@@ -1119,6 +1201,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
     return filtered;
   }, [
     orders,
+    listOrders,
     queueOrders,
     searchQuery,
     sortColumn,
@@ -1150,18 +1233,18 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
   // Calculate summary stats
   const stats = useMemo(() => {
     return {
-      inQueue: orders.filter((o) => o.status === "inQueue")
+      inQueue: listOrders.filter((o) => o.status === "inQueue")
         .length,
-      printing: orders.filter((o) => o.status === "printing")
+      printing: listOrders.filter((o) => o.status === "printing")
         .length,
-      completed: orders.filter((o) => o.status === "completed")
+      completed: listOrders.filter((o) => o.status === "completed")
         .length,
-      released: orders.filter((o) => o.status === "released")
+      released: listOrders.filter((o) => o.status === "released")
         .length,
-      canceled: orders.filter((o) => o.status === "canceled")
+      canceled: listOrders.filter((o) => o.status === "canceled")
         .length,
     };
-  }, [orders]);
+  }, [listOrders]);
 
   const SortableHeader = ({
     column,
@@ -1325,13 +1408,22 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                     <tr
                       key={order.id}
                       className="hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100"
-                      onClick={() =>
-                        handleOpenDetails(order)
-                      }
+                      onClick={() => {
+                        if (order.retainedTransaction) {
+                          setSelectedReleasedTransaction(order.retainedTransaction);
+                          setReleasedDetailsOpen(true);
+                        } else {
+                          handleOpenDetails(order);
+                        }
+                      }}
                     >
 <td className="px-4 py-4 whitespace-nowrap">
                             <div className="flex flex-col items-center gap-1">
-                              {(() => {
+                              {order.retainedTransaction ? (
+                                <span className="text-sm text-slate-400" aria-label="Archived transaction">
+                                  —
+                                </span>
+                              ) : (() => {
                                 const priority = priorityById.get(order.id);
                                 const isFirst =
                                   statusFilter === "all" &&
@@ -1379,6 +1471,7 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                                       </p>
                                     )}
                                     {(() => {
+                                      if (order.retainedTransaction) return null;
                                       const oLock = getLock(order.id);
                                       if (!oLock || isPhotocopyOrder(order)) return null;
                                       const oLockedByMe = oLock.heldBy === myName;
@@ -1442,8 +1535,14 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                               </td>
                               <td className="px-4 py-4 whitespace-nowrap">
                                 {(() => {
-                                  // PREVIEW — outstanding balance alongside the total.
-                                   const pay = computeOrderPayment(order);
+                                  const archive = order.retainedTransaction;
+                                  const pay = archive
+                                    ? {
+                                        total: archive.total,
+                                        amountPaid: archive.amountPaid,
+                                        remaining: archive.balance,
+                                      }
+                                    : computeOrderPayment(order);
                                   return (
                                     <div className="flex flex-col gap-0.5">
                                       <span className="text-sm font-semibold text-[#1c1f26]">
@@ -1469,10 +1568,15 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                                   className="rounded-lg px-[13px] text-[11.5px] font-semibold"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleOpenDetails(order);
+                                    if (order.retainedTransaction) {
+                                      setSelectedReleasedTransaction(order.retainedTransaction);
+                                      setReleasedDetailsOpen(true);
+                                    } else {
+                                      handleOpenDetails(order);
+                                    }
                                   }}
                                 >
-                                  Details
+                                  {order.retainedTransaction ? "History" : "Details"}
                                 </Button>
                               </td>
                             </tr>
@@ -2361,6 +2465,112 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
           customerEmail={selectedOrder.customerEmail}
         />
       )}
+
+      <Dialog
+        open={releasedDetailsOpen}
+        onOpenChange={(open) => {
+          setReleasedDetailsOpen(open);
+          if (!open) setSelectedReleasedTransaction(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+          {selectedReleasedTransaction && (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  Released transaction · {formatOrderNumber(selectedReleasedTransaction.orderNumber)}
+                </DialogTitle>
+                <DialogDescription>
+                  Retained payment and transaction record. Order files and print settings were removed.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid grid-cols-2 gap-3 py-3">
+                {[
+                  ["Customer", selectedReleasedTransaction.customerName],
+                  ["Source", selectedReleasedTransaction.orderSource === "walkin" ? "Walk-in" : "Online"],
+                  ["Service", selectedReleasedTransaction.serviceCategory],
+                  ["Payment method", selectedReleasedTransaction.paymentMethod],
+                  ["Payment status", selectedReleasedTransaction.paymentStatus],
+                  ["Total", formatCurrency(selectedReleasedTransaction.total)],
+                  ["Amount paid", formatCurrency(selectedReleasedTransaction.amountPaid)],
+                  ["Balance", formatCurrency(selectedReleasedTransaction.balance)],
+                  ["Subtotal", formatCurrency(selectedReleasedTransaction.subtotal)],
+                  ["Printing", formatCurrency(selectedReleasedTransaction.printingCost)],
+                  ["Add-ons", formatCurrency(selectedReleasedTransaction.addonsCost)],
+                  [
+                    "Placed",
+                    `${formatPHDate(selectedReleasedTransaction.placedAt, "short")} · ${formatPHTime(selectedReleasedTransaction.placedAt)}`,
+                  ],
+                  [
+                    "Released",
+                    `${formatPHDate(selectedReleasedTransaction.releasedAt, "short")} · ${formatPHTime(selectedReleasedTransaction.releasedAt)}`,
+                  ],
+                  ...(selectedReleasedTransaction.transactionNumber == null
+                    ? []
+                    : [[
+                        "Walk-in transaction",
+                        formatWalkInNumber(selectedReleasedTransaction.transactionNumber),
+                      ] as [string, string]]),
+                ].map(([label, value]) => (
+                  <div key={label} className="min-w-0 rounded-lg border border-slate-200 p-3">
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{label}</p>
+                    <p className="mt-1 break-words text-sm font-semibold text-slate-900">{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {selectedReleasedTransaction.customerEmail && (
+                <p className="text-sm text-slate-600">
+                  Customer email: {selectedReleasedTransaction.customerEmail}
+                </p>
+              )}
+              {selectedReleasedTransaction.paymentReferenceNumber && (
+                <p className="mt-2 break-all text-sm text-slate-600">
+                  Latest payment reference: {selectedReleasedTransaction.paymentReferenceNumber}
+                </p>
+              )}
+
+              <div className="space-y-2 border-t border-slate-200 pt-4">
+                <h3 className="text-sm font-semibold text-slate-900">Payment records</h3>
+                {getRetainedPaymentDetails(selectedReleasedTransaction.paymentDetails).length > 0 ? (
+                  getRetainedPaymentDetails(selectedReleasedTransaction.paymentDetails).map((payment, index) => (
+                    <div key={`${payment.submittedAt ?? "payment"}-${index}`} className="rounded-lg bg-slate-50 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                        <span className="font-semibold text-slate-800">
+                          {payment.method} · {formatCurrency(payment.amount)}
+                        </span>
+                        <Badge variant="outline" className="capitalize">{payment.status}</Badge>
+                      </div>
+                      {payment.referenceNumber && (
+                        <p className="mt-1 break-all text-xs text-slate-600">
+                          Reference: {payment.referenceNumber}
+                        </p>
+                      )}
+                      {payment.submittedAt && (
+                        <p className="mt-1 text-xs text-slate-500">
+                          Submitted {formatPHDate(new Date(payment.submittedAt), "short")} · {formatPHTime(new Date(payment.submittedAt))}
+                          {payment.verifiedAt
+                            ? ` · Verified ${formatPHDate(new Date(payment.verifiedAt), "short")} · ${formatPHTime(new Date(payment.verifiedAt))}`
+                            : ""}
+                        </p>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-500">No separate online payment records.</p>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setReleasedDetailsOpen(false)}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
       </StaffTimeInGate>
     </Layout>
   );

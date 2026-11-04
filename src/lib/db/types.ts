@@ -1,4 +1,4 @@
-import type { Database } from '../database.types';
+import type { Database, Json } from '../database.types';
 
 type Tables = Database['public']['Tables'];
 
@@ -33,6 +33,8 @@ export type PaymentMethodUpdate = Tables['payment_methods']['Update'];
 
 export type WalkInTransactionRow = Tables['walk_in_transactions']['Row'];
 export type WalkInTransactionInsert = Tables['walk_in_transactions']['Insert'];
+
+export type ReleasedOrderTransactionRow = Tables['released_order_transactions']['Row'];
 
 // `order_locks` — the cross-machine "someone is reviewing this order" session
 // lock. The table's real columns are `order_id → locked_by (profiles.id FK) →
@@ -255,6 +257,32 @@ export interface WalkInTransactionDto {
   paymentMethod: string;
   createdBy: string | null;
   createdAt: Date;
+}
+
+export interface ReleasedOrderTransactionDto {
+  archivedOrderId: string;
+  orderNumber: number;
+  customerId: string | null;
+  customerName: string;
+  customerEmail: string | null;
+  orderSource: string;
+  customerType: string | null;
+  serviceCategory: string;
+  subtotal: number;
+  printingCost: number;
+  addonsCost: number;
+  total: number;
+  amountPaid: number;
+  balance: number;
+  paymentStatus: string;
+  paymentMethod: string;
+  paymentReferenceNumber: string | null;
+  paymentDetails: Json;
+  statusHistory: { status: string; at: string }[];
+  transactionNumber: number | null;
+  placedAt: Date;
+  releasedAt: Date;
+  archivedAt: Date;
 }
 
 // ── Attendance domain (staff clock-in / out, adjustments) ────────────────────

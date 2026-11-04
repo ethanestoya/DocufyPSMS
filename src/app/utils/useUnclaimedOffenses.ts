@@ -2,9 +2,8 @@
 // the admin's stored decisions.
 //
 // The BASE detection is still derived — every surface derives it from the
-// customer's own orders + their status-history timeline, so the number is
-// always consistent with the authoritative data. Nothing about "was this order
-// unclaimed?" is invented here.
+// customer's live orders plus the retained status timeline for archived
+// Released orders. Nothing about "was this order unclaimed?" is invented here.
 //
 // What this hook adds on top is the human layer, held in
 // `restrictionsStore` (Supabase-backed):
@@ -34,6 +33,7 @@ import {
   toUnclaimedOrderLikes,
   type CustomerUnclaimedSummary,
   type UnclaimedRecord,
+  type UnclaimedOrderLike,
 } from "./unclaimedOrders";
 import {
   effectivePolicy,
@@ -42,6 +42,8 @@ import {
   type PaymentPolicy,
 } from "./unclaimedPolicy";
 import { restrictionsStore } from "./restrictionsStore";
+import { useReleasedOrderTransactions } from "./useReleasedOrderTransactions";
+import { formatOrderNumber } from "../../lib/db/types";
 import type {
   CustomerRestriction,
   OffenseDecision,
@@ -73,9 +75,30 @@ const EMPTY: UnclaimedOffenseState = {
   restriction: null,
 };
 
+function archivedTransactionToOrderLike(
+  transaction: ReturnType<typeof useReleasedOrderTransactions>[number],
+  emailFallback?: string,
+): UnclaimedOrderLike {
+  return {
+    id: transaction.archivedOrderId,
+    displayId: formatOrderNumber(transaction.orderNumber),
+    orderSource: transaction.orderSource,
+    paymentMethod: transaction.paymentMethod,
+    customerId: transaction.customerId,
+    customerName: transaction.customerName,
+    customerEmail: transaction.customerEmail ?? emailFallback,
+    total: transaction.total,
+    amountPaid: transaction.amountPaid,
+    balance: transaction.balance,
+    statusHistory: transaction.statusHistory,
+  };
+}
+
 export function useUnclaimedOffenses(
   customerKey: string | null | undefined,
 ): UnclaimedOffenseState {
+  const releasedTransactions = useReleasedOrderTransactions();
+  const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>(() =>
     customerKey ? dataStore.getOrdersByCustomer(customerKey) : [],
   );
@@ -104,9 +127,26 @@ export function useUnclaimedOffenses(
   );
 
   const key = (customerKey ?? "").trim().toLowerCase();
+  const likes = useMemo(() => {
+    const liveLikes = toUnclaimedOrderLikes(orders);
+    const liveIds = new Set(liveLikes.map((order) => order.id));
+    const archivedLikes = releasedTransactions
+      .filter(
+        (transaction) =>
+          !liveIds.has(transaction.archivedOrderId) &&
+          (transaction.customerEmail?.trim().toLowerCase() === key ||
+            transaction.customerId?.toLowerCase() === user?.id?.toLowerCase()),
+      )
+      .map((transaction) =>
+        archivedTransactionToOrderLike(
+          transaction,
+          transaction.customerId === user?.id ? key : undefined,
+        ),
+      );
+    return [...liveLikes, ...archivedLikes];
+  }, [orders, releasedTransactions, key, user?.id]);
   if (!key) return EMPTY;
 
-  const likes = toUnclaimedOrderLikes(orders);
   const summary = findCustomerSummary(likes, key, closingTime);
   const derivedCount = summary?.count ?? 0;
 
@@ -124,7 +164,8 @@ export function useUnclaimedOffenses(
       summary && effectiveRecords.length !== summary.records.length
         ? { ...summary, count, records: effectiveRecords }
         : summary,
-    latestOrderId: effectiveRecords.length
+    latestOrderId: effectiveRecords.length &&
+      orders.some((order) => order.id === effectiveRecords[effectiveRecords.length - 1].orderId)
       ? effectiveRecords[effectiveRecords.length - 1].orderId
       : null,
     unavailable: isHistoryUnavailable(likes),
@@ -197,6 +238,7 @@ export interface UnclaimedAdminData {
  * agree — and always match what checkout enforces.
  */
 export function useUnclaimedAdminData(): UnclaimedAdminData {
+  const releasedTransactions = useReleasedOrderTransactions();
   const closingTime = useShopClosingTime();
   const { user } = useAuth();
   const [orders, setOrders] = useState<UnclaimedAdminOrder[]>(() =>
@@ -215,7 +257,14 @@ export function useUnclaimedAdminData(): UnclaimedAdminData {
     [],
   );
 
-  const likes = useMemo(() => toUnclaimedOrderLikes(orders), [orders]);
+  const likes = useMemo(() => {
+    const liveLikes = toUnclaimedOrderLikes(orders);
+    const liveIds = new Set(liveLikes.map((order) => order.id));
+    const archivedLikes = releasedTransactions
+      .filter((transaction) => !liveIds.has(transaction.archivedOrderId))
+      .map((transaction) => archivedTransactionToOrderLike(transaction));
+    return [...liveLikes, ...archivedLikes];
+  }, [orders, releasedTransactions]);
   const records = useMemo(
     () => deriveUnclaimedRecords(likes, closingTime),
     [likes, closingTime],

@@ -101,7 +101,8 @@ export default function UnclaimedOrderHistory({
     const q = search.trim().toLowerCase();
     if (q) {
       rows = rows.filter((r) => {
-        const displayId = ordersById.get(r.orderId)?.displayId ?? r.orderId;
+        const displayId =
+          ordersById.get(r.orderId)?.displayId ?? r.displayId ?? r.orderId;
         return `${r.customerName} ${r.customerEmail} ${displayId}`
           .toLowerCase()
           .includes(q);
@@ -264,7 +265,7 @@ export default function UnclaimedOrderHistory({
                             </td>
                             <td className="px-4 py-3">
                               <span className="font-mono text-xs text-gray-700">
-                                {order?.displayId ?? record.orderId}
+                                {order?.displayId ?? record.displayId ?? record.orderId}
                               </span>
                             </td>
                             <td className="px-4 py-3">
@@ -276,6 +277,15 @@ export default function UnclaimedOrderHistory({
                                   )}`}
                                 >
                                   {statusLabel(order.status)}
+                                </Badge>
+                              ) : record.releasedAt ? (
+                                <Badge
+                                  variant="outline"
+                                  className={`text-xs font-medium ${getStatusBadgeClasses(
+                                    "Released",
+                                  )}`}
+                                >
+                                  Released
                                 </Badge>
                               ) : (
                                 <span className="text-xs text-gray-500">—</span>
@@ -382,6 +392,7 @@ export default function UnclaimedOrderHistory({
                       </DialogTitle>
                       <span className="font-mono text-sm text-gray-500">
                         {ordersById.get(selectedRecord.orderId)?.displayId ??
+                          selectedRecord.displayId ??
                           selectedRecord.orderId}
                       </span>
                     </div>
@@ -389,18 +400,18 @@ export default function UnclaimedOrderHistory({
                       {selectedRecord.customerEmail || "No email on file"}
                     </DialogDescription>
                   </div>
-                  {ordersById.get(selectedRecord.orderId) && (
+                  {ordersById.get(selectedRecord.orderId) || selectedRecord.releasedAt ? (
                     <Badge
                       variant="outline"
                       className={`text-xs font-medium ${getStatusBadgeClasses(
-                        ordersById.get(selectedRecord.orderId)!.status,
+                        ordersById.get(selectedRecord.orderId)?.status ?? "Released",
                       )}`}
                     >
                       {statusLabel(
-                        ordersById.get(selectedRecord.orderId)!.status,
+                        ordersById.get(selectedRecord.orderId)?.status ?? "Released",
                       )}
                     </Badge>
-                  )}
+                  ) : null}
                 </div>
               </DialogHeader>
 

@@ -25,23 +25,29 @@ export type UnclaimedHistoryEntry = { status: string; at: string | Date };
 // satisfy (see the adapters at the bottom of this file).
 export interface UnclaimedOrderLike {
   id: string;
+  displayId?: string;
   orderSource?: string | null;
   paymentMethod?: string | null;
   customerId?: string | null;
   customerName?: string;
   customerEmail?: string;
   total?: number;
+  amountPaid?: number;
+  balance?: number;
   statusHistory?: UnclaimedHistoryEntry[];
   statusHistoryUnavailable?: boolean;
 }
 
 export interface UnclaimedRecord {
   orderId: string;
+  displayId?: string;
   customerKey: string;
   customerName: string;
   customerEmail: string;
   paymentMethod?: string;
   orderTotal?: number;
+  amountPaid?: number;
+  balance?: number;
   /** When the order became ready for pickup (earliest `Completed`). */
   readyAt: Date;
   /** Pickup deadline — closing time on the ready date. */
@@ -149,11 +155,14 @@ export function deriveUnclaimedRecords(
 
     records.set(order.id, {
       orderId: order.id,
+      displayId: order.displayId,
       customerKey: customerKeyOf(order),
       customerName: order.customerName ?? order.customerEmail ?? "Customer",
       customerEmail: order.customerEmail ?? "",
       paymentMethod: order.paymentMethod ?? undefined,
       orderTotal: typeof order.total === "number" ? order.total : undefined,
+      amountPaid: order.amountPaid,
+      balance: order.balance,
       readyAt,
       deadlineAt,
       recordedAt: deadlineAt,
@@ -234,6 +243,7 @@ export function isHistoryUnavailable(orders: UnclaimedOrderLike[]): boolean {
 
 interface OrderishLike {
   id: string;
+  displayId?: string;
   orderSource?: string | null;
   paymentMethod?: string | null;
   customerId?: string | null;
@@ -241,6 +251,8 @@ interface OrderishLike {
   customer?: string;
   customerEmail?: string;
   total?: unknown;
+  amountPaid?: number;
+  balance?: number;
   manualTotal?: number;
   costBreakdown?: { total?: number } | null;
   statusHistory?: UnclaimedHistoryEntry[];
@@ -259,12 +271,15 @@ function numericTotal(o: OrderishLike): number | undefined {
 export function toUnclaimedOrderLike(o: OrderishLike): UnclaimedOrderLike {
   return {
     id: o.id,
+    displayId: o.displayId,
     orderSource: o.orderSource ?? null,
     paymentMethod: o.paymentMethod ?? null,
     customerId: o.customerId ?? null,
     customerName: o.customerName ?? o.customer,
     customerEmail: o.customerEmail,
     total: numericTotal(o),
+    amountPaid: o.amountPaid,
+    balance: o.balance,
     statusHistory: o.statusHistory,
     statusHistoryUnavailable: o.statusHistoryUnavailable,
   };

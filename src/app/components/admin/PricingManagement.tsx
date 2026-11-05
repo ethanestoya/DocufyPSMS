@@ -103,6 +103,13 @@ const DURATION_WINDOW_IDS: Array<keyof PricingValues> = [
   "onlinePaymentVerificationWindowSeconds",
 ];
 
+// The two order-rule thresholds are edited as a peso amount. They must stay in
+// ascending order — the 50%-down band only exists between them.
+const THRESHOLD_IDS: Array<keyof PricingValues> = [
+  "downPaymentThreshold",
+  "fullPaymentThreshold",
+];
+
 type DurationUnit = "hours" | "minutes" | "seconds";
 const DURATION_UNIT_MULTIPLIER: Record<DurationUnit, number> = {
   hours: 3600,
@@ -280,6 +287,68 @@ export default function PricingManagement() {
           size="sm"
           className="h-9"
           onClick={() => openDurationEdit(item)}
+        >
+          <Edit2 className="w-3.5 h-3.5" /> Edit
+        </Button>
+      </div>
+    </div>
+  );
+
+  const [thresholdTarget, setThresholdTarget] = useState<PricingItemSpec | null>(null);
+  const [thresholdValue, setThresholdValue] = useState("");
+  const [showThresholdSaveConfirm, setShowThresholdSaveConfirm] = useState(false);
+
+  const openThresholdEdit = (item: PricingItemSpec) => {
+    setThresholdTarget(item);
+    setThresholdValue(String(pricing[item.id]));
+    setShowThresholdSaveConfirm(false);
+  };
+
+  const closeThresholdEdit = () => {
+    setThresholdTarget(null);
+    setThresholdValue("");
+    setShowThresholdSaveConfirm(false);
+  };
+
+  const handleThresholdSave = () => {
+    if (!thresholdTarget) return;
+    const parsed = Number(thresholdValue);
+    if (thresholdValue.trim() === "" || !Number.isFinite(parsed) || parsed < 0) {
+      toast.error("Please enter a valid amount (0 or greater).");
+      return;
+    }
+    const isDown = thresholdTarget.id === "downPaymentThreshold";
+    const down = isDown ? parsed : pricing.downPaymentThreshold;
+    const full = isDown ? pricing.fullPaymentThreshold : parsed;
+    if (down >= full) {
+      toast.error(
+        "The Down Payment threshold must be lower than the Full Payment threshold.",
+      );
+      return;
+    }
+    if (!pricingStore.updatePricing(thresholdTarget.id, parsed)) {
+      toast.error(`Could not update ${thresholdTarget.label}. Please try again.`);
+      return;
+    }
+    toast.success("Pricing updated successfully.");
+    closeThresholdEdit();
+  };
+
+  const ThresholdRow = ({ item }: { item: PricingItemSpec }) => (
+    <div className="py-3.5 flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        <p className="font-medium text-gray-900">{item.label}</p>
+        <p className="text-sm text-gray-500 mt-0.5">{item.description}</p>
+      </div>
+      <div className="flex items-center gap-3 shrink-0">
+        <span className="text-sm font-semibold text-[#10316B] whitespace-nowrap">
+          {formatPrice(pricing[item.id])}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9"
+          onClick={() => openThresholdEdit(item)}
         >
           <Edit2 className="w-3.5 h-3.5" /> Edit
         </Button>
@@ -611,7 +680,8 @@ export default function PricingManagement() {
           </TabsContent>
           </Tabs>
 
-          {/* Order Rules — the payment windows every new order is held to. */}
+          {/* Order Rules — the upfront payment each order owes, and how long it
+              has to settle it. */}
           <Card className="p-6 mt-4">
             <div className="flex items-center gap-2 mb-1">
               <span className="w-8 h-8 rounded-lg bg-[#F2F7FF] flex items-center justify-center shrink-0">
@@ -620,17 +690,42 @@ export default function PricingManagement() {
               <h3 className="font-bold text-gray-900">Order Rules</h3>
             </div>
             <p className="text-sm text-gray-500 mb-2 ml-10">
-              Awaiting-payment orders are cancelled as expired after their
-              deadline — the earlier of this window and the shop's closing time
-              on the day the order was placed.
+              How much a customer pays upfront, based on the order total.
             </p>
-            <div className="divide-y divide-gray-200">
+
+            <h4 className="mt-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Payment Thresholds
+            </h4>
+            <div className="divide-y divide-gray-200 border-t border-gray-200">
+              {PRICING_ITEMS.filter((item) =>
+                THRESHOLD_IDS.includes(item.id),
+              ).map((item) => (
+                <ThresholdRow key={item.id} item={item} />
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              Under {formatPrice(pricing.downPaymentThreshold)}: pay at pickup ·{" "}
+              {formatPrice(pricing.downPaymentThreshold)} and above (below{" "}
+              {formatPrice(pricing.fullPaymentThreshold)}): 50% down payment ·{" "}
+              {formatPrice(pricing.fullPaymentThreshold)} and above: full payment
+              upfront, Cash on Pickup disabled.
+            </p>
+
+            <h4 className="mt-6 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Payment Deadlines
+            </h4>
+            <div className="divide-y divide-gray-200 border-t border-gray-200">
               {PRICING_ITEMS.filter((item) =>
                 DURATION_WINDOW_IDS.includes(item.id),
               ).map((item) => (
                 <DurationRow key={item.id} item={item} />
               ))}
             </div>
+            <p className="mt-2 text-xs text-gray-500">
+              Awaiting-payment orders are cancelled as expired after their
+              deadline — the earlier of this window and the shop's closing time
+              on the day the order was placed.
+            </p>
           </Card>
         </div>
       </div>
@@ -868,6 +963,77 @@ export default function PricingManagement() {
           onConfirm={handleDurationSave}
           title="Update Payment Window?"
           description={`Set "${durationTarget.label}" to ${formatPaymentWindow(durationTotalSeconds())}? Awaiting-payment orders are cancelled at their deadline — the earlier of this window and the shop's closing time.`}
+          confirmLabel="Save Changes"
+          cancelLabel="Go Back"
+          destructive={false}
+        />
+      )}
+
+      {/* Edit Payment Threshold Dialog */}
+      <Dialog
+        open={!!thresholdTarget}
+        onOpenChange={(open) => {
+          if (!open) closeThresholdEdit();
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[#10316B]">
+              Edit {thresholdTarget?.label}
+            </DialogTitle>
+            <DialogDescription>{thresholdTarget?.description}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="threshold-value">Amount (₱)</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-semibold text-gray-500">₱</span>
+                <Input
+                  id="threshold-value"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={thresholdValue}
+                  onChange={(e) => setThresholdValue(e.target.value)}
+                  placeholder="0"
+                  className="h-11 bg-white text-sm"
+                />
+              </div>
+              <p className="text-xs text-gray-500">
+                The Down Payment threshold must stay below the Full Payment
+                threshold. New orders are classified with these amounts
+                immediately.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              className="h-11 w-full sm:w-auto"
+              onClick={closeThresholdEdit}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              data-primary-action
+              className="h-11 w-full sm:w-auto"
+              onClick={() => setShowThresholdSaveConfirm(true)}
+            >
+              <Edit2 className="w-4 h-4" /> Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Save Payment Threshold Confirmation */}
+      {showThresholdSaveConfirm && thresholdTarget && (
+        <ConfirmationDialog
+          open
+          onOpenChange={setShowThresholdSaveConfirm}
+          onConfirm={handleThresholdSave}
+          title="Update Payment Threshold?"
+          description={`Set "${thresholdTarget.label}" to ₱${thresholdValue}? New orders are classified with this amount immediately.`}
           confirmLabel="Save Changes"
           cancelLabel="Go Back"
           destructive={false}

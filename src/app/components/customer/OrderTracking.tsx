@@ -1036,7 +1036,7 @@ export default function OrderTracking() {
                   setCancellationReason("");
                   setShowCancelDialog(true);
                 }}
-                className="h-11 w-full rounded-xl"
+                className="h-11 w-full rounded-xl active:scale-[0.99]"
               >
                 Cancel Order
               </Button>

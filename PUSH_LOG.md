@@ -1584,3 +1584,14 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Added a Deadline column and an "Awaiting review" filter to Payment Verification, so staff can see which payments are running out of time and which ones the customer has already answered.
 - Confirmed the submitted reference back to the customer and updated the unclaimed notice to say the order was printed but not collected and not paid in full by its pickup deadline.
 - Typecheck and production build pass. The admin-only screens were reviewed against the code rather than a signed-in session, so the Order Rules card and the new Deadline column were not opened live.
+
+## 2026-11-06 - Prans (3:29 AM PHT)
+
+- Made the payment thresholds adjustable by the admin and stopped canceled orders from disappearing from the records.
+- Gave the Order Rules card its missing editors: Down Payment Threshold and Full Payment Threshold are now editable in Pricing Management, so the ₱50 and ₱100 bands are an admin decision instead of a hard-coded default. The card splits into Payment Thresholds and Payment Deadlines, with a live line spelling out the three bands under the current amounts.
+- Guarded the two thresholds against collapsing: the down-payment amount must stay below the full-payment amount, so the 50%-down band can never be squeezed out of existence, and an invalid or inverted amount is rejected with a message naming the rule.
+- Stopped purging canceled orders: the cleanup worker now deletes only their uploaded files and keeps the order row, its timeline and its notification, so a customer who cancels still sees the order in Order Tracking and staff still find it under the Cancelled filter instead of an empty list. Released orders keep being fully removed. The updated function is already deployed live.
+- Gave the Cancel Order button press feedback on phones: it now dims and shrinks on tap like the other cancel buttons, so a customer knows the tap registered.
+- Left `package-lock.json` out of this commit; its only change is npm's own "peer" bookkeeping, unrelated to this work.
+- Promoted this batch to `deployment` from the same commit, so production and the work branch stay identical.
+- Typecheck and production build pass. The Order Rules card was not opened live — it sits behind admin authentication — and the canceled-order retention change was verified in code, with the existing rows still covered by the already-deployed worker.

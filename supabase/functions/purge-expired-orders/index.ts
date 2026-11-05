@@ -13,6 +13,8 @@ type OrderStatusRow = { status: string };
 type StoragePathRow = { storage_path: string | null };
 type PaymentProofRow = { proof_storage_path: string | null };
 
+type PurgeOutcome = "deleted" | "files_only" | "skipped";
+
 function requireEnv(name: string): string {
   const value = Deno.env.get(name);
   if (!value) throw new Error(`Missing required environment variable: ${name}`);
@@ -82,10 +84,82 @@ async function releaseQueueJob(
   assertNoError(result, `Release retention queue entry for order ${orderId}`);
 }
 
+async function removeOrderUploads(
+  supabase: ReturnType<typeof createClient>,
+  orderId: string,
+): Promise<void> {
+  const [filesResult, paymentsResult] = await Promise.all([
+    supabase.from("order_files").select("storage_path").eq("order_id", orderId),
+    supabase.from("payments").select("proof_storage_path").eq("order_id", orderId),
+  ]);
+  assertNoError(filesResult, `Read attached files for order ${orderId}`);
+  assertNoError(paymentsResult, `Read payment proofs for order ${orderId}`);
+
+  const filePaths = ((filesResult.data ?? []) as StoragePathRow[])
+    .map((row) => row.storage_path)
+    .filter((path): path is string => Boolean(path));
+  const proofPaths = ((paymentsResult.data ?? []) as PaymentProofRow[])
+    .map((row) => row.proof_storage_path)
+    .filter((path): path is string => Boolean(path));
+
+  const sharedFilePaths = new Set<string>();
+  const sharedProofPaths = new Set<string>();
+  if (filePaths.length > 0) {
+    const sharedFilesResult = await supabase
+      .from("order_files")
+      .select("storage_path")
+      .in("storage_path", filePaths)
+      .neq("order_id", orderId);
+    assertNoError(sharedFilesResult, `Check shared file objects for order ${orderId}`);
+    for (const row of (sharedFilesResult.data ?? []) as StoragePathRow[]) {
+      if (row.storage_path) sharedFilePaths.add(row.storage_path);
+    }
+  }
+  if (proofPaths.length > 0) {
+    const sharedProofsResult = await supabase
+      .from("payments")
+      .select("proof_storage_path")
+      .in("proof_storage_path", proofPaths)
+      .neq("order_id", orderId);
+    assertNoError(sharedProofsResult, `Check shared proof objects for order ${orderId}`);
+    for (const row of (sharedProofsResult.data ?? []) as PaymentProofRow[]) {
+      if (row.proof_storage_path) sharedProofPaths.add(row.proof_storage_path);
+    }
+  }
+
+  const deletableFilePaths = filePaths.filter((path) => !sharedFilePaths.has(path));
+  const deletableProofPaths = proofPaths.filter((path) => !sharedProofPaths.has(path));
+
+  await Promise.all([
+    removeStorageObjects(supabase, "order-files", deletableFilePaths),
+    removeStorageObjects(supabase, "payment-proofs", deletableProofPaths),
+  ]);
+
+  const clearedLinks = await Promise.all([
+    deletableFilePaths.length > 0
+      ? supabase
+          .from("order_files")
+          .update({ storage_path: null })
+          .eq("order_id", orderId)
+          .in("storage_path", deletableFilePaths)
+      : null,
+    deletableProofPaths.length > 0
+      ? supabase
+          .from("payments")
+          .update({ proof_storage_path: null })
+          .eq("order_id", orderId)
+          .in("proof_storage_path", deletableProofPaths)
+      : null,
+  ]);
+  for (const result of clearedLinks) {
+    if (result) assertNoError(result, `Clear upload links for order ${orderId}`);
+  }
+}
+
 async function purgeOrder(
   supabase: ReturnType<typeof createClient>,
   job: RetentionJob,
-): Promise<"deleted" | "skipped"> {
+): Promise<PurgeOutcome> {
   const currentResult = await supabase
     .from("orders")
     .select("status")
@@ -110,57 +184,12 @@ async function purgeOrder(
     assertNoError(snapshotResult, `Refresh released transaction snapshot for order ${job.order_id}`);
   }
 
-  const [filesResult, paymentsResult] = await Promise.all([
-    supabase.from("order_files").select("storage_path").eq("order_id", job.order_id),
-    supabase.from("payments").select("proof_storage_path").eq("order_id", job.order_id),
-  ]);
-  assertNoError(filesResult, `Read attached files for order ${job.order_id}`);
-  assertNoError(paymentsResult, `Read payment proofs for order ${job.order_id}`);
+  await removeOrderUploads(supabase, job.order_id);
 
-  const filePaths = ((filesResult.data ?? []) as StoragePathRow[])
-    .map((row) => row.storage_path)
-    .filter((path): path is string => Boolean(path));
-  const proofPaths = ((paymentsResult.data ?? []) as PaymentProofRow[])
-    .map((row) => row.proof_storage_path)
-    .filter((path): path is string => Boolean(path));
-
-  const sharedFilePaths = new Set<string>();
-  const sharedProofPaths = new Set<string>();
-  if (filePaths.length > 0) {
-    const sharedFilesResult = await supabase
-      .from("order_files")
-      .select("storage_path")
-      .in("storage_path", filePaths)
-      .neq("order_id", job.order_id);
-    assertNoError(sharedFilesResult, `Check shared file objects for order ${job.order_id}`);
-    for (const row of (sharedFilesResult.data ?? []) as StoragePathRow[]) {
-      if (row.storage_path) sharedFilePaths.add(row.storage_path);
-    }
+  if (terminalStatus === "Canceled") {
+    await deleteQueueJob(supabase, job.order_id);
+    return "files_only";
   }
-  if (proofPaths.length > 0) {
-    const sharedProofsResult = await supabase
-      .from("payments")
-      .select("proof_storage_path")
-      .in("proof_storage_path", proofPaths)
-      .neq("order_id", job.order_id);
-    assertNoError(sharedProofsResult, `Check shared proof objects for order ${job.order_id}`);
-    for (const row of (sharedProofsResult.data ?? []) as PaymentProofRow[]) {
-      if (row.proof_storage_path) sharedProofPaths.add(row.proof_storage_path);
-    }
-  }
-
-  await Promise.all([
-    removeStorageObjects(
-      supabase,
-      "order-files",
-      filePaths.filter((path) => !sharedFilePaths.has(path)),
-    ),
-    removeStorageObjects(
-      supabase,
-      "payment-proofs",
-      proofPaths.filter((path) => !sharedProofPaths.has(path)),
-    ),
-  ]);
 
   const unlinkResult = await Promise.all([
     supabase
@@ -246,12 +275,14 @@ Deno.serve(async (request) => {
   const jobs = (claimResult.data ?? []) as RetentionJob[];
   const failures: { orderId: string; message: string }[] = [];
   let deleted = 0;
+  let filesOnly = 0;
   let skipped = 0;
 
   for (const job of jobs) {
     try {
       const result = await purgeOrder(supabase, job);
       if (result === "deleted") deleted += 1;
+      else if (result === "files_only") filesOnly += 1;
       else skipped += 1;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -271,6 +302,7 @@ Deno.serve(async (request) => {
   return Response.json({
     claimed: jobs.length,
     deleted,
+    filesOnly,
     skipped,
     failures,
     batchLimit: MAX_ORDERS_PER_RUN,

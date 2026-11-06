@@ -1595,3 +1595,12 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Left `package-lock.json` out of this commit; its only change is npm's own "peer" bookkeeping, unrelated to this work.
 - Promoted this batch to `deployment` from the same commit, so production and the work branch stay identical.
 - Typecheck and production build pass. The Order Rules card was not opened live — it sits behind admin authentication — and the canceled-order retention change was verified in code, with the existing rows still covered by the already-deployed worker.
+
+## 2026-11-06 - Prans (5:15 PM PHT)
+
+- Stopped showing the customer a status the order never had: "Awaiting Verification" was only ever a display label invented when an Awaiting Payment order already carried a payment reference, so the customer-facing pages now read the stored status directly and the label function and its palette alias are deleted. What the customer still owes is carried by the Continue with Payment Verification button and the payment copy instead.
+- Put a bluish veil and a slight blur in front of the login and create account backgrounds, always: the navy wash now covers both the admin-uploaded photo and the built-in fallback, the black scrim is gone, and the images are blurred and scaled so no soft rim shows at the panel edge, keeping the white logo and headline legible on any background.
+- Fixed the payment verification amounts that printed ₱NaN: the balance-on-pickup line, the Partial and Full Payment options and the 50%-down explainer were parsing an already-formatted peso string, so they now share one number stripped of currency characters before any arithmetic.
+- Left `package-lock.json` out of this commit; its only change is npm's own bookkeeping, unrelated to this work.
+- Not promoted to `deployment` — this push is `frontend-dev` only, as asked.
+- Typecheck and production build pass. The status label removal was verified by a project-wide grep and the build rather than a signed-in customer session; the login and create account panels were checked live at 1440x900, and the payment verification amounts were verified in code.

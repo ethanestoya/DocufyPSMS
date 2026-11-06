@@ -108,7 +108,6 @@ export const STATUS_DISPLAY_TO_KEY: Record<string, OrderStatusKey> = {
   Released: "released",
   Canceled: "canceled",
   "Awaiting Payment": "awaitingPayment",
-  "Awaiting Verification": "awaitingPayment",
   // Legacy statuses folded into the new workflow
   Received: "all",
   "On Hold": "all",
@@ -123,17 +122,4 @@ export function getOrderStatusStyle(status?: string): OrderStatusStyle {
 // Pill/badge classes for order-status badges shown in lists, dialogs and customer pages.
 export function getStatusBadgeClasses(status?: string): string {
   return getOrderStatusStyle(status).badge;
-}
-
-// Customer-facing status label: once a payment reference has been submitted the
-// order is "Awaiting Verification" (payment sent, not yet confirmed by staff).
-// Before any reference is submitted it stays "Awaiting Payment".
-export function getCustomerStatusLabel(order?: {
-  status?: string;
-  paymentReferenceNumber?: string;
-} | null): string {
-  if (order?.status === "Awaiting Payment" && order.paymentReferenceNumber) {
-    return "Awaiting Verification";
-  }
-  return order?.status ?? "";
 }

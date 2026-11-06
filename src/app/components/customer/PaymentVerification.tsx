@@ -256,6 +256,12 @@ export default function PaymentVerification() {
   // uuid is the real order id), so the loaded order is authoritative.
   const displayOrder = order;
 
+  // Numeric order total. `displayOrder.total` is a formatted string ("₱1,250"),
+  // so it must be stripped to digits before any arithmetic — reading it directly
+  // produced "₱NaN" in the balance text.
+  const orderTotal =
+    parseFloat((displayOrder?.total || "0").replace(/[^0-9.]/g, "")) || 0;
+
   const isOnline = paymentMethod !== "" && paymentMethod !== "cash";
 
   // When the customer submitted the reference. Submitting clears the payment
@@ -988,11 +994,7 @@ export default function PaymentVerification() {
                             {" "}
                             (50% down payment —{" "}
                             {formatCurrency(
-                              parseFloat(
-                                (displayOrder.total || "?0")
-                                  .replace("?", "")
-                                  .replace(",", ""),
-                              ) - (displayOrder.downPaymentAmount || 0),
+                              orderTotal - (displayOrder.downPaymentAmount || 0),
                             )}{" "}
                             balance on pickup)
                           </span>
@@ -1069,21 +1071,11 @@ export default function PaymentVerification() {
                     <SelectContent>
                       <SelectItem value="partial">
                         Partial Payment —{" "}
-                        {formatCurrency(
-                          displayOrder.downPaymentAmount ||
-                            parseFloat(
-                              (displayOrder.total || "?0").replace("?", "").replace(",", ""),
-                            ) * 0.5,
-                        )}{" "}
+                        {formatCurrency(displayOrder.downPaymentAmount || orderTotal * 0.5)}{" "}
                         (50% down)
                       </SelectItem>
                       <SelectItem value="full">
-                        Full Payment —{" "}
-                        {formatCurrency(
-                          parseFloat(
-                            (displayOrder.total || "?0").replace("?", "").replace(",", ""),
-                          ) || 0,
-                        )}
+                        Full Payment — {formatCurrency(orderTotal)}
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -1096,11 +1088,7 @@ export default function PaymentVerification() {
                       You're required to pay a 50% down payment of{" "}
                       {formatCurrency(displayOrder.downPaymentAmount || 0)}. The remaining
                       balance of{" "}
-                      {formatCurrency(
-                        parseFloat(
-                          (displayOrder.total || "?0").replace("?", "").replace(",", ""),
-                        ) - (displayOrder.downPaymentAmount || 0),
-                      )}{" "}
+                      {formatCurrency(orderTotal - (displayOrder.downPaymentAmount || 0))}{" "}
                       will be due on pickup.
                     </p>
                   )}

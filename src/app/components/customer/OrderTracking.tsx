@@ -33,7 +33,7 @@ import { useHydrating } from "../../utils/useHydrating";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Label } from "../ui/label";
-import { getOrderStatusStyle, getStatusBadgeClasses, getCustomerStatusLabel } from "../../utils/orderStatusPalette";
+import { getOrderStatusStyle, getStatusBadgeClasses } from "../../utils/orderStatusPalette";
 import { formatPHTime, formatPHDate, formatPHDateTime } from "../../utils/pht";
 import { formatCurrency } from "../../utils/formatNumber";
 import { PaymentDeadlineCountdown } from "../shared/PaymentDeadlineCountdown";
@@ -347,7 +347,7 @@ export default function OrderTracking() {
 
   const currentOrderStatus = orderData?.status || "Awaiting Payment";
   const statusStyle = getOrderStatusStyle(currentOrderStatus);
-  const currentOrderLabel = getCustomerStatusLabel(orderData);
+  const currentOrderLabel = orderData?.status ?? "";
   const holdReason = orderData?.holdReason;
   const canCancelOrder = ["In Queue", "Awaiting Payment"].includes(currentOrderStatus);
 

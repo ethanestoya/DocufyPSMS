@@ -27,7 +27,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import ShopStatusBanner from "../shared/ShopStatusBanner";
 import { UnclaimedOrderWarning } from "../shared/UnclaimedOrderWarning";
 import { useUnclaimedOffenses } from "../../utils/useUnclaimedOffenses";
-import { getStatusBadgeClasses, getCustomerStatusLabel } from "../../utils/orderStatusPalette";
+import { getStatusBadgeClasses } from "../../utils/orderStatusPalette";
 import { paymentContinuationPath } from "../../utils/paymentContinuation";
 import { formatPHDate, formatPHTime } from "../../utils/pht";
 import { TableSkeleton } from "../ui/table-skeleton";
@@ -372,12 +372,9 @@ export default function CustomerOrders() {
                         </div>
                       </td>
                       <td className="py-4 px-4">
-                        <Badge
-                          className={`${getStatusColor(getCustomerStatusLabel(order))} font-medium`}
-                        >
-                          {getCustomerStatusLabel(order)}
-                        </Badge>
-                        {continuePath && (
+                        {/* An order waiting on the customer's own payment action
+                            is an action, not a status — show only the button. */}
+                        {continuePath ? (
                           <Button
                             type="button"
                             size="sm"
@@ -388,11 +385,17 @@ export default function CustomerOrders() {
                               navigate(continuePath);
                             }}
                             onKeyDown={(event) => event.stopPropagation()}
-                            className="mt-2 rounded-lg px-2.5 text-xs"
+                            className="rounded-lg px-2.5 text-xs"
                           >
                             <Wallet />
                             Continue with Payment Verification
                           </Button>
+                        ) : (
+                          <Badge
+                            className={`${getStatusColor(order.status)} font-medium`}
+                          >
+                            {order.status}
+                          </Badge>
                         )}
                       </td>
                       <td className="hidden sm:table-cell py-4 px-4 text-sm text-gray-600">

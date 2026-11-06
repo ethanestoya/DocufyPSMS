@@ -44,7 +44,7 @@ import {
   AnnouncementDetailsModal,
   type AnnouncementDetailData,
 } from "../shared/AnnouncementDetailsModal";
-import { getStatusBadgeClasses, getCustomerStatusLabel } from "../../utils/orderStatusPalette";
+import { getStatusBadgeClasses } from "../../utils/orderStatusPalette";
 import { UnclaimedOrderWarning } from "../shared/UnclaimedOrderWarning";
 
 const menuItems = [
@@ -429,9 +429,9 @@ export default function CustomerDashboard() {
 {currentOrder.displayId ?? currentOrder.id}
                         </span>
                         <Badge
-                          className={`${getStatusBadgeClasses(getCustomerStatusLabel(currentOrder))} font-medium text-xs`}
+                          className={`${getStatusBadgeClasses(currentOrder.status)} font-medium text-xs`}
                         >
-                          {getCustomerStatusLabel(currentOrder)}
+                          {currentOrder.status}
                         </Badge>
                       </div>
                       <p className="text-sm text-gray-600 mt-1">
@@ -597,9 +597,9 @@ export default function CustomerDashboard() {
                                 {order.displayId ?? order.id}
                               </span>
                               <Badge
-                                className={`${getStatusBadgeClasses(getCustomerStatusLabel(order))} font-medium text-[10px]`}
+                                className={`${getStatusBadgeClasses(order.status)} font-medium text-[10px]`}
                               >
-                                {getCustomerStatusLabel(order)}
+                                {order.status}
                               </Badge>
                             </div>
                             <p className="text-xs text-gray-600 mt-0.5 truncate">
@@ -643,9 +643,9 @@ export default function CustomerDashboard() {
                                 {order.displayId ?? order.id}
                               </span>
                               <Badge
-                                className={`${getStatusBadgeClasses(getCustomerStatusLabel(order))} font-medium text-[10px]`}
+                                className={`${getStatusBadgeClasses(order.status)} font-medium text-[10px]`}
                               >
-                                {getCustomerStatusLabel(order)}
+                                {order.status}
                               </Badge>
                             </div>
                             <p className="text-xs text-gray-600 mt-0.5">
@@ -735,9 +735,9 @@ export default function CustomerDashboard() {
                     </p>
                   </div>
                   <Badge
-                    className={`${getStatusBadgeClasses(getCustomerStatusLabel(order))} font-medium text-[10px] flex-shrink-0`}
+                    className={`${getStatusBadgeClasses(order.status)} font-medium text-[10px] flex-shrink-0`}
                   >
-                    {getCustomerStatusLabel(order)}
+                    {order.status}
                   </Badge>
                   <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
                 </button>

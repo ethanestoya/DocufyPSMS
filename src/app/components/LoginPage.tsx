@@ -191,21 +191,21 @@ export default function LoginPage() {
       {/* Left Side - Logo & Illustration */}
       <div className="hidden lg:flex lg:w-1/2 relative bg-[#1c1f26] items-center justify-center min-h-screen">
         {authBg ? (
-          <>
-            <img
-              src={authBg}
-              alt="Docufy background"
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-black/45" />
-          </>
+          <img
+            src={authBg}
+            alt="Docufy background"
+            className="absolute inset-0 w-full h-full scale-105 object-cover blur-[3px]"
+          />
         ) : (
           <ImageWithFallback
             src="https://images.unsplash.com/photo-1595142545813-06fee27f3dcb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBwcmludCUyMHNob3AlMjBwcmludGluZyUyMHNlcnZpY2VzfGVufDF8fHx8MTc3NTgyODU1OXww&ixlib=rb-4.1.0&q=80&w=1080"
             alt="Modern Print Shop"
-            className="absolute inset-0 w-full h-full object-cover opacity-20 mix-blend-overlay"
+            className="absolute inset-0 w-full h-full scale-105 object-cover opacity-20 mix-blend-overlay blur-[3px]"
           />
         )}
+        {/* Bluish veil over whichever background is showing, so the white
+            brand block always sits on brand navy rather than on a photo. */}
+        <div className="absolute inset-0 bg-[#10316B]/70" />
 
         <button
           onClick={() => navigate("/")}

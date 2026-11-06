@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
 import { Spinner } from "./ui/spinner";
 import { isAllowedEmail, isPolicyTriggerError } from "../utils/authEmailPolicy";
+import { clearGoogleAttemptStartedAt } from "../utils/googleSignInMarker";
 import { usePopup } from "../contexts/PopupContext";
 
 // Supabase reports an OAuth failure either as query params (PKCE flow) or in
@@ -27,6 +28,12 @@ export default function AuthCallbackPage() {
   const { showPopup } = usePopup();
 
   useEffect(() => {
+    // The round trip ended here, wherever it now routes the visitor, so the
+    // "a Google sign-in is in flight" marker is spent. If it were left set, a
+    // later visit to the landing page could be mistaken for an interrupted
+    // sign-in and bounce the user back to their dashboard.
+    clearGoogleAttemptStartedAt();
+
     const hashParams = readHashParams();
     const error = searchParams.get("error") || hashParams.get("error");
     const description =

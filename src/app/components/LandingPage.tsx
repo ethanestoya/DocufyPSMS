@@ -42,6 +42,11 @@ import {
 // System logo is centralized in the logo store so an admin-uploaded logo
 // applies everywhere. `logo` below is the live value (default or override).
 import { useLogo } from "../hooks/useLogo";
+import {
+  GOOGLE_ATTEMPT_TTL_MS,
+  clearGoogleAttemptStartedAt,
+  readGoogleAttemptStartedAt,
+} from "../utils/googleSignInMarker";
 
 export default function LandingPage({
   contentOverride,
@@ -87,6 +92,22 @@ export default function LandingPage({
     document.documentElement.setAttribute("data-mobile-press", "customer");
     return () => document.documentElement.removeAttribute("data-mobile-press");
   }, [user?.role]);
+
+  // A Google sign-in is supposed to hand the tab to /auth/callback, which
+  // routes by role. When the provider answers with the project's site root
+  // instead — a stale Site URL, or this origin missing from Supabase's Redirect
+  // URLs list — the session is already live and the visitor is standing on the
+  // marketing page with nowhere to go. The marker left when the attempt started
+  // proves that is what just happened, so finish the sign-in here.
+  useEffect(() => {
+    if (!user) return;
+    const startedAt = readGoogleAttemptStartedAt();
+    if (startedAt === null || Date.now() - startedAt >= GOOGLE_ATTEMPT_TTL_MS) {
+      return;
+    }
+    clearGoogleAttemptStartedAt();
+    navigate(`/${user.role}/dashboard`, { replace: true });
+  }, [user, navigate]);
 
   useEffect(() => {
     const load = () => setMatrix(pricingStore.getMatrix());

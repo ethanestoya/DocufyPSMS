@@ -1604,3 +1604,14 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Left `package-lock.json` out of this commit; its only change is npm's own bookkeeping, unrelated to this work.
 - Not promoted to `deployment` — this push is `frontend-dev` only, as asked.
 - Typecheck and production build pass. The status label removal was verified by a project-wide grep and the build rather than a signed-in customer session; the login and create account panels were checked live at 1440x900, and the payment verification amounts were verified in code.
+
+## 2026-11-07 - Prans (3:28 AM PHT)
+
+- Kept a signed-in user out of the create-account form, made every sign-in land on its dashboard, and fixed the admin dashboard freezing when a period filter was opened.
+- Blocked `/signup` while signed in: an already-authenticated visitor is sent to their own space with `replace`, and a customer who came from a job posting is carried on to that application instead of being dropped with no way back to it.
+- Made the login redirect replace history for every role: previously only the customer/job path did, so pressing Back walked a signed-in staff or admin out of their own dashboard and into the public login page.
+- Recovered a Google sign-in the provider returns to the site root instead of `/auth/callback` (a stale Site URL or this origin missing from the Redirect URLs list): the attempt marker is now one shared helper, cleared when the callback runs and read by the landing page, so a live session plus a fresh marker finishes the sign-in while an old marker never hijacks a page someone merely opened.
+- Hid the file Preview/Download actions on a finished order: once an order is released or canceled, the customer tracking page and the staff/admin Order Details window drop those buttons, and the file row removes the action slot instead of leaving an empty gap.
+- Fixed the page that stopped scrolling when the Sales Trend filter was opened. The menu used a full-screen click-catcher, which on desktop sits above Layout’s only scroll container, so the wheel did nothing and every click just closed the menu. All three period dropdowns (dashboard Overview, the Services tab, Inventory Reports) now dismiss on a press outside the control through one shared hook, which ignores presses inside the date-range calendar so picking a day keeps its host menu open.
+- Left the untracked `mockups/admin-confirm-pricing.html` / `.png` out of this commit; they are not part of this work.
+- Typecheck and production build pass. The three dropdowns were verified in a desktop-width dev harness (no overlay left, hit-tests land on real content, outside press closes, a calendar day press keeps the menu open); the sign-in paths are code-verified — no credentials exist here for a live Google round trip, and no admin session was available for the closed-order file buttons.

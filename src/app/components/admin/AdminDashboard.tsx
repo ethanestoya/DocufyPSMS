@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router";
 import {
   LayoutDashboard,
@@ -40,6 +40,7 @@ import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { CardSkeleton, DetailSkeleton } from "../ui/card-skeleton";
 import { useHydrating } from "../../utils/useHydrating";
+import { useClickOutsideClose } from "../../hooks/useClickOutsideClose";
 import { DateRangeFilter } from "../ui/date-range-filter";
 import { SummaryCard } from "../ui/summary-card";
 import {
@@ -554,8 +555,11 @@ interface DateRangeSelectorProps {
 }
 
 function DateRangeSelector({ selectedLabel, rangeId, onSelect, customStart, customEnd, onCustomStart, onCustomEnd, open, setOpen }: DateRangeSelectorProps) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  useClickOutsideClose(wrapperRef, open, () => setOpen(false));
+
   return (
-    <div className="relative">
+    <div className="relative" ref={wrapperRef}>
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200/70 rounded-xl text-sm font-medium text-slate-700 hover:border-[#2F6FD6] transition-colors shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
@@ -565,35 +569,32 @@ function DateRangeSelector({ selectedLabel, rangeId, onSelect, customStart, cust
         <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-1 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1">
-            {DATE_RANGES.map((range) => (
-              <button
-                key={range.id}
-                onClick={() => { onSelect(range.id); if (range.id !== "custom") setOpen(false); }}
-                className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${rangeId === range.id ? "bg-blue-50 text-[#2F6FD6] font-semibold" : "text-slate-700 hover:bg-slate-50"}`}
-              >
-                {range.label}
-              </button>
-            ))}
-            {rangeId === "custom" && (
-              <div className="px-4 py-3 border-t border-slate-100 space-y-2">
-                <DateRangeFilter
-                  value={{ from: customStart, to: customEnd }}
-                  onChange={(next) => {
-                    onCustomStart(next.from);
-                    onCustomEnd(next.to);
-                  }}
-                  fromLabel="From"
-                  toLabel="To"
-                  compact
-                />
-                <Button variant="primary" size="sm" onClick={() => setOpen(false)} className="w-full">Apply</Button>
-              </div>
-            )}
-          </div>
-        </>
+        <div className="absolute right-0 top-full mt-1 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1">
+          {DATE_RANGES.map((range) => (
+            <button
+              key={range.id}
+              onClick={() => { onSelect(range.id); if (range.id !== "custom") setOpen(false); }}
+              className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${rangeId === range.id ? "bg-blue-50 text-[#2F6FD6] font-semibold" : "text-slate-700 hover:bg-slate-50"}`}
+            >
+              {range.label}
+            </button>
+          ))}
+          {rangeId === "custom" && (
+            <div className="px-4 py-3 border-t border-slate-100 space-y-2">
+              <DateRangeFilter
+                value={{ from: customStart, to: customEnd }}
+                onChange={(next) => {
+                  onCustomStart(next.from);
+                  onCustomEnd(next.to);
+                }}
+                fromLabel="From"
+                toLabel="To"
+                compact
+              />
+              <Button variant="primary" size="sm" onClick={() => setOpen(false)} className="w-full">Apply</Button>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
@@ -802,6 +803,8 @@ function ServicesTab({
 }) {
   const [rangeId, setRangeId] = useState<ServicesRangeId>("this-month");
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  useClickOutsideClose(dropdownRef, dropdownOpen, () => setDropdownOpen(false));
 
   const range = useMemo(() => getDateRange(rangeId), [rangeId]);
 
@@ -849,7 +852,7 @@ function ServicesTab({
           </div>
           <p className="text-sm text-slate-500 mt-1.5">Performance and catalogue for the selected period.</p>
         </div>
-        <div className="relative">
+        <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
             className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:border-[#2F6FD6] transition-colors shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
@@ -859,20 +862,17 @@ function ServicesTab({
             <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
           </button>
           {dropdownOpen && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
-              <div className="absolute right-0 top-full mt-1.5 w-52 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1">
-                {SERVICES_RANGES.map((r) => (
-                  <button
-                    key={r.id}
-                    onClick={() => { setRangeId(r.id); setDropdownOpen(false); }}
-                    className={`w-full text-left px-4 py-2 text-sm transition-colors ${rangeId === r.id ? "bg-blue-50 text-[#2F6FD6] font-semibold" : "text-slate-600 hover:bg-slate-50"}`}
-                  >
-                    {r.label}
-                  </button>
-                ))}
-              </div>
-            </>
+            <div className="absolute right-0 top-full mt-1.5 w-52 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1">
+              {SERVICES_RANGES.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => { setRangeId(r.id); setDropdownOpen(false); }}
+                  className={`w-full text-left px-4 py-2 text-sm transition-colors ${rangeId === r.id ? "bg-blue-50 text-[#2F6FD6] font-semibold" : "text-slate-600 hover:bg-slate-50"}`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
           )}
         </div>
       </div>

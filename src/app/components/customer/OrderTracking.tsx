@@ -363,6 +363,11 @@ export default function OrderTracking() {
     currentOrderStatus === "Completed" ||
     currentOrderStatus === "Released";
   const isAwaitingPayment = currentOrderStatus === "Awaiting Payment";
+  // Once the job is collected (or called off) its file is no longer something
+  // the customer re-opens or re-downloads, so the attached-files list drops
+  // those two actions for a released or canceled order.
+  const fileActionsAvailable =
+    currentOrderStatus !== "Released" && currentOrderStatus !== "Canceled";
   // Resume point for an unpaid order — null for every other status.
   const paymentContinuationHref = paymentContinuationPath(orderData);
 
@@ -1157,8 +1162,8 @@ export default function OrderTracking() {
                 <FileAttachments
                   files={attachedFiles}
                   orderId={orderId || ""}
-                  showView
-                  showDownload
+                  showView={fileActionsAvailable}
+                  showDownload={fileActionsAvailable}
                   labelledActions
                 />
               </>

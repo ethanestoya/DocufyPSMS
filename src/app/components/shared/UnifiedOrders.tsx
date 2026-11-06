@@ -592,6 +592,12 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
     }));
   }, [selectedOrder]);
 
+  // A released or canceled job is finished work: nobody opens or hands over its
+  // file any more, so the Order Details window drops those two actions.
+  const orderIsClosed =
+    selectedOrder?.status === "released" ||
+    selectedOrder?.status === "canceled";
+
   // The same three figures the receipt reads, restated for the Pricing block.
   // Nothing is re-derived from the rate matrix: an order that stored no
   // breakdown keeps its stored total and shows no invented parts.
@@ -1776,8 +1782,8 @@ export default function UnifiedOrders({ menuItems, userRole }: UnifiedOrdersProp
                       <FileAttachments
                         files={detailFiles}
                         orderId={selectedOrder.id}
-                        showDownload={true}
-                        showView={true}
+                        showDownload={!orderIsClosed}
+                        showView={!orderIsClosed}
                         lockedBy={canActOnOrder ? null : lockHolder}
                         appearance="card"
                         specOnMobileOnly

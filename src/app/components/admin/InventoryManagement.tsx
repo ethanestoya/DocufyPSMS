@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Boxes,
   AlertTriangle,
@@ -59,6 +59,7 @@ import {
 import { ConfirmationDialog } from "../ui/confirmation-dialog";
 import { TableSkeleton } from "../ui/table-skeleton";
 import { useHydrating } from "../../utils/useHydrating";
+import { useClickOutsideClose } from "../../hooks/useClickOutsideClose";
 import { ZoomSafeDropdown } from "../ui/zoom-safe-dropdown";
 import {
   BarChart,
@@ -193,6 +194,8 @@ function InventoryReports() {
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  useClickOutsideClose(dropdownRef, dropdownOpen, () => setDropdownOpen(false));
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [itemFilter, setItemFilter] = useState("all");
 
@@ -315,7 +318,7 @@ function InventoryReports() {
               options={categories.map((c) => ({ value: c, label: c === "all" ? "All Categories" : c }))}
             />
           )}
-          <div className="relative">
+          <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
               className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:border-[#2F6FD6] transition-colors shadow-sm"
@@ -325,35 +328,32 @@ function InventoryReports() {
               <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
             </button>
             {dropdownOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
-                <div className="absolute right-0 top-full mt-1 w-60 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1">
-                  {REPORT_RANGES.map((r) => (
-                    <button
-                      key={r.id}
-                      onClick={() => { setRangeId(r.id); if (r.id !== "custom") setDropdownOpen(false); }}
-                      className={`w-full text-left px-4 py-2 text-sm transition-colors ${rangeId === r.id ? "bg-blue-50 text-[#2F6FD6] font-semibold" : "text-slate-700 hover:bg-slate-50"}`}
-                    >
-                      {r.label}
-                    </button>
-                  ))}
-                  {rangeId === "custom" && (
-                    <div className="px-4 py-3 border-t border-slate-100 space-y-2">
-                      <DateRangeFilter
-                        value={{ from: customStart, to: customEnd }}
-                        onChange={(next) => {
-                          setCustomStart(next.from);
-                          setCustomEnd(next.to);
-                        }}
-                        fromLabel="From"
-                        toLabel="To"
-                        compact
-                      />
-                      <Button variant="primary" size="sm" onClick={() => setDropdownOpen(false)} className="w-full">Apply</Button>
-                    </div>
-                  )}
-                </div>
-              </>
+              <div className="absolute right-0 top-full mt-1 w-60 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1">
+                {REPORT_RANGES.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => { setRangeId(r.id); if (r.id !== "custom") setDropdownOpen(false); }}
+                    className={`w-full text-left px-4 py-2 text-sm transition-colors ${rangeId === r.id ? "bg-blue-50 text-[#2F6FD6] font-semibold" : "text-slate-700 hover:bg-slate-50"}`}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+                {rangeId === "custom" && (
+                  <div className="px-4 py-3 border-t border-slate-100 space-y-2">
+                    <DateRangeFilter
+                      value={{ from: customStart, to: customEnd }}
+                      onChange={(next) => {
+                        setCustomStart(next.from);
+                        setCustomEnd(next.to);
+                      }}
+                      fromLabel="From"
+                      toLabel="To"
+                      compact
+                    />
+                    <Button variant="primary" size="sm" onClick={() => setDropdownOpen(false)} className="w-full">Apply</Button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
           <ZoomSafeDropdown

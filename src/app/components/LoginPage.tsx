@@ -28,44 +28,15 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 import { EMAIL_POLICY_MESSAGE } from "../utils/authEmailPolicy";
+import {
+  GOOGLE_ATTEMPT_TTL_MS,
+  clearGoogleAttemptStartedAt,
+  readGoogleAttemptStartedAt,
+  writeGoogleAttemptStartedAt,
+} from "../utils/googleSignInMarker";
 
-// Written the moment a Google attempt starts and read back when the login page
-// is shown again. A successful round trip lands on /auth/callback, never here,
-// so a marker still on the page means the visitor came back without signing in.
-const GOOGLE_ATTEMPT_KEY = "docufy_google_attempt";
-// Only a marker from the last minute counts as an interrupted attempt — an
-// older one is leftover from a sign-in that completed in this tab.
-const GOOGLE_ATTEMPT_TTL_MS = 60_000;
 const GOOGLE_CANCELLED_MESSAGE =
   "Sign in with Google was cancelled or didn't finish. Try again, or log in with your email and password.";
-
-function readGoogleAttemptStartedAt(): number | null {
-  try {
-    const value = sessionStorage.getItem(GOOGLE_ATTEMPT_KEY);
-    if (!value) return null;
-    const startedAt = Number(value);
-    return Number.isFinite(startedAt) ? startedAt : null;
-  } catch (error) {
-    console.warn("[auth:google] Could not read the sign-in recovery marker:", error);
-    return null;
-  }
-}
-
-function writeGoogleAttemptStartedAt(): void {
-  try {
-    sessionStorage.setItem(GOOGLE_ATTEMPT_KEY, String(Date.now()));
-  } catch (error) {
-    console.warn("[auth:google] Could not save the sign-in recovery marker:", error);
-  }
-}
-
-function clearGoogleAttemptStartedAt(): void {
-  try {
-    sessionStorage.removeItem(GOOGLE_ATTEMPT_KEY);
-  } catch (error) {
-    console.warn("[auth:google] Could not clear the sign-in recovery marker:", error);
-  }
-}
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -108,22 +79,17 @@ export default function LoginPage() {
   }, [policyBlocked, location.key]);
 
   React.useEffect(() => {
-    if (user) {
-      // Signed in — any marker from the round trip that got us here is spent.
-      clearGoogleAttemptStartedAt();
-      if (user.role === "customer") {
-        navigate(
-          pendingJobId
-            ? `/customer/job-apply/${pendingJobId}`
-            : "/customer/dashboard",
-          { replace: Boolean(pendingJobId) },
-        );
-      } else if (user.role === "staff") {
-        navigate("/staff/dashboard");
-      } else if (user.role === "admin") {
-        navigate("/admin/dashboard");
-      }
-    }
+    if (!user) return;
+    // Signed in — any marker from the round trip that got us here is spent.
+    clearGoogleAttemptStartedAt();
+    const target =
+      user.role === "customer" && pendingJobId
+        ? `/customer/job-apply/${pendingJobId}`
+        : `/${user.role}/dashboard`;
+    // Always replace, for every role: the login page must not stay in history
+    // behind a signed-in view, or pressing Back walks the user out of their own
+    // dashboard and into the public pages while still logged in.
+    navigate(target, { replace: true });
   }, [user, navigate, pendingJobId]);
 
   // Google hands the browser over to the provider, so this page is unloaded

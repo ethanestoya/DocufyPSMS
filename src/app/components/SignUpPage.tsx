@@ -20,6 +20,10 @@ import { useAuthBackgroundUrl } from "../hooks/useAuthBackgroundUrl";
 import { PasswordStrengthIndicator, validatePassword } from "./ui/password-strength-indicator";
 import { FieldError, describedBy } from "./ui/field-error";
 import { checkEmailAllowed } from "../utils/authEmailPolicy";
+import {
+  clearGoogleAttemptStartedAt,
+  writeGoogleAttemptStartedAt,
+} from "../utils/googleSignInMarker";
 
 /** Order in which invalid signup fields take focus (visual order on the form). */
 const FIELD_ORDER = [
@@ -43,7 +47,7 @@ export default function SignUpPage() {
   const pendingJobId = searchParams.get("jobId");
   const logo = useLogo();
   const authBg = useAuthBackgroundUrl();
-  const { signup, signInWithGoogle } = useAuth();
+  const { signup, signInWithGoogle, user } = useAuth();
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -70,6 +74,21 @@ export default function SignUpPage() {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
+  // This page exists to create the account a visitor does not have yet. Someone
+  // already signed in gets sent to their own space instead of being allowed to
+  // open a second registration form — and a customer who came here from a job
+  // posting is carried on to that application rather than dropped on the
+  // dashboard with no way back to it.
+  React.useEffect(() => {
+    if (!user) return;
+    navigate(
+      user.role === "customer" && pendingJobId
+        ? `/customer/job-apply/${pendingJobId}`
+        : `/${user.role}/dashboard`,
+      { replace: true },
+    );
+  }, [user, navigate, pendingJobId]);
+
   const handleProfileImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -88,8 +107,14 @@ export default function SignUpPage() {
   const handleGoogleSignIn = async () => {
     if (googleLoading) return;
     setGoogleLoading(true);
+    // Same marker the login page leaves: if the provider returns the tab to the
+    // site root instead of /auth/callback, the landing page can tell a finished
+    // sign-in from a page someone simply opened.
+    writeGoogleAttemptStartedAt();
     const result = await signInWithGoogle();
     if (!result.success) {
+      // The browser never left, so this page can clean up its own marker.
+      clearGoogleAttemptStartedAt();
       setGoogleLoading(false);
       showPopup(result.message, "error");
     }
@@ -165,7 +190,9 @@ export default function SignUpPage() {
         pendingJobId
           ? `/customer/job-apply/${pendingJobId}`
           : "/customer/dashboard",
-        { replace: Boolean(pendingJobId) },
+        // Replace, so the form the account was just created from is not left
+        // behind in history for a signed-in customer to walk back into.
+        { replace: true },
       );
   };
 

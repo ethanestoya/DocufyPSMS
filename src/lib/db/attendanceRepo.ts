@@ -2,9 +2,6 @@ import { supabase } from '../supabaseClient';
 import { subscribeTableChanges } from './hooks';
 import type {
   AttendanceRecordRow,
-  AttendanceRecordInsert,
-  AttendanceRecordUpdate,
-  AttendanceAdjustmentInsert,
   AttendanceRecordDto,
   AttendanceSessionDto,
   AbsenceStatus,
@@ -13,16 +10,23 @@ import type {
 
 export type { AttendanceRecordDto, AttendanceSessionDto, AbsenceStatus } from './types';
 
+type UntypedRpc = (
+  fn: string,
+  args?: Record<string, unknown>,
+) => Promise<{ data: any; error: any }>;
+const rpc = supabase.rpc as unknown as UntypedRpc;
+
 // Attendance persistence for the staff clock-in/out system.
 //
 // Identity model in Supabase:
 //   * `attendance_records.profile_id` — a REAL Supabase account (auth.uid ==
 //     profiles.id), used for staff who can actually sign in (e.g. staff@test.com).
 //   * `attendance_records.staff_id` — a `staff_records` directory row, used for
-//     demo roaster members who have no auth account (Robert/Katie/Miguel/Ana).
-// The app keys attendance by EMAIL; the repo resolves email → profile_id and/or
-// staff_id before writing, and joins the person back on reads so the app can
-// rebuild its email-keyed records after a hydrate.
+//     demo roster members who have no auth account (Robert/Katie/Miguel/Ana).
+// The app keys attendance by EMAIL; reads join the person back so the app can
+// rebuild its email-keyed records after a hydrate. Writes go through
+// server-authoritative RPCs (`clock_in`/`clock_out` for self, `admin_*` for
+// corrections) so the salary-driving times are never client-authored.
 
 // ── Identity resolution ──────────────────────────────────────────────────────
 
@@ -38,8 +42,7 @@ function cacheKey(email: string): string {
 }
 
 // Raised when an email matches neither a `profiles` row nor a `staff_records`
-// row. An insert with both ids null is meaningless, so this is a known cause —
-// distinct from a network/RLS failure — and the store words its notice from it.
+// row. Kept for compatibility with store messaging.
 export class AttendanceIdentityMissingError extends Error {
   readonly email: string;
   constructor(email: string) {
@@ -49,10 +52,8 @@ export class AttendanceIdentityMissingError extends Error {
   }
 }
 
-// Resolve an email to its Supabase identity (profile_id = real auth account,
-// staff_id = staff_records directory row). Either can be null; a real auth
-// account may ALSO have a staff_records row, in which case both are returned.
-// Results are cached per email for the session.
+// Resolve an email to its Supabase identity. Still used for read-side joins and
+// as a best-effort preflight for UI messaging.
 export async function resolveAttendanceIdentity(email: string): Promise<AttendanceIdentity> {
   const key = cacheKey(email);
   if (!key) return { profileId: null, staffId: null };
@@ -85,9 +86,6 @@ export async function resolveAttendanceIdentity(email: string): Promise<Attendan
   }
 
   const resolved = { profileId, staffId };
-  // Only cache a real match. An empty result can be a transient lookup failure
-  // (or a roster row that hasn't been created yet), and caching it would make
-  // every later clock action fail for the rest of the session.
   if (profileId || staffId) identityCache.set(key, resolved);
   return resolved;
 }
@@ -109,9 +107,9 @@ function parseSessions(json: unknown): AttendanceSessionDto[] {
     .filter((s): s is AttendanceSessionDto => !!s);
 }
 
-function toDto(
+export function attendanceRowToDto(
   row: AttendanceRecordRow,
-  person: { email: string | null; name: string | null; role: AppRole | null } | undefined,
+  person?: { email: string | null; name: string | null; role: AppRole | null },
 ): AttendanceRecordDto {
   return {
     id: row.id,
@@ -136,9 +134,6 @@ function toDto(
 
 // ── Reads ────────────────────────────────────────────────────────────────────
 
-// All attendance records the caller can see (RLS: own + staff/admin rows).
-// Person info is joined back from `profiles` (by profile_id) and `staff_records`
-// (by staff_id) so the caller can map rows to email-keyed app records.
 export async function fetchAttendanceRecords(): Promise<AttendanceRecordDto[]> {
   const { data, error } = await supabase
     .from('attendance_records')
@@ -178,157 +173,82 @@ export async function fetchAttendanceRecords(): Promise<AttendanceRecordDto[]> {
       (row.profile_id && profileMap.get(row.profile_id)) ||
       (row.staff_id && staffMap.get(row.staff_id)) ||
       undefined;
-    return toDto(row, person);
+    return attendanceRowToDto(row, person);
   });
 }
 
-// ── Writes ───────────────────────────────────────────────────────────────────
+// ── Server-authoritative writes (RPCs) ───────────────────────────────────────
 
-// Resolve identity by email, then find-or-create the record for (identity, date).
-// Returns the DB record id. Times are stored as ISO-8601 UTC strings. The input
-// is keyed by email (the app's identity) — the repo resolves it per write, so
-// the store never has to.
-export interface UpsertAttendanceRecordInput {
-  email: string;
-  date: string; // YYYY-MM-DD (PHT day)
-  timeIn?: Date | null;
-  timeOut?: Date | null;
-  exceeded?: boolean;
-  extraSessions?: AttendanceSessionDto[];
-  absenceStatus?: AbsenceStatus | null;
-  notes?: string | null;
-}
-
-export async function upsertAttendanceRecord(
-  input: UpsertAttendanceRecordInput,
-): Promise<{ id: string; profileId: string | null; staffId: string | null }> {
-  const identity = await resolveAttendanceIdentity(input.email);
-  // Without either id the row would identify nobody. Say so instead of letting
-  // the database reject it with a constraint error the user can't act on.
-  if (!identity.profileId && !identity.staffId) {
-    throw new AttendanceIdentityMissingError(input.email);
-  }
-  const timeInIso = input.timeIn ? input.timeIn.toISOString() : null;
-  const timeOutIso = input.timeOut ? input.timeOut.toISOString() : null;
-  const extraSessions = (input.extraSessions ?? [])
-    .map((s) => ({
-      ...(s.timeIn ? { timeIn: s.timeIn.toISOString() } : {}),
-      ...(s.timeOut ? { timeOut: s.timeOut.toISOString() } : {}),
-    }))
-    .filter((s) => !!s.timeIn || !!s.timeOut);
-
-  // Find the existing row for this identity/date (checking whichever id is set).
-  const existing = await findRecordId(identity, input.date);
-
-  if (existing) {
-    const update: AttendanceRecordUpdate = { updated_at: new Date().toISOString() };
-    // Each field is applied only when explicitly supplied, so a partial write
-    // (e.g. syncing just an absence status) never clobbers the others.
-    if (input.timeIn !== undefined) update.time_in = input.timeIn ? input.timeIn.toISOString() : null;
-    if (input.timeOut !== undefined) update.time_out = input.timeOut ? input.timeOut.toISOString() : null;
-    if (input.exceeded !== undefined) update.exceeded = input.exceeded === true;
-    if (input.extraSessions !== undefined) {
-      update.extra_sessions = extraSessions as unknown as AttendanceRecordRow['extra_sessions'];
-    }
-    if (input.absenceStatus !== undefined) {
-      update.absence_status = input.absenceStatus ?? null;
-    }
-    if (input.notes !== undefined) update.notes = input.notes ?? null;
-    const { error } = await supabase.from('attendance_records').update(update).eq('id', existing);
-    if (error) throw error;
-    return { id: existing, profileId: identity.profileId, staffId: identity.staffId };
-  }
-
-  const insert: AttendanceRecordInsert = {
-    profile_id: identity.profileId,
-    staff_id: identity.staffId,
-    attendance_date: input.date,
-    time_in: timeInIso,
-    time_out: timeOutIso,
-    exceeded: input.exceeded === true,
-    extra_sessions: extraSessions as unknown as AttendanceRecordRow['extra_sessions'],
-    absence_status: input.absenceStatus ?? null,
-    notes: input.notes ?? null,
-  };
-  const { data, error } = await supabase
-    .from('attendance_records')
-    .insert(insert)
-    .select('id, profile_id, staff_id')
-    .single();
+export async function clockInRpc(): Promise<AttendanceRecordRow> {
+  const { data, error } = await rpc('clock_in');
   if (error) throw error;
-  return { id: data.id, profileId: data.profile_id, staffId: data.staff_id };
+  return data as AttendanceRecordRow;
 }
 
-async function findRecordId(
-  identity: AttendanceIdentity,
+export async function clockOutRpc(): Promise<AttendanceRecordRow> {
+  const { data, error } = await rpc('clock_out');
+  if (error) throw error;
+  return data as AttendanceRecordRow;
+}
+
+export async function adminUpsertAttendanceRpc(
+  email: string,
   date: string,
-): Promise<string | null> {
-  let query = supabase.from('attendance_records').select('id').eq('attendance_date', date);
-  if (identity.profileId) query = query.eq('profile_id', identity.profileId);
-  else if (identity.staffId) query = query.eq('staff_id', identity.staffId);
-  else return null;
-  const { data, error } = await query.maybeSingle();
+  field: 'timeIn' | 'timeOut',
+  value: Date | null,
+  reason?: string | null,
+): Promise<AttendanceRecordRow> {
+  const { data, error } = await rpc('admin_upsert_attendance', {
+    p_email: email,
+    p_date: date,
+    p_field: field,
+    p_value: value ? value.toISOString() : null,
+    p_reason: reason ?? null,
+  });
   if (error) throw error;
-  return data?.id ?? null;
+  return data as AttendanceRecordRow;
 }
 
-// Remove a record entirely (used to wipe a day). Returns true when a row existed.
-export async function deleteAttendanceRecord(id: string): Promise<boolean> {
-  const { data, error } = await supabase.from('attendance_records').delete().eq('id', id).select('id');
+export async function adminSetAttendanceAbsenceRpc(
+  email: string,
+  date: string,
+  absence: AbsenceStatus | null,
+): Promise<AttendanceRecordRow> {
+  const { data, error } = await rpc('admin_set_attendance_absence', {
+    p_email: email,
+    p_date: date,
+    p_absence: absence ?? null,
+  });
   if (error) throw error;
-  return (data?.length ?? 0) > 0;
-}
-
-// ── Adjustments audit ────────────────────────────────────────────────────────
-
-// Record an admin-level correction to an attendance record. `adjustedBy` is the
-// acting admin's profile id (auth.uid()) — resolves from the session when not
-// supplied.
-export interface LogAttendanceAdjustmentInput {
-  attendanceId: string;
-  fieldName: string;
-  oldValue: string | null;
-  newValue: string | null;
-  reason?: string | null;
-  adjustedBy?: string | null;
-}
-
-export async function logAttendanceAdjustment(input: LogAttendanceAdjustmentInput): Promise<void> {
-  let adjustedBy = input.adjustedBy ?? null;
-  if (!adjustedBy) {
-    const { data: sessionData } = await supabase.auth.getSession();
-    adjustedBy = sessionData.session?.user.id ?? null;
-  }
-  const insert: AttendanceAdjustmentInsert = {
-    attendance_id: input.attendanceId,
-    field_name: input.fieldName,
-    old_value: input.oldValue,
-    new_value: input.newValue,
-    reason: input.reason ?? null,
-    adjusted_by: adjustedBy,
-  };
-  const { error } = await supabase.from('attendance_adjustments').insert(insert);
-  if (error) throw error;
+  return data as AttendanceRecordRow;
 }
 
 // ── Realtime ─────────────────────────────────────────────────────────────────
 
-// Live refresh any time an attendance record changes (another tab / device / the
-// staff's own clock-in while an admin monitors). Mirrors the order realtime hook.
 export function subscribeAttendanceChanges(cb: () => void): () => void {
   return subscribeTableChanges('attendance_records', cb);
 }
 
 // ── Small helpers ────────────────────────────────────────────────────────────
 
-// Philippines is UTC+8, no DST. The app computes "today" as the PHT calendar
-// day, so date keys must shift UTC by this offset before formatting.
 const PHT_OFFSET_MS = 8 * 60 * 60 * 1000;
 
-// The PHT date key for a UTC instant (used to build `date` fields consistently).
 export function toPHTDateKey(ms: number | Date): string {
   const d = ms instanceof Date ? ms : new Date(ms);
   const pht = new Date(d.getTime() + PHT_OFFSET_MS);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${pht.getUTCFullYear()}-${pad(pht.getUTCMonth() + 1)}-${pad(pht.getUTCDate())}`;
+}
+
+// Kept for any lingering imports; adjustments are now written inside the
+// admin_upsert_attendance RPC.
+export async function logAttendanceAdjustment(_input: {
+  attendanceId: string;
+  fieldName: string;
+  oldValue: string | null;
+  newValue: string | null;
+  reason?: string | null;
+  adjustedBy?: string | null;
+}): Promise<void> {
+  return;
 }

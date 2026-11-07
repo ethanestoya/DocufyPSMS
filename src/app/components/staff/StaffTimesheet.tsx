@@ -237,21 +237,22 @@ export default function StaffTimesheet() {
           ? "Clock In Again"
           : "Time In";
 
-  const handleClock = () => {
+  const handleClock = async () => {
     if (!email || primaryDisabled) return;
     try {
       if (isOnClock) {
-        attendanceStore.timeOut(email);
+        await attendanceStore.timeOut(email);
         toast.success(`Time Out recorded at ${fmt12(new Date(internetUtcMs()))}. See you next shift!`);
       } else if (curDone) {
-        attendanceStore.timeIn(email, user?.name || email.split("@")[0], "staff");
+        await attendanceStore.timeIn(email, user?.name || email.split("@")[0], "staff");
         toast.success("Extra time-in recorded — today is logged as exceeded.");
       } else {
-        attendanceStore.timeIn(email, user?.name || email.split("@")[0], "staff");
+        await attendanceStore.timeIn(email, user?.name || email.split("@")[0], "staff");
         toast.success(`Time In recorded at ${fmt12(new Date(internetUtcMs()))}.`);
       }
     } catch (err) {
       if (err instanceof Error) toast.error(err.message);
+      else toast.error("Could not record attendance. Please try again.");
     }
   };
 

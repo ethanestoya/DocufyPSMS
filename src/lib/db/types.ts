@@ -140,6 +140,7 @@ export interface OrderFileDto {
   photoSize: string | null;
   photoQuantity: number | null;
   notes: string | null;
+  colorPct: number | null;
   createdAt: Date;
 }
 

@@ -1161,6 +1161,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
           scale: f.scale,
           customScale: f.customScale,
           pageCount: f.pageCount,
+          colorPct: colorTierPctFor(f),
         })),
         expectedPaperUsage: (() => {
           const map: Record<string, number> = {};
@@ -1407,6 +1408,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
         scale: f.scale,
         customScale: f.customScale,
         pageCount: f.pageCount,
+        colorPct: colorTierPctFor(f),
       })),
       orientation: files[0]?.orientation || "Portrait",
       twoSided: files[0]?.twoSided || "no",
@@ -1429,6 +1431,7 @@ export default function PrintTransaction({ mode, userRole }: PrintTransactionPro
             name: addon?.name || "",
             quantity: qty,
             price: addon?.price || 0,
+            inventoryItemId: addon?.id,
           };
         }),
       orderSource: "online" as const,

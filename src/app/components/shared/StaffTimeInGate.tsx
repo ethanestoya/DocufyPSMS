@@ -84,10 +84,10 @@ export default function StaffTimeInGate({ children }: StaffTimeInGateProps) {
 
   const phtNow = toPHT(now);
 
-  const doTimeIn = () => {
+  const doTimeIn = async () => {
     try {
       const userName = staffUser.name || staffUser.email.split("@")[0];
-      attendanceStore.timeIn(staffUser.email, userName, "staff");
+      await attendanceStore.timeIn(staffUser.email, userName, "staff");
       toast.success(
         nextAction === "complete"
           ? "Time In Again recorded — today is logged as exceeded."
@@ -95,16 +95,17 @@ export default function StaffTimeInGate({ children }: StaffTimeInGateProps) {
       );
     } catch (err) {
       if (err instanceof Error) toast.error(err.message);
+      else toast.error("Could not record your time in. Please try again.");
     }
   };
 
-  const handleTimeIn = () => {
+  const handleTimeIn = async () => {
     if (primaryDisabled) return;
     if (nextAction === "complete") {
       setShowExtraConfirm(true);
       return;
     }
-    doTimeIn();
+    await doTimeIn();
   };
 
   // Clicking the dimmed/blurred backdrop — rather than the Time In buttons —
@@ -247,9 +248,9 @@ export default function StaffTimeInGate({ children }: StaffTimeInGateProps) {
         <ConfirmationDialog
           open
           onOpenChange={setShowExtraConfirm}
-          onConfirm={() => {
+          onConfirm={async () => {
             setShowExtraConfirm(false);
-            doTimeIn();
+            await doTimeIn();
           }}
           title="Clock In Again?"
           description="Today's shift is already complete. This starts an extra session, recorded as exceeded time."

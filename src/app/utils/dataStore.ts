@@ -10,17 +10,14 @@
 import {
   fetchOrders,
   fetchOrderById,
-  createOrder,
-  insertOrderFiles,
-  insertOrderAddons,
   upsertCostBreakdown,
   insertStatusHistory,
   updateOrder as dbUpdateOrder,
   subscribeOrderChanges,
-  type CreateOrderInput,
+  createCustomerOrderRpc,
+  createWalkInOrderRpc,
 } from '../../lib/db/ordersRepo';
 import { hasVerifiedPayment } from '../../lib/db/paymentsRepo';
-import { createWalkInTransaction } from '../../lib/db/walkInRepo';
 import { auditLogStore } from './auditLogStore';
 import { CASH_ON_PICKUP_BLOCKED_MESSAGE, effectivePolicy } from './unclaimedPolicy';
 import { findCustomerSummary, toUnclaimedOrderLikes } from './unclaimedOrders';
@@ -60,6 +57,7 @@ export interface AttachedFile {
   customScale?: number;
   pageCount?: number;
   notes?: string;
+  colorPct?: number;
 }
 
 // One row of the order's payment history, in submission order. Mirrors the
@@ -132,7 +130,12 @@ export interface Order {
   pageRange?: string;
   specificPages?: string;
   notes?: string;
-  addons?: Array<{ name: string; quantity: number; price: number }>;
+  addons?: Array<{
+    name: string;
+    quantity: number;
+    price: number;
+    inventoryItemId?: string;
+  }>;
   costBreakdown?: {
     printingCost: number;
     addonsCost: number;
@@ -366,23 +369,6 @@ export type OrderUploadProgress = {
   percent: number; // 0-100 for the current file
 };
 
-const STATUS_MAP: Record<string, Order['status']> = {
-  'Awaiting Payment': 'Awaiting Payment',
-  awaitingPayment: 'Awaiting Payment',
-  'In Queue': 'In Queue',
-  inQueue: 'In Queue',
-  Printing: 'Printing',
-  printing: 'Printing',
-  Completed: 'Completed',
-  completed: 'Completed',
-  Released: 'Released',
-  released: 'Released',
-  Canceled: 'Canceled',
-  canceled: 'Canceled',
-  Received: 'In Queue',
-  'On Hold': 'In Queue',
-};
-
 function parseMoney(v: string | number | undefined, fallback: number): number {
   if (typeof v === 'number') return isNaN(v) ? fallback : v;
   if (v == null) return fallback;
@@ -491,19 +477,8 @@ class DataStore {
       throw new Error(`Order file size limit exceeded: ${oversizedFile.name}`);
     }
 
-    const status = STATUS_MAP[input.status ?? 'Awaiting Payment'] ?? 'Awaiting Payment';
     const total = parseMoney(input.total, 0);
-    const printingCost = input.costBreakdown?.printingCost ?? total - (input.costBreakdown?.addonsCost ?? 0);
-    const addonsCost = input.addons?.reduce((s, a) => s + a.price * a.quantity, 0) ?? input.costBreakdown?.addonsCost ?? Math.max(0, total - printingCost);
-
     const isWalkin = input.orderSource === 'walkin';
-    const suppliedCustomerId = input.customerId ?? (isWalkin ? null : input.customerEmail);
-    const customerId =
-      isWalkin
-        ? null
-        : typeof suppliedCustomerId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(suppliedCustomerId)
-          ? suppliedCustomerId
-          : input.actorId ?? null;
 
     // FINALIZED RULE — once a customer has enough DERIVED unclaimed Cash-on-
     // Pickup orders, Cash on Pickup is blocked for their future orders. The
@@ -538,36 +513,6 @@ class DataStore {
         throw new Error(CASH_ON_PICKUP_BLOCKED_MESSAGE);
       }
     }
-
-    const row: CreateOrderInput = {
-      customerId,
-      customerName: input.customerName ?? input.customer ?? 'Customer',
-      customerEmail: input.customerEmail ?? `${(input.customerName ?? 'customer').toLowerCase().replace(/[^a-z0-9]+/g, '.')}@example.com`,
-      status,
-      orderSource: input.orderSource ?? 'online',
-      customerType: input.customerType ?? null,
-      subtotal: printingCost,
-      addonsTotal: addonsCost,
-      total,
-      manualTotal: input.manualTotal ?? null,
-      holdReason: input.holdReason ?? null,
-      cancellationReason: input.cancellationReason ?? null,
-      paymentDeadline: input.paymentDeadline ? new Date(input.paymentDeadline) : null,
-      paymentAmountPaid: input.paymentAmountPaid ?? 0,
-      downPaymentRequired: input.downPaymentRequired ?? false,
-      downPaymentAmount: input.downPaymentAmount ?? null,
-      downPaymentVerified: input.downPaymentVerified ?? false,
-      fullPaymentRequired: input.fullPaymentRequired ?? false,
-      fullPaymentAmount: input.fullPaymentAmount ?? null,
-      fullPaymentVerified: input.fullPaymentVerified ?? false,
-      expectedPaperUsage: input.expectedPaperUsage ?? null,
-      paperDeductedOnCreate: input.paperDeductedOnCreate ?? false,
-      paperConfirmed: input.paperConfirmed ?? false,
-      errorUsage: input.errorUsage ?? null,
-      notes: input.notes ?? '',
-    };
-
-    const createdById = input.actorId ?? null;
 
     // Upload attached file bytes to Storage BEFORE any DB write so a storage
     // failure (bucket missing, RLS, offline) blocks placement cleanly with no
@@ -615,33 +560,75 @@ class DataStore {
       }
     }
 
+    // Build the server payload from the file metadata + attached bytes. The RPC
+    // recomputes the price from the matrix, derives the payment tier and status
+    // from the server-side thresholds, mints the deadline from the server clock
+    // and writes the order + files + addons + breakdown + history atomically.
+    const filePayload = files.map((f, i) => ({
+      storagePath: storagePaths[i],
+      originalName: f.name,
+      mimeType: f.mimeType ?? f.file?.type ?? null,
+      sizeBytes: f.sizeBytes ?? f.file?.size ?? null,
+      pageCount: f.pageCount ?? null,
+      printType: f.printType ?? null,
+      contentType: f.contentType ?? null,
+      paperSize: f.paperSize ?? null,
+      copies: f.copies ?? 1,
+      colorMode: f.colorMode ?? null,
+      pageRange: f.pageRange ?? null,
+      specificPages: f.specificPages ?? null,
+      pagesPerSheet: f.pagesPerSheet ?? null,
+      orientation: f.orientation ?? null,
+      twoSided: f.twoSided ?? null,
+      margins: f.margins ?? null,
+      scale: f.scale ?? null,
+      customScale: f.customScale ?? null,
+      photoSize: f.photoSize ?? null,
+      photoQuantity: f.photoQuantity ?? null,
+      notes: f.notes ?? null,
+      colorPct: f.colorPct ?? 0,
+    }));
+
+    const addonPayload = (input.addons ?? []).map((a) => ({
+      name: a.name,
+      quantity: a.quantity,
+      unitPrice: a.price,
+      inventoryItemId: a.inventoryItemId ?? null,
+    }));
+
+    const payload: Record<string, unknown> = {
+      customerName: input.customerName ?? input.customer ?? 'Customer',
+      customerEmail: input.customerEmail ?? null,
+      customerType: input.customerType ?? null,
+      notes: input.notes ?? '',
+      paymentMethod: input.paymentMethod ?? 'Cash',
+      files: filePayload,
+      addons: addonPayload,
+    };
+
+    if (isWalkin) {
+      payload.manualTotal = input.manualTotal ?? null;
+      if (input.expectedPaperUsage) payload.expectedPaperUsage = input.expectedPaperUsage;
+      if (input.paperSize) payload.paperSize = input.paperSize;
+      if (input.copies != null) payload.copies = input.copies;
+    }
+
     let id: string;
-    let orderNumber: number;
     try {
-      ({ id, orderNumber } = await createOrder(row));
+      ({ id } = isWalkin
+        ? await createWalkInOrderRpc(payload)
+        : await createCustomerOrderRpc(payload));
     } catch (err) {
-      // The order row failed — remove the files we just uploaded so storage
-      // never holds orphans for an order that doesn't exist.
+      // The RPC failed — remove the files we just uploaded so storage never
+      // holds orphans for an order that doesn't exist.
       await removeObjectsIfPresent(BUCKETS.orderFiles, storagePaths);
       throw err;
     }
 
-    // Walk-in companion log: only AFTER the order row is confirmed, write the
-    // `walk_in_transactions` entry (best-effort — a failed log write must never
-    // block or reverse the already-placed order). No rows are written at all if
-    // `createOrder` above threw, so the log can only ever reference a placed order.
     if (isWalkin) {
-      createWalkInTransaction({
-        orderId: id,
-        customerName: input.customer ?? input.customerName ?? 'Walk-in Customer',
-        customerType: input.customerType ?? 'printing',
-        total: input.manualTotal ?? input.costBreakdown?.total ?? total,
-        paymentMethod: 'Cash',
-        createdBy: createdById,
-      }).catch((err) => console.warn('[dataStore] walk-in transaction log write failed:', err));
-
-      // Audit the walk-in sale — captured at the single placement chokepoint so
-      // both print and photocopy walk-ins are covered.
+      // The RPC already wrote the walk_in_transactions companion row. Only the
+      // audit entry is a client concern; it is best-effort and can never reverse
+      // the placed order.
       const walkInCustomerName = input.customer ?? input.customerName ?? 'Walk-in Customer';
       const walkInTotal = input.manualTotal ?? input.costBreakdown?.total ?? total;
       auditLogStore.record({
@@ -657,57 +644,6 @@ class DataStore {
           : [],
       });
     }
-
-    if (files.length > 0) {
-      await insertOrderFiles(
-        id,
-        files.map((f, i) => ({
-          storagePath: storagePaths[i],
-          originalName: f.name,
-          mimeType: f.mimeType ?? f.file?.type ?? null,
-          sizeBytes: f.sizeBytes ?? f.file?.size ?? null,
-          pageCount: f.pageCount ?? null,
-          printType: f.printType ?? null,
-          contentType: f.contentType ?? null,
-          paperSize: f.paperSize ?? null,
-          copies: f.copies ?? 1,
-          colorMode: f.colorMode ?? null,
-          pageRange: f.pageRange ?? null,
-          specificPages: f.specificPages ?? null,
-          pagesPerSheet: f.pagesPerSheet ?? null,
-          orientation: f.orientation ?? null,
-          twoSided: f.twoSided ?? null,
-          margins: f.margins ?? null,
-          scale: f.scale ?? null,
-          customScale: f.customScale ?? null,
-          photoSize: f.photoSize ?? null,
-          photoQuantity: f.photoQuantity ?? null,
-          notes: f.notes ?? null,
-        })),
-      ).catch((err) => console.warn('[dataStore] order files write failed (order placed without file rows):', err));
-    }
-
-    if (input.addons && input.addons.length > 0) {
-      await insertOrderAddons(
-        id,
-        input.addons.map((a) => ({ name: a.name, quantity: a.quantity, unitPrice: a.price })),
-      ).catch((err) => console.warn('[dataStore] order addons write failed (order placed without addon rows):', err));
-    }
-
-    if (input.costBreakdown) {
-      await upsertCostBreakdown(id, {
-        printingCost: input.costBreakdown.printingCost,
-        addonsCost: input.costBreakdown.addonsCost,
-        total: input.costBreakdown.total,
-      }).catch((err) => console.warn('[dataStore] cost breakdown write failed:', err));
-    }
-
-    await insertStatusHistory(id, {
-      oldStatus: null,
-      newStatus: status,
-      reason: input.holdReason ?? null,
-      changedBy: createdById,
-    }).catch((err) => console.warn('[dataStore] initial history write failed', err));
 
     const dto = await fetchOrderById(id);
     if (!dto) throw new Error('Order was created but could not be reloaded.');

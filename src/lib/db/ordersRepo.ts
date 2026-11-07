@@ -52,6 +52,7 @@ function toFileDto(row: OrderFileRow): OrderFileDto {
     photoSize: row.photo_size,
     photoQuantity: row.photo_quantity,
     notes: row.notes,
+    colorPct: (row as OrderFileRow & { color_pct?: number | null }).color_pct ?? null,
     createdAt: new Date(row.created_at),
   };
 }
@@ -218,6 +219,55 @@ export async function createOrder(input: CreateOrderInput): Promise<{ id: string
   return { id: data.id, orderNumber: data.order_number };
 }
 
+// ── Server-authoritative order creation ─────────────────────────────────────
+// The browser no longer INSERTs order rows/files/addons directly. These RPCs
+// price the order from the matrix, derive the payment plan and mint deadlines
+// server-side, then write the children in one transaction. The generated DB
+// types do not know the new functions yet, so the call is cast once here.
+
+type UntypedRpc = <T>(
+  fn: string,
+  args?: Record<string, unknown>,
+) => Promise<{ data: T | null; error: { message: string } | null }>;
+
+const rpc = supabase.rpc as unknown as UntypedRpc;
+
+export interface CreatedOrderRef {
+  id: string;
+  orderNumber: number;
+}
+
+export async function createCustomerOrderRpc(
+  payload: Record<string, unknown>,
+): Promise<CreatedOrderRef> {
+  const { data, error } = await rpc<CreatedOrderRef>('create_customer_order', { payload });
+  if (error) throw error;
+  if (!data?.id) throw new Error('Order was created but the server returned no id.');
+  return data;
+}
+
+export async function createWalkInOrderRpc(
+  payload: Record<string, unknown>,
+): Promise<CreatedOrderRef> {
+  const { data, error } = await rpc<CreatedOrderRef>('create_walkin_order', { payload });
+  if (error) throw error;
+  if (!data?.id) throw new Error('Walk-in order was created but the server returned no id.');
+  return data;
+}
+
+export async function setPaymentPlanRpc(
+  orderId: string,
+  venue: 'shop' | 'online',
+  amountChoice: 'down' | 'full',
+): Promise<void> {
+  const { error } = await rpc<null>('set_payment_plan', {
+    p_order_id: orderId,
+    p_venue: venue,
+    p_amount_choice: amountChoice,
+  });
+  if (error) throw error;
+}
+
 export interface NewOrderFile {
   storagePath?: string | null;
   originalName: string;
@@ -240,6 +290,7 @@ export interface NewOrderFile {
   photoSize?: string | null;
   photoQuantity?: number | null;
   notes?: string | null;
+  colorPct?: number | null;
 }
 
 export async function insertOrderFiles(orderId: string, files: NewOrderFile[]): Promise<void> {
@@ -267,7 +318,8 @@ export async function insertOrderFiles(orderId: string, files: NewOrderFile[]): 
     photo_size: f.photoSize ?? null,
     photo_quantity: f.photoQuantity ?? null,
     notes: f.notes ?? null,
-  }));
+    color_pct: f.colorPct ?? null,
+  })) as unknown as OrderFileInsert[];
   const { error } = await supabase.from('order_files').insert(rows);
   if (error) throw error;
 }

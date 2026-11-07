@@ -477,35 +477,10 @@ export default function PaymentVerification() {
 
       const existingOrder = dataStore.getOrderById(orderId!);
 
-      // Sync the down/full requirement flags to the Partial/Full choice so
-      // staff/admin see the correct payment type: Partial keeps the 50% down
-      // (balance at pickup), Full becomes a regular fully-paid online order.
-      const flexTotal = parseFloat(
-        String(displayOrder?.total || "?0").replace(/[?,]/g, "") || "0",
-      );
-      const flexDown = !!displayOrder?.downPaymentRequired;
-      const downSync = flexDown
-        ? paymentChoice === "partial"
-          ? {
-              downPaymentRequired: true as const,
-              downPaymentAmount:
-                displayOrder.downPaymentAmount ?? flexTotal * 0.5,
-              downPaymentVerified: false,
-              fullPaymentRequired: false,
-              fullPaymentAmount: undefined,
-            }
-          : {
-              downPaymentRequired: false,
-              downPaymentAmount: undefined,
-              downPaymentVerified: false,
-              fullPaymentRequired: true as const,
-              fullPaymentAmount: flexTotal,
-            }
-        : null;
-
       try {
-        // Upload the proof to Supabase Storage, then record a PENDING payment
-        // row (the source of truth staff/admin verify on).
+        // Upload the proof to Supabase Storage, then let the submit_payment RPC
+        // record the pending payment, apply the Partial/Full choice and clear
+        // the checkout deadline in one server-side transaction.
         const proofStoragePath = proofFile
           ? await uploadObjectAndGetPath({
               bucket: BUCKETS.paymentProofs,
@@ -519,19 +494,9 @@ export default function PaymentVerification() {
           orderId: orderId!,
           methodId: selectedMethod?.id ?? null,
           methodName: selectedMethod?.name ?? paymentMethod,
-          amount: paid,
           referenceNumber,
           proofStoragePath,
-          submittedBy: user?.id ?? null,
-        });
-
-        // Clear the checkout deadline (the order now waits on staff
-        // verification — it must not auto-expire) and persist the down/full
-        // choice + amount paid on the order row.
-        await dataStore.updateOrder(orderId!, {
-          paymentDeadline: undefined,
-          paymentAmountPaid: paid,
-          ...(downSync || {}),
+          amountChoice: paymentChoice === "full" ? "full" : "down",
         });
       } catch (err) {
         showDbError("submitting your payment", err);

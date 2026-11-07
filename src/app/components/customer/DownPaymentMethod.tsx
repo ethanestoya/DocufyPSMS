@@ -118,39 +118,44 @@ export default function DownPaymentMethod() {
   const isOnlineVenue = venue === "online";
   const amountNow = amountChoice === "down" ? downDue : total;
 
-  const applyPlan = () => {
+  const applyPlan = async () => {
     if (isOnlineVenue && !wallet) {
       toast.error("Please choose a payment method first");
       return;
     }
-    const decision = applyDownPaymentPlan(orderId!, total, {
-      venue: isOnlineVenue ? "online" : "shop",
-      amountChoice,
-      wallet: isOnlineVenue ? wallet : "",
-    });
-    if (isOnlineVenue) {
-      // Online payment: the order stays held until the customer submits their
-      // reference on the Payment Verification page, then it is verified
-      // normally by staff/admin like any online payment.
-      toast.success(
-        decision.isFull ? "Full payment selected" : "Down payment selected",
-      );
-      navigate(`/customer/payment/${orderId}`, {
-        state: {
-          paymentMethod: wallet,
-          total,
-        },
+    try {
+      const decision = await applyDownPaymentPlan(orderId!, total, {
+        venue: isOnlineVenue ? "online" : "shop",
+        amountChoice,
+        wallet: isOnlineVenue ? wallet : "",
       });
-    } else {
-      // Pay at the shop: the order already exists (created at checkout) and
-      // applyDownPaymentPlan has written the cash choice onto it, so the order
-      // stays on hold until staff/admin verifies the down payment, then enters
-      // the queue. Send the customer straight to order tracking.
-       toast.success(
-         decision.isFull ? "Full payment selected" : "Down payment selected",
-       );
-       clearPrintDraft();
-       navigate(`/customer/track/${orderId}`);
+      if (isOnlineVenue) {
+        // Online payment: the order stays held until the customer submits their
+        // reference on the Payment Verification page, then it is verified
+        // normally by staff/admin like any online payment.
+        toast.success(
+          decision.isFull ? "Full payment selected" : "Down payment selected",
+        );
+        navigate(`/customer/payment/${orderId}`, {
+          state: {
+            paymentMethod: wallet,
+            total,
+          },
+        });
+      } else {
+        // Pay at the shop: the order already exists (created at checkout) and
+        // the server has written the cash choice onto it, so the order stays on
+        // hold until staff/admin verifies the down payment, then enters the
+        // queue. Send the customer straight to order tracking.
+        toast.success(
+          decision.isFull ? "Full payment selected" : "Down payment selected",
+        );
+        clearPrintDraft();
+        navigate(`/customer/track/${orderId}`);
+      }
+    } catch (err) {
+      console.error("[DownPaymentMethod] apply plan failed", err);
+      toast.error("Could not save your payment choice. Please try again.");
     }
   };
 

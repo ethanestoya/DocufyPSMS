@@ -477,85 +477,29 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
       );
 
       // === CASH DOWN-TIER VERIFICATION (Pay at the Shop) ===
-      // The staff member confirmed what was actually paid: 50% or Full.
-      // If "full" was paid → clear down flags, set fullPaymentRequired +
-      // fullPaymentVerified so the order is treated as fully paid online.
-      // If "down" (50%) was paid → keep downPaymentRequired +
-      // downPaymentVerified true; the balance is collected at pickup.
+      // The staff member confirmed what was actually paid: 50% or Full. The
+      // server-side RPC applies the planned-amount flags and queues the order.
       const isCashDown =
         selectedPayment.method === "Cash" && (selectedPayment.downTier ?? false);
       const paidFull = isCashDown && verifyAmountChoice === "full";
-      const verified = status === "verified";
 
-      dataStore.updateOrder(selectedPayment.orderId, {
-        paymentVerified: verified,
-        downPaymentVerified: verified
-          ? isCashDown
-            ? !paidFull
-            : true
-          : undefined,
-        fullPaymentVerified:
-          verified && (paidFull || !!targetOrder?.fullPaymentRequired),
-        // Cash down-tier ("Pay at the Shop"): rewrite the planned-amount flags
-        // to match what was actually paid at the counter (50% vs Full). Other
-        // kinds leave the checkout-time flags untouched.
-        downPaymentRequired:
-          isCashDown && verified ? !paidFull : undefined,
-        downPaymentAmount:
-          isCashDown && verified && !paidFull
-            ? (selectedPayment.downPaymentAmount ?? selectedPayment.totalAmount * 0.5)
-            : undefined,
-        fullPaymentRequired:
-          isCashDown && verified && paidFull ? true : undefined,
-        fullPaymentAmount:
-          isCashDown && verified && paidFull ? selectedPayment.totalAmount : undefined,
-        paymentReferenceNumber: selectedPayment.reference,
-        paymentDeadline: undefined,
-        // Auto-update order status to "In Queue" when payment is verified so
-        // the order enters the queue automatically — UNLESS this is a
-        // low-value Cash on Pickup order that was already auto-queued at
-        // checkout. Those orders may have progressed to "Printing" by the
-        // time staff verifies, so we must NOT reset them back to "In Queue".
-        ...(verified && !selectedPayment.isLowValueCash
-          ? { status: "In Queue" as const }
-          : {}),
-      });
-
-      // ===== PAYMENTS TABLE WRITE =====
-      // Record the outcome in the `payments` table (audit + reporting).
-      // Online/down orders already have a customer-submitted PENDING row, so
-      // we flip it to verified/rejected. Cash-at-the-shop orders have no row,
-      // so verification creates a VERIFIED cash payment record.
+      // ===== PAYMENTS TABLE / ORDER FLAGS (server-authoritative) =====
       try {
         if (status === "verified") {
           if (selectedPayment.rowId) {
             await verifyPayment({
               paymentId: selectedPayment.rowId,
-              orderId: selectedPayment.orderId,
-              verifiedBy: user?.id ?? null,
+              amountChoice: isCashDown ? (paidFull ? "full" : "down") : undefined,
             });
           } else {
-            const collected = isCashDown
-              ? !paidFull
-                ? (selectedPayment.downPaymentAmount ?? selectedPayment.totalAmount * 0.5)
-                : selectedPayment.totalAmount
-              : selectedPayment.totalAmount;
             await confirmCashPayment({
               orderId: selectedPayment.orderId,
-              methodName: "Cash",
-              amount: collected,
-              verifiedBy: user?.id ?? null,
-              note: isCashDown
-                ? paidFull
-                  ? "Paid full amount at the shop"
-                  : "Paid 50% down at the shop"
-                : "Cash collected at the shop",
+              amountChoice: isCashDown ? (paidFull ? "full" : "down") : undefined,
             });
           }
         } else if (selectedPayment.rowId) {
           await rejectPayment({
             paymentId: selectedPayment.rowId,
-            rejectedBy: user?.id ?? null,
             reason: rejectionReason.trim() || "Rejected",
           });
         }

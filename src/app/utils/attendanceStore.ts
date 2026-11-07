@@ -17,12 +17,15 @@ import { auditLogStore } from "./auditLogStore";
 import {
   AttendanceIdentityMissingError,
   fetchAttendanceRecords,
-  upsertAttendanceRecord,
-  logAttendanceAdjustment,
+  clockInRpc,
+  clockOutRpc,
+  adminUpsertAttendanceRpc,
+  adminSetAttendanceAbsenceRpc,
+  attendanceRowToDto,
   subscribeAttendanceChanges,
-  type AttendanceRecordDto,
 } from "../../lib/db/attendanceRepo";
-import { getErrorDetail } from "../../lib/db/errors";
+import type { AttendanceRecordDto, AttendanceRecordRow } from "../../lib/db/types";
+import { getErrorDetail, showDbError } from "../../lib/db/errors";
 import { toast } from "sonner";
 import { authReady } from "../../lib/supabaseClient";
 
@@ -271,58 +274,6 @@ class AttendanceStore {
   }
 
   // ── Backend write-through (fire-and-forget) ────────────────────────────
-  // Pushes a single record to `attendance_records`. Local state is ALWAYS
-  // authoritative for the current session, so a failed push never blocks the
-  // clock — it only means the server copy is behind.
-  private pushRecord(record: DailyAttendanceRecord): void {
-    if (this.dbSyncing.has(record.id)) return;
-    this.dbSyncing.add(record.id);
-
-    void (async () => {
-      const payload = {
-        email: record.userId,
-        date: record.date,
-        timeIn: record.timeIn ?? null,
-        timeOut: record.timeOut ?? null,
-        exceeded: record.exceeded === true,
-        extraSessions: record.extraSessions ?? [],
-      };
-      try {
-        try {
-          await upsertAttendanceRecord(payload);
-        } catch (first) {
-          // A dropped connection is worth one silent retry; a missing roster
-          // link is not (it will fail identically, just later).
-          if (first instanceof AttendanceIdentityMissingError) throw first;
-          await new Promise((resolve) => setTimeout(resolve, 2500));
-          await upsertAttendanceRecord(payload);
-        }
-        this.syncNoticeShown = false;
-      } catch (err) {
-        this.reportSyncFailure('attendance', err);
-      } finally {
-        this.dbSyncing.delete(record.id);
-      }
-    })();
-  }
-
-  // Persist an absence/leave mark to the DB (as `absence_status` on the day's
-  // record; creates the record when the person has none that day).
-  private pushAbsence(userId: string, date: string, type: AbsenceType | null): void {
-    void (async () => {
-      try {
-        await upsertAttendanceRecord({
-          email: userId,
-          date,
-          absenceStatus: type ?? null,
-        });
-        this.syncNoticeShown = false;
-      } catch (err) {
-        this.reportSyncFailure('absence', err);
-      }
-    })();
-  }
-
   // True once a sync warning has been shown and no push has succeeded since.
   // The push is background work: without this the same failure re-fired on every
   // later clock action and surfaced on whatever page the person had moved to
@@ -481,6 +432,28 @@ class AttendanceStore {
     return record;
   }
 
+  // Merge a server row into the local mirror (keyed by email + PHT date).
+  private mergeRow(row: AttendanceRecordRow, email: string, name: string, role: 'admin' | 'staff'): void {
+    const dto = attendanceRowToDto(row, { email, name, role });
+    const key = (email || '').toLowerCase();
+    const idx = this.records.findIndex((r) => r.userId.toLowerCase() === key && r.date === dto.date);
+    const record: DailyAttendanceRecord = {
+      id: dto.id,
+      userId: email,
+      userName: name,
+      role,
+      date: dto.date,
+      timeIn: dto.timeIn ?? undefined,
+      timeOut: dto.timeOut ?? undefined,
+      exceeded: dto.exceeded === true,
+      extraSessions: dto.extraSessions ?? [],
+    };
+    if (idx >= 0) this.records[idx] = record;
+    else this.records.push(record);
+    this.absences.delete(`${key}|${dto.date}`);
+    if (dto.absenceStatus) this.absences.set(`${key}|${dto.date}`, dto.absenceStatus);
+  }
+
   // ── Determine next action for user ────────────────────────────────────
   getNextAction(userId: string): NextAction {
     const today = toDateKey(nowPHT());
@@ -491,56 +464,21 @@ class AttendanceStore {
     return 'complete';
   }
 
-  // ── Time In ───────────────────────────────────────────────────────────
-  // First call records the day's primary clock-in. If the day is already
-  // complete (time-in + time-out), a further clock-in is still allowed — it
-  // opens an extra session, sets the `exceeded` flag, and is surfaced as
-  // "Exceeded" in the staff/admin logs.
-  timeIn(userId: string, userName: string, role: 'admin' | 'staff'): DailyAttendanceRecord {
-    const record = this.getOrCreateTodayRecord(userId, userName, role);
-    const now = new Date();
-
-    if (!record.timeIn) {
-      record.timeIn = now;
-      this.notify();
-      this.pushRecord(record);
-      return record;
-    }
-    if (hasActiveSession(record)) {
-      throw new Error('You are already clocked in. Please Time Out first.');
-    }
-    // Day's record is complete — allow the extra clock-in, flagged as exceeded.
-    record.exceeded = true;
-    record.extraSessions.push({ timeIn: now });
+  // ── Time In (server-authoritative) ───────────────────────────────────
+  async timeIn(userId: string, userName: string, role: 'admin' | 'staff'): Promise<DailyAttendanceRecord> {
+    const row = await clockInRpc();
+    this.mergeRow(row, userId, userName, role);
     this.notify();
-    this.pushRecord(record);
-    return record;
+    return this.getTodayRecord(userId)!;
   }
 
-  // ── Time Out ──────────────────────────────────────────────────────────
-  // Closes whichever session is currently open (primary or an extra one).
-  timeOut(userId: string): DailyAttendanceRecord {
-    const today = toDateKey(nowPHT());
-    const key = (userId || '').toLowerCase();
-    const record = this.records.find(r => r.userId.toLowerCase() === key && r.date === today);
-
-    if (!record || !record.timeIn) {
-      throw new Error('No attendance record found for today. Please Time In first.');
-    }
-    if (hasActiveSession(record)) {
-      if (record.timeIn && !record.timeOut) {
-        record.timeOut = new Date();
-      } else {
-        const extra = record.extraSessions.find(s => s.timeIn && !s.timeOut);
-        if (extra) extra.timeOut = new Date();
-      }
-    } else {
-      throw new Error('No active session to Time Out from.');
-    }
-
+  // ── Time Out (server-authoritative) ──────────────────────────────────
+  async timeOut(userId: string): Promise<DailyAttendanceRecord> {
+    const row = await clockOutRpc();
+    const existing = this.getTodayRecord(userId);
+    this.mergeRow(row, userId, existing?.userName ?? userId, existing?.role ?? 'staff');
     this.notify();
-    this.pushRecord(record);
-    return record;
+    return this.getTodayRecord(userId)!;
   }
 
   // ── Today's record for a user ─────────────────────────────────────────
@@ -579,9 +517,9 @@ class AttendanceStore {
   }
 
   // ── Manual adjustment (admin monitoring) ──────────────────────────────
-  // Sets (or clears, value = null) the primary time-in/time-out. Creates the
-  // record on first use so an admin can back-fill a day from the monitoring
-  // table. Clearing the time-in wipes the day's session (incl. extras/signals).
+  // Local-first for instant UI; when `push` is true (default), the
+  // server-authoritative admin RPC applies the correction and writes the audit
+  // row. `push=false` is used only by the in-browser demo seeder.
   upsertTime(
     userId: string,
     userName: string,
@@ -623,73 +561,36 @@ class AttendanceStore {
 
     this.notify();
 
-    // Sync to DB and, when this was a real change to an EXISTING row, audit it
-    // in `attendance_adjustments` (admin corrections only — brand-new records
-    // from the seed logic are plain inserts, not adjustments).
     const after = field === 'timeIn' ? record.timeIn : record.timeOut;
     const changed = (before?.getTime() ?? null) !== (after?.getTime() ?? null);
     if (!created && changed) {
-      if (push) {
-        auditLogStore.record({
-          module: 'Attendance',
-          action: 'Updated',
-          reference: `${userName} — ${date}`,
-          entityType: 'Attendance',
-          entityId: record.id,
-          title: 'Attendance Time Adjusted',
-          description: `${userName}'s ${field === 'timeIn' ? 'time in' : 'time out'} on ${date} was corrected by an admin from ${before ? formatPHTime(before) : '—'} to ${after ? formatPHTime(after) : '—'}.`,
-          changes: [{
-            field: field === 'timeIn' ? 'Time In' : 'Time Out',
-            previous: before ? formatPHTime(before) : '—',
-            next: after ? formatPHTime(after) : '—',
-          }],
-        });
-      }
-      this.pushRecordAndAudit(record.id, field, before, after);
-    } else if (push) {
-      this.pushRecord(record);
+      auditLogStore.record({
+        module: 'Attendance',
+        action: 'Updated',
+        reference: `${userName} — ${date}`,
+        entityType: 'Attendance',
+        entityId: record.id,
+        title: 'Attendance Time Adjusted',
+        description: `${userName}'s ${field === 'timeIn' ? 'time in' : 'time out'} on ${date} was corrected by an admin from ${before ? formatPHTime(before) : '—'} to ${after ? formatPHTime(after) : '—'}.`,
+        changes: [{
+          field: field === 'timeIn' ? 'Time In' : 'Time Out',
+          previous: before ? formatPHTime(before) : '—',
+          next: after ? formatPHTime(after) : '—',
+        }],
+      });
+    }
+
+    if (push) {
+      void adminUpsertAttendanceRpc(userId, date, field, value, 'Admin manual adjustment')
+        .then((row) => {
+          this.mergeRow(row, userId, userName, role);
+          this.notify();
+          this.syncNoticeShown = false;
+        })
+        .catch((err) => this.reportSyncFailure('attendance', err));
     }
 
     return record;
-  }
-
-  // Push an admin-issued time correction to the DB and write the matching
-  // `attendance_adjustments` audit row in one round-trip.
-  private pushRecordAndAudit(
-    recordId: string,
-    field: 'timeIn' | 'timeOut',
-    before: Date | undefined,
-    after: Date | undefined,
-  ): void {
-    if (this.dbSyncing.has(recordId)) return;
-    this.dbSyncing.add(recordId);
-
-    void (async () => {
-      try {
-        const record = this.records.find(r => r.id === recordId);
-        if (!record) return;
-        const pushed = await upsertAttendanceRecord({
-          email: record.userId,
-          date: record.date,
-          timeIn: record.timeIn ?? null,
-          timeOut: record.timeOut ?? null,
-          exceeded: record.exceeded === true,
-          extraSessions: record.extraSessions ?? [],
-        });
-        await logAttendanceAdjustment({
-          attendanceId: pushed.id,
-          fieldName: field === 'timeIn' ? 'time_in' : 'time_out',
-          oldValue: before ? before.toISOString() : null,
-          newValue: after ? after.toISOString() : null,
-          reason: 'Admin manual adjustment',
-        });
-        this.syncNoticeShown = false;
-      } catch (err) {
-        // This used to be console-only, so an admin correction that never
-        // reached the server looked saved and then affected salary silently.
-        this.reportSyncFailure('attendance', err);
-      }
-    })();
   }
 
   // ── Absence / leave overrides (admin monitoring) ──────────────────────
@@ -702,7 +603,11 @@ class AttendanceStore {
     }
     this.persistAbsences();
     this.notify();
-    this.pushAbsence(userId, date, type);
+    void adminSetAttendanceAbsenceRpc(userId, date, type)
+      .then(() => {
+        this.syncNoticeShown = false;
+      })
+      .catch((err) => this.reportSyncFailure('absence', err));
   }
 
   getAbsence(userId: string, date: string): AbsenceType | null {

@@ -17,6 +17,7 @@ import {
   ChevronRight,
   X,
   ArrowLeft,
+  ArrowRight,
   MapPin,
   Info,
   AlertTriangle,
@@ -34,7 +35,7 @@ import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Label } from "../ui/label";
 import { getOrderStatusStyle, getStatusBadgeClasses } from "../../utils/orderStatusPalette";
-import { formatPHTime, formatPHDate, formatPHDateTime } from "../../utils/pht";
+import { formatPHTime, formatPHDate, formatPHDateTime, formatClockTime } from "../../utils/pht";
 import { formatCurrency } from "../../utils/formatNumber";
 import { PaymentDeadlineCountdown } from "../shared/PaymentDeadlineCountdown";
 import {
@@ -58,6 +59,7 @@ import { computeOrderPayment, type OrderPaymentSummary } from "../shared/OrderPa
 import { paymentContinuationPath } from "../../utils/paymentContinuation";
 import { shopPhotosStore, type ShopPhoto } from "../../utils/shopPhotosStore";
 import { useUnclaimedOffenses } from "../../utils/useUnclaimedOffenses";
+import { isClosingTimeConfigured } from "../../utils/unclaimedOrders";
 import { DocumentAnalysisPanel } from "../shared/DocumentAnalysisPanel";
 import {
   analyzeDocument,
@@ -374,7 +376,11 @@ export default function OrderTracking() {
   // Derived unclaimed-offense state for this order's customer (shared source of
   // truth — recomputed from the authoritative order data + status timeline,
   // never stored). The record for THIS order tells us whether it went unclaimed.
-  const { summary: unclaimedSummary } = useUnclaimedOffenses(orderData?.customerEmail);
+  const {
+    summary: unclaimedSummary,
+    policy: unclaimedPolicy,
+    latestOrderId: unclaimedLatestOrderId,
+  } = useUnclaimedOffenses(orderData?.customerEmail);
   const isUnclaimed =
     unclaimedSummary?.records.some((r) => r.orderId === (orderId || "")) ?? false;
 
@@ -431,12 +437,72 @@ export default function OrderTracking() {
     .filter(Boolean)
     .join(", ");
 
-  const UNCLAIMED_MESSAGE =
-    "This order was recorded as unclaimed and is no longer available for collection. Please contact the shop if you need assistance.";
+  // The pickup window is the admin's shop closing time — the same value the
+  // unclaimed policy uses as an order's pickup deadline. When it is blank the
+  // shop has set no deadline, so neither a deadline nor a consequence is shown.
+  const shopClosingTime = (shopContent.shopClosingTime || "").trim();
+  const pickupWindowConfigured = isClosingTimeConfigured(shopClosingTime);
+  const pickupWindowLabel = pickupWindowConfigured
+    ? formatClockTime(shopClosingTime)
+    : "";
+  const isCollected = currentOrderStatus === "Released";
 
-  const pickupNote = isUnclaimed
-    ? UNCLAIMED_MESSAGE
-    : currentOrderStatus === "Released"
+  // The two tiles, worded for what actually happened to this order: a collected
+  // order shows when it was picked up, an unclaimed one shows when it became
+  // ready, and a collectable one shows the window it can still be collected in.
+  const pickupFirstLabel = isCollected
+    ? "Picked up on"
+    : isUnclaimed
+      ? "Was ready on"
+      : "Can be picked up on";
+  const pickupFirstValue = pickupDate || "Not available";
+  const pickupSecondLabel = isCollected
+    ? "Picked up at"
+    : isUnclaimed
+      ? "Pickup deadline"
+      : "Can be picked up until";
+  const pickupSecondValue = isCollected
+    ? pickupTime || "Not available"
+    : pickupWindowConfigured
+      ? pickupWindowLabel
+      : isUnclaimed
+        ? "Not tracked"
+        : "During shop hours";
+
+  // The consequence of missing the deadline, in the policy's own terms. Only
+  // shown while a deadline actually exists — with no closing time nothing can be
+  // late, so this must not promise a penalty the shop is not tracking.
+  const pickupDeadlineNote = pickupWindowConfigured
+    ? "Orders not collected by the pickup deadline are recorded as unclaimed. Repeat unclaimed orders can block Cash on Pickup and require an advance payment."
+    : "";
+
+  // The standing belongs to the CUSTOMER, not just this order: an unclaimed
+  // record follows them onto every order they track, so the notice is gated on
+  // the account's count while its wording says whether THIS order is the one
+  // that went unclaimed. The policy is the same one the checkout gate enforces,
+  // including an admin's override.
+  const hasUnclaimedStanding = unclaimedPolicy.count > 0;
+  const unclaimedCountLine = isUnclaimed
+    ? unclaimedPolicy.count === 1
+      ? "This is your first unclaimed order."
+      : `You now have ${unclaimedPolicy.count} unclaimed orders on record.`
+    : unclaimedPolicy.count === 1
+      ? "You have 1 unclaimed order on record."
+      : `You have ${unclaimedPolicy.count} unclaimed orders on record.`;
+  const unclaimedNoticeTitle = isUnclaimed
+    ? "Unclaimed Order"
+    : "Unclaimed Order Notice";
+  // The explanation is deliberately NOT printed inside the notice card — it
+  // lives in the window that opens from it. The account line is the policy the
+  // checkout gate actually enforces, so the customer can see what their
+  // standing changes rather than only being told to collect on time.
+  const unclaimedDefinition =
+    "An order counts as unclaimed when it was printed but not collected and not paid in full by its pickup deadline.";
+
+  // Only the collectable/collected wording lives in the card; the unclaimed
+  // standing is summarised in the notice card above and explained on open.
+  const pickupNote =
+    currentOrderStatus === "Released"
       ? "This order has already been collected. Thank you for choosing Docufy."
       : pickupRemaining > 0
         ? `Bring a valid ID and your order reference when collecting. A remaining balance of ${formatCurrency(pickupRemaining)} can be paid at the shop.`
@@ -453,6 +519,12 @@ export default function OrderTracking() {
     );
     return rank >= 0 ? `${ordinalWord(rank + 1)} Offense` : "";
   })();
+
+  // The card's badge: this order's rank when it is the unclaimed one, otherwise
+  // the size of the standing the customer is carrying.
+  const unclaimedNoticeBadge = isUnclaimed
+    ? unclaimedOffenseLabel
+    : `${unclaimedPolicy.count} unclaimed ${unclaimedPolicy.count === 1 ? "order" : "orders"}`;
 
   const handleDownloadFile = (fileName: string) => {
     const content = `[Docufy PSMS - Palawan State University]\nFile: ${fileName}\nOrder ID: ${orderId}\n\nThis is a placeholder download for the submitted document.\nActual file content would be served from the server.`;
@@ -753,6 +825,61 @@ export default function OrderTracking() {
             </p>
           </header>
 
+          {/* Unclaimed standing notice — follows the CUSTOMER, so it leads the
+              page on every order that did NOT go unclaimed. The card itself is
+              the entry point; the standing and its effect on the account open
+              in the notice window. On the unclaimed order the notice stays in
+              its own place further down, beside the order's own details. */}
+          {!isUnclaimed && hasUnclaimedStanding && (
+            <section
+              aria-label="Unclaimed order notice"
+              className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-5"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                <button
+                  type="button"
+                  onClick={() => setUnclaimedDialogOpen(true)}
+                  aria-haspopup="dialog"
+                  aria-label="Unclaimed Order Notice — view details"
+                  className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2"
+                >
+                  <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-amber-100">
+                    <AlertTriangle
+                      className="h-5 w-5 text-amber-600"
+                      aria-hidden="true"
+                    />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-bold text-gray-900 sm:text-base">
+                      Unclaimed Order Notice
+                    </span>
+                    <span className="mt-0.5 block text-xs font-medium text-amber-800">
+                      {unclaimedNoticeBadge} · View details
+                    </span>
+                  </span>
+                  <ChevronRight
+                    className="h-5 w-5 flex-shrink-0 text-amber-600"
+                    aria-hidden="true"
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(
+                      unclaimedLatestOrderId
+                        ? `/customer/track/${unclaimedLatestOrderId}`
+                        : "/customer/orders",
+                    )
+                  }
+                  className="inline-flex h-10 w-full flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-[#1668D9] px-4 text-sm font-semibold text-white transition-all hover:bg-[#10316B] active:scale-[0.97] sm:w-auto"
+                >
+                  View Order
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+            </section>
+          )}
+
           {/* Current status + total/payment/placed, in one card. */}
           <section className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
             <div className={`border-l-4 p-4 ${statusStyle.accent}`}>
@@ -886,36 +1013,34 @@ export default function OrderTracking() {
             </section>
           )}
 
-          {/* Unclaimed order notice */}
+          {/* Unclaimed order's own notice — kept in its original place in the
+              order's flow. Only the explanation window opens from it; the
+              standing text is never printed on the card. */}
           {isUnclaimed && (
             <button
               type="button"
               onClick={() => setUnclaimedDialogOpen(true)}
               aria-haspopup="dialog"
-              className="flex w-full flex-col gap-2 rounded-2xl border border-[#F3D9A4] bg-[#FFF9EE] p-4 text-left transition-colors hover:bg-[#FFF4E0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B] focus-visible:ring-offset-2"
+              aria-label={`${unclaimedNoticeTitle} — view details`}
+              className="flex w-full items-center gap-3 rounded-2xl border border-[#F3D9A4] bg-[#FFF9EE] p-4 text-left transition-colors hover:bg-[#FFF4E0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B] focus-visible:ring-offset-2"
             >
-              <span className="flex items-center gap-3">
-                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#FDEBC8]">
-                  <AlertTriangle className="h-5 w-5 text-[#B45309]" aria-hidden="true" />
+              <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#FDEBC8]">
+                <AlertTriangle className="h-5 w-5 text-[#B45309]" aria-hidden="true" />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                <span className="text-[15px] font-bold text-[#8A5007]">
+                  {unclaimedNoticeTitle}
                 </span>
-                <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                  <span className="text-[15px] font-bold text-[#8A5007]">
-                    Unclaimed Order
+                {unclaimedNoticeBadge && (
+                  <span className="rounded border border-[#E3C08A] bg-[#FDF1DC] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#A16207]">
+                    {unclaimedNoticeBadge}
                   </span>
-                  {unclaimedOffenseLabel && (
-                    <span className="rounded border border-[#E3C08A] bg-[#FDF1DC] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#A16207]">
-                      {unclaimedOffenseLabel}
-                    </span>
-                  )}
-                </span>
-                <ChevronRight
-                  className="h-5 w-5 flex-shrink-0 text-[#B45309]"
-                  aria-hidden="true"
-                />
+                )}
               </span>
-              <span className="text-xs leading-relaxed text-[#8A5007]">
-                {UNCLAIMED_MESSAGE}
-              </span>
+              <ChevronRight
+                className="h-5 w-5 flex-shrink-0 text-[#B45309]"
+                aria-hidden="true"
+              />
             </button>
           )}
 
@@ -935,18 +1060,18 @@ export default function OrderTracking() {
                 <div className="grid grid-cols-2 divide-x divide-[#E8EFFA]">
                   <div className="min-w-0 p-3">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.07em] text-slate-400">
-                      Pickup Date
+                      {pickupFirstLabel}
                     </p>
                     <p className="mt-1 text-sm font-bold text-slate-900">
-                      {pickupDate || "Not available"}
+                      {pickupFirstValue}
                     </p>
                   </div>
                   <div className="min-w-0 p-3">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.07em] text-slate-400">
-                      Pickup Time
+                      {pickupSecondLabel}
                     </p>
                     <p className="mt-1 text-sm font-bold text-slate-900">
-                      {pickupTime || "Not available"}
+                      {pickupSecondValue}
                     </p>
                   </div>
                 </div>
@@ -975,6 +1100,16 @@ export default function OrderTracking() {
                 <p className="mt-2 text-center text-[11px] leading-relaxed text-slate-500">
                   A remaining balance of {formatPrice(pickupRemaining)} is
                   collected at the shop.
+                </p>
+              )}
+
+              {!isUnclaimed && !isCollected && pickupDeadlineNote && (
+                <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-white/70 p-2 text-[11px] leading-relaxed text-slate-500">
+                  <Clock
+                    className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[#1668D9]"
+                    aria-hidden="true"
+                  />
+                  <span>{pickupDeadlineNote}</span>
                 </p>
               )}
             </section>
@@ -1549,19 +1684,19 @@ export default function OrderTracking() {
                 <div className="min-w-0 p-3">
                   <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-gray-500">
                     <Calendar className="h-4 w-4 flex-shrink-0 text-[#1668D9]" />
-                    Pickup Date
+                    {pickupFirstLabel}
                   </div>
                   <p className="mt-1 break-words text-base font-semibold text-gray-900">
-                    {pickupDate || "Not available"}
+                    {pickupFirstValue}
                   </p>
                 </div>
                 <div className="min-w-0 border-t border-blue-100 p-3 sm:border-l sm:border-t-0">
                   <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-gray-500">
                     <Clock className="h-4 w-4 flex-shrink-0 text-[#1668D9]" />
-                    Pickup Time
+                    {pickupSecondLabel}
                   </div>
                   <p className="mt-1 break-words text-base font-semibold text-gray-900">
-                    {pickupTime || "Not available"}
+                    {pickupSecondValue}
                   </p>
                 </div>
               </div>
@@ -1587,51 +1722,45 @@ export default function OrderTracking() {
             </div>
 
             {isUnclaimed ? (
-              <>
-                {/* Mobile: compact, clickable unclaimed warning — the full
-                    message opens in a floating dialog. Desktop keeps the
-                    existing inline warning presentation below. */}
-                <button
-                  type="button"
-                  onClick={() => setUnclaimedDialogOpen(true)}
-                  aria-haspopup="dialog"
-                  aria-label="Unclaimed Order — view details"
-                  className="mt-3 flex w-full items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-left transition-colors hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 sm:hidden"
-                >
-                  <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-amber-100">
-                    <AlertTriangle className="h-5 w-5 text-amber-600" aria-hidden="true" />
+              // Compact entry point only — the standing and its consequence open
+              // in a floating dialog instead of being printed inside the card.
+              <button
+                type="button"
+                onClick={() => setUnclaimedDialogOpen(true)}
+                aria-haspopup="dialog"
+                aria-label={`${unclaimedNoticeTitle} — view details`}
+                className="mt-3 flex w-full items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-left transition-colors hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2"
+              >
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-amber-100">
+                  <AlertTriangle className="h-5 w-5 text-amber-600" aria-hidden="true" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-amber-900">
+                    {unclaimedNoticeTitle}
                   </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-amber-900">
-                      Unclaimed Order
+                  {unclaimedNoticeBadge && (
+                    <span className="mt-0.5 block text-xs font-medium text-amber-700">
+                      {unclaimedNoticeBadge}
                     </span>
-                    {unclaimedOffenseLabel && (
-                      <span className="mt-0.5 block text-xs font-medium text-amber-700">
-                        {unclaimedOffenseLabel}
-                      </span>
-                    )}
-                  </span>
-                  <ChevronRight
-                    className="h-5 w-5 flex-shrink-0 text-amber-600"
-                    aria-hidden="true"
-                  />
-                </button>
-
-                {/* Desktop: inline warning using the same amber container
-                    styling as the mobile compact warning. */}
-                <div className="mt-3 hidden rounded-lg border border-amber-200 bg-amber-50 p-3 sm:block">
-                  <p className="flex items-start gap-2 text-sm text-amber-900">
-                    <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
-                    <span>{pickupNote}</span>
-                  </p>
-                </div>
-              </>
+                  )}
+                </span>
+                <ChevronRight
+                  className="h-5 w-5 flex-shrink-0 text-amber-600"
+                  aria-hidden="true"
+                />
+              </button>
             ) : (
               <div className="mt-3 rounded-lg border border-blue-100 border-l-4 border-l-[#1668D9] bg-white p-3">
                 <p className="flex items-start gap-2 text-sm text-gray-600">
                   <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1668D9]" />
                   <span>{pickupNote}</span>
                 </p>
+                {!isCollected && pickupDeadlineNote && (
+                  <p className="mt-2 flex items-start gap-2 text-sm text-gray-600">
+                    <Clock className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1668D9]" />
+                    <span>{pickupDeadlineNote}</span>
+                  </p>
+                )}
               </div>
             )}
           </Card>
@@ -2169,18 +2298,34 @@ export default function OrderTracking() {
               </span>
               <div className="min-w-0 text-left">
                 <DialogTitle className="text-lg text-amber-900">
-                  Unclaimed Order
+                  {unclaimedNoticeTitle}
                 </DialogTitle>
-                {unclaimedOffenseLabel && (
+                {unclaimedNoticeBadge && (
                   <p className="mt-0.5 text-xs font-medium text-amber-700">
-                    {unclaimedOffenseLabel}
+                    {unclaimedNoticeBadge}
                   </p>
                 )}
               </div>
             </div>
           </DialogHeader>
 
-          <p className="text-sm leading-relaxed text-gray-600">{UNCLAIMED_MESSAGE}</p>
+          <div className="space-y-3">
+            <p className="text-sm leading-relaxed text-gray-600">
+              {isUnclaimed ? "This order was recorded as unclaimed. " : ""}
+              {unclaimedCountLine} {unclaimedDefinition}
+            </p>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-amber-800">
+                What this means for your account
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-amber-900">
+                {unclaimedPolicy.summary}
+              </p>
+            </div>
+            <p className="text-sm leading-relaxed text-gray-600">
+              Please contact the shop if you need assistance.
+            </p>
+          </div>
 
           <DialogFooter>
             <Button

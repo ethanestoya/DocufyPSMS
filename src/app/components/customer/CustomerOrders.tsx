@@ -96,9 +96,25 @@ export default function CustomerOrders() {
   const filteredOrders = orders.filter((order) => {
     const matchesStatus =
       selectedStatus === "All" || order.status === selectedStatus;
+    // The row shows `displayId` (the ORD-0001 form), but a server-backed order's
+    // `id` is a uuid — so matching only `id` made the number the customer reads
+    // on screen unsearchable. The haystack is everything the row can be
+    // recognised by: the displayed number, the raw id for legacy/local orders,
+    // and every uploaded file name (not just the first one).
+    const needle = searchQuery.trim().toLowerCase();
     const matchesSearch =
-      order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (order.fileName || "").toLowerCase().includes(searchQuery.toLowerCase());
+      !needle ||
+      [
+        order.displayId,
+        order.orderNumber,
+        order.id,
+        order.fileName,
+        ...(order.attachedFiles ?? []).map((file) => file.name),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(needle);
     const matchesDateFrom = !dateFrom || order.date >= dateFrom;
     const matchesDateTo = !dateTo || order.date <= dateTo;
     return matchesStatus && matchesSearch && matchesDateFrom && matchesDateTo;

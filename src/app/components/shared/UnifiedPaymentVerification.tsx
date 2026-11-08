@@ -619,10 +619,13 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
 
   const filteredPayments = payments
     .filter((p) => {
-      const query = searchQuery.toLowerCase();
+      const query = searchQuery.trim().toLowerCase();
       if (
         query &&
         !p.id.toLowerCase().includes(query) &&
+        // The row prints `displayId` (ORD-0001); `id` is the server uuid, so the
+        // number staff actually read had to be searched separately.
+        !(p.displayId ?? "").toLowerCase().includes(query) &&
         !p.customer.toLowerCase().includes(query) &&
         !p.reference?.toLowerCase().includes(query)
       )

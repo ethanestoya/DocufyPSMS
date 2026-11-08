@@ -18,7 +18,7 @@
 // extra pages if the receipt is long) or as a PNG image.
 
 import React from "react";
-import { Download, FileText, Image as ImageIcon } from "lucide-react";
+import { Download, FileText, Image as ImageIcon, Lock } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -656,6 +656,12 @@ async function downloadReceiptPdf(data: ReceiptData, logo: string) {
  * never sits inside a scroll box. Both downloads are built from the same markup
  * the sheet shows, on the spot, with no server and no new dependency. Nothing
  * here touches order, payment, pricing, permission or status logic.
+ *
+ * The receipt is VIEW-ONLY until the shop has verified payment for the order:
+ * the sheet can be read at any time, but the two Download buttons are withheld
+ * while `data.paymentVerified` is false, so a customer cannot keep a file whose
+ * payment status the shop has not confirmed. The gate lives here rather than at
+ * each call site, so the customer and staff/admin viewers cannot disagree.
  */
 export function OrderReceiptDialog({
   open,
@@ -668,6 +674,7 @@ export function OrderReceiptDialog({
 }) {
   const logo = useLogo();
   const [busy, setBusy] = React.useState<"pdf" | "png" | null>(null);
+  const canDownload = !!data?.paymentVerified;
 
   // Rasterizing takes a moment; the button that was pressed shows the spinner
   // and both downloads lock so the same receipt can't be rendered twice.
@@ -709,7 +716,9 @@ export function OrderReceiptDialog({
               )}
             </div>
             <DialogDescription className="mt-0.5 text-xs text-gray-500 sm:text-[13px]">
-              Review or download the receipt for this order.
+              {canDownload
+                ? "Review or download the receipt for this order."
+                : "View only until the payment for this order is verified."}
             </DialogDescription>
           </div>
         </div>
@@ -727,35 +736,48 @@ export function OrderReceiptDialog({
           )}
         </div>
 
-        {/* Footer — outside the document, never printed. The two downloads stay
-            secondary; Close carries the primary styling and the Enter key. */}
+        {/* Footer — outside the document, never printed. While the payment is
+            unverified the downloads are withheld entirely (not disabled): a
+            greyed button beside a live Close reads as a fault, and a disabled
+            download can still be invoked by the dialog's Enter-key shortcut.
+            Close carries the primary styling and the Enter key. */}
         <div className="order-receipt-footer flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 bg-white px-4 py-3 sm:gap-3 sm:px-6">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => download("pdf")}
-            disabled={!data || busy !== null}
-            loading={busy === "pdf"}
-            loadingText="Preparing…"
-            title="Downloads the receipt as an A4 PDF document"
-            className="border-2 border-blue-200 text-[#2F6FD6] hover:bg-white hover:text-[#2F6FD6]"
-          >
-            <Download className="mr-1.5 h-4 w-4" />
-            Download PDF
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => download("png")}
-            disabled={!data || busy !== null}
-            loading={busy === "png"}
-            loadingText="Preparing…"
-            title="Downloads the receipt as a PNG image"
-            className="border-2 border-blue-200 text-[#2F6FD6] hover:bg-white hover:text-[#2F6FD6]"
-          >
-            <ImageIcon className="mr-1.5 h-4 w-4" />
-            Download PNG
-          </Button>
+          {data && !canDownload && (
+            <p className="mr-auto flex items-start gap-1.5 text-xs leading-relaxed text-gray-500">
+              <Lock className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-gray-400" aria-hidden="true" />
+              <span>Downloads unlock once the payment is verified.</span>
+            </p>
+          )}
+          {canDownload && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => download("pdf")}
+              disabled={!data || busy !== null}
+              loading={busy === "pdf"}
+              loadingText="Preparing…"
+              title="Downloads the receipt as an A4 PDF document"
+              className="border-2 border-blue-200 text-[#2F6FD6] hover:bg-white hover:text-[#2F6FD6]"
+            >
+              <Download className="mr-1.5 h-4 w-4" />
+              Download PDF
+            </Button>
+          )}
+          {canDownload && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => download("png")}
+              disabled={!data || busy !== null}
+              loading={busy === "png"}
+              loadingText="Preparing…"
+              title="Downloads the receipt as a PNG image"
+              className="border-2 border-blue-200 text-[#2F6FD6] hover:bg-white hover:text-[#2F6FD6]"
+            >
+              <ImageIcon className="mr-1.5 h-4 w-4" />
+              Download PNG
+            </Button>
+          )}
           <Button
             data-primary-action
             size="sm"

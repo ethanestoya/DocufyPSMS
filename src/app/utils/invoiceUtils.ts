@@ -122,6 +122,12 @@ export interface ReceiptData {
   printingCost: number;
   addonsCost: number;
   total: number;
+  /**
+   * True once the shop has confirmed money against this order (full payment, or
+   * the required down payment). An unverified receipt is view-only — the
+   * viewer must not offer a file the shop has not confirmed the figures for.
+   */
+  paymentVerified: boolean;
   payment: {
     method: string;
     status: ReceiptPaymentStatus;
@@ -347,6 +353,7 @@ export function generateReceiptData(order: ReceiptOrderInput): ReceiptData {
     printingCost,
     addonsCost,
     total,
+    paymentVerified: hasVerified,
     payment: {
       method: method || "—",
       status: paymentStatus,

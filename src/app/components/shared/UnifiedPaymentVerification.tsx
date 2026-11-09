@@ -1688,7 +1688,7 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
         open={showProofImage}
         onOpenChange={setShowProofImage}
       >
-        <DialogContent className="max-w-4xl font-poppins border-none">
+        <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col font-poppins border-none">
           <DialogHeader>
             <DialogTitle className="font-bold text-[#10316B]">
               Payment Proof
@@ -1702,17 +1702,26 @@ export default function UnifiedPaymentVerification({ menuItems, userRole }: Unif
               Loading proof…
             </p>
           ) : proofSignedUrl ? (
-            <img
-              src={proofSignedUrl}
-              alt="Uploaded payment proof"
-              className="w-full h-auto rounded-lg border border-[#1668D9]/10"
-            />
+            // A long screenshot scrolls inside this frame instead of stretching
+            // the dialog past the viewport.
+            <div
+              role="region"
+              aria-label="Payment proof image"
+              tabIndex={0}
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-lg border border-[#1668D9]/10 bg-[#F6F7F9] p-2 outline-none focus-visible:ring-2 focus-visible:ring-[#2F6FD6]/40"
+            >
+              <img
+                src={proofSignedUrl}
+                alt="Uploaded payment proof"
+                className="mx-auto block h-auto max-w-full rounded-md"
+              />
+            </div>
           ) : (
             <p className="py-10 text-center text-sm text-gray-500">
               Couldn't load this proof. Ask the customer to upload it again.
             </p>
           )}
-          <div className="flex justify-end mt-4">
+          <div className="flex justify-end">
             <Button
               variant="outline"
               onClick={() => setShowProofImage(false)}

@@ -42,22 +42,18 @@ async function runAll(): Promise<void> {
   await ensureStaffNested();
 }
 
-// Seed `staff_records` directory rows for the DEMO roster so attendance sync
-// has an identity to attach to (the roster members have no Supabase auth
-// accounts — only the real staff@test.com account does, and its staff_records
-// row gets linked to the existing `profiles.id` by email). The SQL migration
-// also seeds these; this is a best-effort runtime counterpart for when the
-// migration hasn't been run yet. Idempotent: rows are matched by email.
+// Seed the `staff_records` directory row for the staff test account so
+// attendance sync has an identity to attach to — its row gets linked to the
+// existing `profiles.id` by email. Only that account is seeded: the demo
+// roster rows were removed on purpose, and seeding them here re-created staff
+// deleted from Staff Management on the next page load. Idempotent: matched by
+// email. Best-effort runtime counterpart to the SQL migration.
 const DEMO_STAFF_SEEDS: Array<{
   fullName: string;
   email: string;
   employeeCode: string;
 }> = [
   { fullName: 'Heaven Rica', email: 'staff@test.com', employeeCode: 'EMP-001' },
-  { fullName: 'Robert Chen', email: 'robert.chen@docufy.com', employeeCode: 'EMP-002' },
-  { fullName: 'Katie Perry', email: 'katie.perry@docufy.com', employeeCode: 'EMP-003' },
-  { fullName: 'Miguel Santos', email: 'miguel.santos@docufy.com', employeeCode: 'EMP-004' },
-  { fullName: 'Ana Dela Cruz', email: 'ana.delacruz@docufy.com', employeeCode: 'EMP-005' },
 ];
 
 async function ensureStaffRecords(): Promise<void> {

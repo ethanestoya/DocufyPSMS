@@ -69,16 +69,20 @@ function humanize(raw: string): string {
   if (msg.includes('invalid input syntax') || msg.includes('out of range') || msg.includes('too long')) {
     return "One of the values isn't valid. Please check it and try again.";
   }
-  // PGRST204/205/202 + 42P01: PostgREST can't find the table, column or function
-  // the query names — the deployed page and the database schema are out of step.
+  // PGRST202: the function exists in the client's code but not on the server —
+  // a database migration that was never applied. Refreshing cannot fix it, so it
+  // gets its own sentence instead of the "refresh" advice below.
+  if (msg.includes('pgrst202') || msg.includes('could not find the function')) {
+    return 'This feature is not set up on the server yet. Please ask your administrator.';
+  }
+  // PGRST204/205 + 42P01: PostgREST can't find the table or column the query
+  // names — the deployed page and the database schema are out of step.
   // Same remedy as 42703 (refresh), but these arrive with different wording.
   if (
     msg.includes('pgrst204') ||
     msg.includes('pgrst205') ||
-    msg.includes('pgrst202') ||
     msg.includes('schema cache') ||
     msg.includes('could not find the table') ||
-    msg.includes('could not find the function') ||
     msg.includes('42p01') ||
     msg.includes('undefined_table')
   ) {

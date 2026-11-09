@@ -230,7 +230,9 @@ type UntypedRpc = <T>(
   args?: Record<string, unknown>,
 ) => Promise<{ data: T | null; error: { message: string } | null }>;
 
-const rpc = supabase.rpc as unknown as UntypedRpc;
+// Keep the call bound to the client: supabase-js reads `this.rest` inside rpc(),
+// so a detached reference throws "Cannot read properties of undefined (reading 'rest')".
+const rpc = supabase.rpc.bind(supabase) as unknown as UntypedRpc;
 
 export interface CreatedOrderRef {
   id: string;

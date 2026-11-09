@@ -1,0 +1,1114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Print Request — Step 3 Add-ons (dropdown) · prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --brand:#1668D9;
+    --brand-hover:#0F57B8;
+    --brand-soft:#EAF2FF;
+    --wizard:#2F6FD6;
+    --side:#1D73EC;
+    --pale:#F5F9FF;
+    --pale-line:#DCE9FB;
+    --line:#E3E9F1;
+    --line-strong:#D5DCE6;
+    --ink:#0F172A;
+    --body:#334155;
+    --muted:#64748B;
+    --muted-2:#7C8A9C;
+    --canvas:#F6F7F9;
+    --green:#15803D;
+    --green-bg:#ECFDF3;
+    --amber:#B45309;
+    --amber-bg:#FFF9EE;
+    --amber-line:#F3D9A4;
+    --red:#B91C1C;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:'Poppins','Segoe UI',system-ui,-apple-system,sans-serif;
+    color:var(--ink);
+    background:#E7EBF1;
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+  svg.ic{width:1em;height:1em;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+  /* ── pages ─────────────────────────────────────────────────────────── */
+  @page{size:A4 portrait;margin:0}
+  @page wide{size:A4 landscape;margin:0}
+  .sheet{
+    position:relative;
+    width:210mm;min-height:296mm;
+    padding:15mm 15mm 12mm;
+    background:#fff;
+    page-break-after:always;
+    margin:0 auto 26px;
+    box-shadow:0 10px 30px rgba(15,23,42,.12);
+  }
+  .sheet.wide{page:wide;width:297mm;min-height:209mm;padding:11mm 12mm 9mm}
+  .sheet:last-of-type{page-break-after:auto}
+  @media print{
+    body{background:#fff}
+    .sheet{box-shadow:none;margin:0}
+  }
+
+  /* ── document type ─────────────────────────────────────────────────── */
+  .doc-kicker{font-size:9.5pt;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-2);font-weight:600}
+  .doc-h1{font-size:27pt;line-height:1.15;font-weight:700;letter-spacing:-.02em;margin:10px 0 0}
+  .doc-h2{font-size:15pt;font-weight:600;letter-spacing:-.01em;margin:0 0 4px}
+  .doc-h3{font-size:10.5pt;font-weight:600;margin:0 0 4px}
+  .doc-sub{font-size:10.5pt;line-height:1.55;color:var(--body);margin:6px 0 0}
+  .rule{height:1px;background:var(--line);border:0;margin:14px 0}
+  .page-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:7px;margin-bottom:16px}
+  .page-head .left{font-size:10pt;font-weight:600;color:var(--ink)}
+  .page-head .right{font-size:8.5pt;color:var(--muted-2);letter-spacing:.04em}
+  .page-foot{position:absolute;left:15mm;right:15mm;bottom:7mm;display:flex;justify-content:space-between;font-size:7.5pt;color:#94a3b8;border-top:1px solid #eef2f7;padding-top:5px}
+  .sheet.wide .page-foot{left:12mm;right:12mm}
+
+  .lead{font-size:11pt;line-height:1.6;color:var(--body)}
+  .small{font-size:9.5pt;line-height:1.55;color:var(--body)}
+  .tiny{font-size:8.5pt;line-height:1.5;color:var(--muted)}
+  .mono{font-family:ui-monospace,Consolas,monospace;font-size:8.5pt;background:#F1F5F9;border-radius:4px;padding:1px 4px}
+
+  .quote{
+    border-left:3px solid var(--brand);
+    background:var(--pale);
+    padding:10px 14px;
+    border-radius:0 10px 10px 0;
+    font-size:10pt;line-height:1.55;color:#1e3a5f;
+  }
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .panel{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff}
+  .panel.tint{background:var(--pale);border-color:var(--pale-line)}
+  .panel.amber{background:var(--amber-bg);border-color:var(--amber-line)}
+
+  .num{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:17px;height:17px;border-radius:50%;
+    background:var(--brand);color:#fff;font-size:8pt;font-weight:600;flex:none;
+  }
+  ul.findings{list-style:none;margin:0;padding:0;display:grid;gap:9px}
+  ul.findings li{display:flex;gap:9px;font-size:9.5pt;line-height:1.5;color:var(--body)}
+  ul.findings li b{color:var(--ink);font-weight:600}
+
+  table.spec{width:100%;border-collapse:collapse;font-size:9pt}
+  table.spec th{
+    text-align:left;font-size:8pt;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--muted-2);font-weight:600;border-bottom:1px solid var(--line);
+    padding:0 8px 6px 0;
+  }
+  table.spec td{border-bottom:1px solid #eff3f8;padding:8px 8px 8px 0;vertical-align:top;line-height:1.5;color:var(--body)}
+  table.spec td:first-child{width:23%;font-weight:600;color:var(--ink)}
+  table.spec tr:last-child td{border-bottom:0}
+  table.spec.compact td{padding:5px 8px 5px 0;font-size:8.6pt;line-height:1.45}
+  table.spec.compact th{padding-bottom:5px}
+  table.spec.compact td:first-child{width:20%}
+
+  .toc{display:grid;gap:7px;margin-top:4px}
+  .toc-row{display:flex;align-items:baseline;gap:8px;font-size:9.5pt;color:var(--body)}
+  .toc-row .n{font-variant-numeric:tabular-nums;color:var(--muted-2);width:16px;font-size:8.5pt}
+  .toc-row .dots{flex:1;border-bottom:1px dotted #cbd5e1;transform:translateY(-3px)}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:2px 8px;font-size:8pt;font-weight:600}
+  .badge.blue{background:var(--brand-soft);color:#1F4E9C}
+  .badge.green{background:var(--green-bg);color:var(--green)}
+  .badge.amber{background:#FEF3C7;color:#92400E}
+  .badge.grey{background:#F1F5F9;color:#475569}
+
+  /* ── mockup frame: desktop, no sidebar (content crop) ──────────────── */
+  .frame-wrap{position:relative;overflow:visible}
+  .frame{transform-origin:top left;background:var(--canvas);border:1px solid #DCE3EC;border-radius:14px;overflow:hidden;box-shadow:0 10px 26px rgba(15,23,42,.10)}
+  .desk{width:804px}
+  .topbar{height:44px;background:#fff;border-bottom:1px solid #E8EDF4;display:flex;align-items:center;gap:10px;padding:0 18px}
+  .topbar .menu{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#475569;font-size:14px}
+  .topbar .t{font-size:13px;font-weight:600}
+  .topbar .right{margin-left:auto;display:flex;align-items:center;gap:10px;color:#64748b;font-size:15px}
+  .topbar .avi{width:24px;height:24px;border-radius:50%;background:var(--brand-soft);color:#1F4E9C;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .canvas{background:var(--canvas);padding:18px 22px 22px}
+  .content-col{width:760px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+
+  .card{background:#fff;border:1px solid #E6EBF2;border-radius:12px;box-shadow:0 1px 3px rgba(15,23,42,.05)}
+  .stepper{display:flex;align-items:center;justify-content:center;padding:13px 20px}
+  .step-item{display:flex;flex-direction:column;align-items:center;min-width:0}
+  .step-circle{
+    width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:#E5E7EB;color:#6B7280;font-size:17px;
+  }
+  .step-circle.done{background:#DBEAFE;color:#1668D9}
+  .step-circle.current{background:var(--wizard);color:#fff;box-shadow:0 0 0 4px rgba(47,111,214,.20)}
+  .step-label{margin-top:6px;font-size:9.5px;font-weight:500;color:#6B7280;line-height:1.2;text-align:center}
+  .step-label.on{color:#111827}
+  .step-line{height:4px;width:64px;border-radius:999px;background:#E5E7EB;margin:0 6px 18px}
+  .step-line.done{background:var(--wizard)}
+
+  .step-card{padding:20px 22px}
+  .step-title{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:600;margin:0}
+  .step-title .ico{width:22px;height:22px;color:var(--wizard)}
+  .step-sub{font-size:12px;line-height:1.5;color:var(--muted);margin:5px 0 0}
+
+  .field-label{font-size:12px;font-weight:600;color:#334155;margin:16px 0 3px}
+  .field-help{font-size:11px;line-height:1.45;color:#6B7A8D;margin:0 0 8px}
+  .field{
+    position:relative;height:44px;background:#fff;border:1px solid var(--line-strong);border-radius:10px;
+    display:flex;align-items:center;gap:9px;padding:0 12px;
+  }
+  .field .f-ico{font-size:16px;color:#64748b}
+  .field .f-text{font-size:13px;color:#334155;font-weight:500}
+  .field .f-chip{
+    margin-left:auto;display:inline-flex;align-items:center;gap:5px;
+    background:var(--brand-soft);color:#1F4E9C;border-radius:999px;padding:3px 9px;font-size:10.5px;font-weight:600;
+  }
+  .field .f-chev{font-size:14px;color:#64748b;margin-left:6px}
+
+  .panel-pop{
+    margin:8px 0 0;background:#fff;border:1px solid var(--line-strong);border-radius:12px;
+    box-shadow:0 18px 38px rgba(15,23,42,.16);overflow:hidden;
+  }
+  .panel-list{padding:6px;display:grid;gap:2px}
+  .opt{display:flex;align-items:flex-start;gap:10px;padding:9px 10px;border-radius:8px}
+  .opt.on{background:#F4F8FE}
+  .opt .box{
+    width:18px;height:18px;border-radius:5px;border:1.5px solid #CBD5E1;background:#fff;
+    display:flex;align-items:center;justify-content:center;margin-top:2px;flex:none;font-size:11px;color:#fff;
+  }
+  .opt.on .box{background:var(--brand);border-color:var(--brand)}
+  .opt .mid{min-width:0;flex:1}
+  .opt .nm{font-size:13px;font-weight:600;color:#111827;line-height:1.3}
+  .opt .meta{font-size:11px;color:#64748B;margin-top:1px}
+  .opt .right{text-align:right;flex:none;margin-left:8px}
+  .opt .price{font-size:11.5px;font-weight:600;color:#1F4E9C;white-space:nowrap}
+  .opt .stock{font-size:10.5px;margin-top:2px;color:var(--green);white-space:nowrap}
+  .opt .stock.out{color:var(--red)}
+  .opt.off{opacity:.62}
+  .panel-foot{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:7px 10px;border-top:1px solid #EEF2F7;background:#FBFDFF;
+  }
+  .panel-foot .sum{font-size:11.5px;color:#475569}
+  .panel-foot .sum b{color:#111827}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    height:44px;padding:0 20px;border-radius:8px;font-size:13.5px;font-weight:600;
+    border:2px solid transparent;white-space:nowrap;
+  }
+  .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+  .btn.outline{background:#fff;border-color:#BFDBFE;color:#334155}
+  .btn.sm{height:32px;padding:0 14px;font-size:12px;border-width:1.5px;border-radius:8px}
+
+  .selected{background:#fff;border:1px solid var(--line);border-radius:12px;padding:0;overflow:hidden}
+  .selected-head{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid #EFF3F8}
+  .selected-head .h{font-size:11.5px;font-weight:700;color:#0F172A}
+  .selected-head .tot{font-size:11.5px;font-weight:700;color:#1F4E9C}
+  .sel-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid #F4F7FB}
+  .sel-row:last-of-type{border-bottom:0}
+  .sel-row .info{min-width:0;flex:1}
+  .sel-row .nm{font-size:12.5px;font-weight:600;color:#111827}
+  .sel-row .meta{font-size:10.5px;color:#64748B;margin-top:1px}
+  .sel-row .line-total{width:56px;text-align:right;font-size:12.5px;font-weight:700;color:#0F172A;white-space:nowrap}
+  .qty{display:flex;align-items:center;gap:0;flex:none}
+  .qty button{
+    width:28px;height:28px;border-radius:7px;border:1.5px solid #BFDBFE;background:#fff;color:#334155;
+    display:flex;align-items:center;justify-content:center;font-size:12px;padding:0;
+  }
+  .qty .val{width:34px;text-align:center;font-size:12.5px;font-weight:700;color:#111827}
+  .empty-line{display:flex;align-items:center;gap:8px;font-size:11.5px;color:#64748B;padding:11px 12px;background:#FBFDFF;border:1px dashed #D8E1EC;border-radius:10px}
+  .nav-row{display:flex;align-items:center;justify-content:space-between;border-top:1px solid #EEF2F7;margin-top:16px;padding-top:14px}
+  .nav-right{display:flex;align-items:center;gap:10px}
+  .optional-note{font-size:10.5px;color:#94A3B8;margin-right:4px}
+
+  /* numbered callouts on a mockup */
+  .pin{
+    position:absolute;z-index:9;display:inline-flex;align-items:center;justify-content:center;
+    width:19px;height:19px;border-radius:50%;background:#0F172A;color:#fff;
+    font-size:8.5px;font-weight:700;box-shadow:0 0 0 3px rgba(255,255,255,.9);
+  }
+
+  .legend{display:grid;gap:9px}
+  .legend .item{display:flex;gap:8px;font-size:9pt;line-height:1.5;color:var(--body)}
+  .legend .item .num{background:#0F172A}
+  .legend .item b{color:var(--ink);font-weight:600}
+
+  .caption{font-size:8.5pt;color:var(--muted);margin:7px 0 0;display:flex;align-items:center;gap:6px}
+  .caption b{color:var(--ink);font-weight:600}
+
+  /* ── full app frame (page 2) ───────────────────────────────────────── */
+  .app{width:1200px;height:760px;display:flex;background:var(--canvas);border-radius:14px;overflow:hidden;border:1px solid #DCE3EC;box-shadow:0 10px 26px rgba(15,23,42,.10)}
+  .side{width:232px;background:var(--side);color:#fff;padding:16px 12px;display:flex;flex-direction:column;gap:16px;flex:none}
+  .side .brand-row{display:flex;align-items:center;gap:9px;padding:2px 6px}
+  .side .logo{width:32px;height:32px;border-radius:50%;background:#fff;color:var(--side);font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .side .brand-name{font-size:15px;font-weight:700;letter-spacing:-.01em}
+  .side .collapse{margin-left:auto;width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.35);font-size:12px}
+  .side nav{display:grid;gap:4px}
+  .nav-item{height:38px;border-radius:9px;display:flex;align-items:center;gap:9px;padding:0 10px;font-size:12.5px;font-weight:600;color:rgba(255,255,255,.9)}
+  .nav-item .i{font-size:16px}
+  .nav-item.active{background:#fff;color:var(--side)}
+  .side .profile{margin-top:auto;display:flex;align-items:center;gap:9px;padding:10px 8px;border-top:1px solid rgba(255,255,255,.25)}
+  .side .profile .avi{width:30px;height:30px;border-radius:50%;background:#fff;color:var(--side);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
+  .side .profile .nm{font-size:11.5px;font-weight:600;line-height:1.3}
+  .side .profile .em{font-size:8.5px;color:rgba(255,255,255,.75);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+  .app-main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .app-top{height:56px;background:#fff;border-bottom:1px solid #E8EDF4;display:flex;align-items:center;gap:12px;padding:0 22px}
+  .app-top .t{font-size:14px;font-weight:600}
+  .app-top .right{margin-left:auto;display:flex;align-items:center;gap:12px;color:#64748b;font-size:16px}
+  .app-top .avi{width:28px;height:28px;border-radius:50%;background:var(--brand-soft);color:#1F4E9C;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
+
+  /* current step-3 cards */
+  .addon-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  .addon-card{border:1px solid #E6EBF2;border-radius:10px;padding:12px;background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+  .addon-card .head{display:flex;align-items:flex-start;gap:8px}
+  .addon-card .nm{font-size:12.5px;font-weight:600}
+  .addon-card .desc{font-size:10px;color:#64748B;margin-top:2px}
+  .addon-card .price{font-size:12px;font-weight:700;color:var(--wizard);margin-top:6px}
+  .addon-card .chip{flex:none;font-size:9px;background:#DBEAFE;color:#1D4ED8;border-radius:5px;padding:2px 7px;text-transform:capitalize}
+  .addon-card .row{display:flex;align-items:center;gap:8px;margin-top:12px}
+  .addon-card .row .qty-num{width:56px;height:32px;border:1px solid var(--line-strong);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#111827}
+  .intro-box{border:2px solid #BFDBFE;border-radius:9px;padding:10px 12px;font-size:12px;color:#1E40AF;margin-top:14px}
+
+  /* mobile frames */
+  .phones{display:flex;align-items:flex-start;gap:26px;justify-content:center}
+  .phone-wrap{display:flex;flex-direction:column;align-items:center;gap:8px}
+  .phone{
+    width:390px;height:820px;background:var(--canvas);border-radius:26px;overflow:hidden;
+    border:8px solid #0F172A;box-shadow:0 12px 26px rgba(15,23,42,.18);position:relative;display:flex;flex-direction:column;
+  }
+  .m-top{height:52px;background:#fff;border-bottom:1px solid #E8EDF4;display:flex;align-items:center;gap:10px;padding:0 14px;flex:none}
+  .m-top .menu{font-size:17px;color:#475569}
+  .m-top .t{font-size:13.5px;font-weight:600}
+  .m-top .right{margin-left:auto;font-size:16px;color:#64748b}
+  .m-body{flex:1;padding:10px 12px 0;overflow:hidden}
+  .m-stepper{background:#fff;border:1px solid #E6EBF2;border-radius:11px;padding:9px 10px;display:flex;align-items:center;justify-content:center}
+  .m-step{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0}
+  .m-circle{width:28px;height:28px;border-radius:50%;background:#E5E7EB;color:#6B7280;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .m-circle.done{background:#DBEAFE;color:#1668D9}
+  .m-circle.current{background:var(--wizard);color:#fff;box-shadow:0 0 0 3px rgba(47,111,214,.20)}
+  .m-step span{font-size:8px;color:#6B7280;font-weight:500;white-space:nowrap}
+  .m-step span.on{color:#111827}
+  .m-line{height:3px;width:16px;border-radius:999px;background:#E5E7EB;margin:0 2px 12px}
+  .m-line.done{background:var(--wizard)}
+  .m-card{background:#fff;border:1px solid #E6EBF2;border-radius:12px;padding:14px 13px;margin-top:8px;box-shadow:0 1px 3px rgba(15,23,42,.05)}
+  .m-title{display:flex;align-items:center;gap:7px;font-size:15px;font-weight:600;margin:0}
+  .m-title .ico{width:19px;height:19px;color:var(--wizard)}
+  .m-sub{font-size:10.5px;line-height:1.45;color:#64748B;margin:4px 0 0}
+  .m-label{font-size:11px;font-weight:600;color:#334155;margin:12px 0 3px}
+  .m-help{font-size:10px;line-height:1.4;color:#6B7A8D;margin:0 0 6px}
+  .m-field{height:42px;border:1px solid var(--line-strong);border-radius:10px;background:#fff;display:flex;align-items:center;gap:8px;padding:0 11px}
+  .m-field .f-ico{font-size:15px;color:#64748b}
+  .m-field .f-text{font-size:12px;font-weight:500;color:#334155}
+  .m-field .f-chip{margin-left:auto;background:var(--brand-soft);color:#1F4E9C;border-radius:999px;padding:2px 8px;font-size:10px;font-weight:600}
+  .m-field .f-chev{font-size:13px;color:#64748b;margin-left:4px}
+  .m-panel{margin-top:6px;background:#fff;border:1px solid var(--line-strong);border-radius:12px;box-shadow:0 16px 30px rgba(15,23,42,.16);overflow:hidden}
+  .m-opt{display:flex;gap:9px;align-items:flex-start;padding:9px 10px;border-bottom:1px solid #F4F7FB}
+  .m-opt .box{width:17px;height:17px;border-radius:5px;border:1.5px solid #CBD5E1;margin-top:2px;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px}
+  .m-opt.on{background:#F4F8FE}
+  .m-opt.on .box{background:var(--brand);border-color:var(--brand)}
+  .m-opt .nm{font-size:12px;font-weight:600;color:#111827}
+  .m-opt .meta{font-size:10px;color:#64748B;margin-top:1px}
+  .m-opt .st{font-size:9.5px;color:var(--green);margin-top:2px}
+  .m-opt .st.out{color:var(--red)}
+  .m-opt .pr{font-size:10.5px;font-weight:600;color:#1F4E9C;margin-left:auto;text-align:right;flex:none}
+  .m-panel-foot{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:#FBFDFF}
+  .m-panel-foot .s{font-size:10.5px;color:#475569}
+  .m-sel{margin-top:10px;border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}
+  .m-sel-head{display:flex;justify-content:space-between;align-items:center;padding:8px 11px;border-bottom:1px solid #EFF3F8}
+  .m-sel-head .h{font-size:10.5px;font-weight:700}
+  .m-sel-head .tot{font-size:10.5px;font-weight:700;color:#1F4E9C}
+  .m-sel-row{padding:8px 11px;border-bottom:1px solid #F4F7FB;display:flex;align-items:center;gap:8px}
+  .m-sel-row:last-child{border-bottom:0}
+  .m-sel-row .nm{font-size:11.5px;font-weight:600}
+  .m-sel-row .meta{font-size:9.5px;color:#64748B}
+  .m-sel-row .qty button{width:26px;height:26px;font-size:11px;border-radius:6px}
+  .m-sel-row .qty .val{width:28px;font-size:11.5px}
+  .m-sel-row .lt{font-size:11.5px;font-weight:700;margin-left:auto;white-space:nowrap}
+  .m-footer{margin-top:auto;background:rgba(255,255,255,.97);border-top:1px solid #E4EAF2;padding:9px 12px 14px;display:flex;gap:8px;flex:none}
+  .m-footer .btn{height:44px;flex:1;font-size:13px;border-radius:10px}
+  .m-empty{display:flex;gap:8px;align-items:center;padding:10px;border:1px dashed #D8E1EC;background:#FBFDFF;border-radius:10px;font-size:10.5px;color:#64748B;margin-top:10px}
+
+  .scale-0625{zoom:.625}
+  .scale-062{transform:scale(.62)}
+  .scale-088{transform:scale(.88)}
+  .scale-09{transform:scale(.9)}
+  .fit-0625{width:750px;height:513px}
+  .fit-088{width:708px;height:546px}
+  .fit-09{width:724px;height:660px}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8v8a2 2 0 0 1-1 1.73l-7 4a2 2 0 0 1-2 0l-7-4A2 2 0 0 1 3 16V8a2 2 0 0 1 1-1.73l7-4a2 2 0 0 1 2 0l7 4A2 2 0 0 1 21 8z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></symbol>
+  <symbol id="i-brief" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></symbol>
+  <symbol id="i-chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></symbol>
+  <symbol id="i-cart" viewBox="0 0 24 24"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></symbol>
+  <symbol id="i-bag" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></symbol>
+  <symbol id="i-checkcircle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></symbol>
+  <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3z"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+</svg>
+
+<!-- ══════════════════════════════ 1 · COVER ══════════════════════════════ -->
+<section class="sheet" id="p1">
+  <div class="page-head">
+    <div class="left">Docufy PSMS · Customer Print Request</div>
+    <div class="right">PROTOTYPE · FOR REVIEW</div>
+  </div>
+
+  <div class="doc-kicker">Step 3 of 4 · Add-ons</div>
+  <h1 class="doc-h1">Add-ons as a dropdown,<br/>not a wall of cards.</h1>
+  <p class="doc-sub" style="font-size:11.5pt;max-width:150mm">
+    A UI proposal for the customer print request. One add-ons field opens the shop's
+    supplies list; whatever the customer picks drops into a short editable list, and
+    the totals feed Step 4 exactly as they do today.
+  </p>
+
+  <div style="margin-top:16px" class="quote">
+    <b>The ask.</b> “Make the Step 3 add-ons of the customer print request a dropdown style
+    instead.” — reviewer, November 2026
+  </div>
+
+  <div class="grid-2" style="margin-top:16px">
+    <div class="panel tint">
+      <div class="doc-h3">What changes</div>
+      <p class="small" style="margin:0">
+        The card-per-add-on grid is replaced by a single <b>Add-ons</b> field. Opening it
+        lists the supplies the shop actually stocks, with price, unit and stock. Chosen
+        items move into a compact list where quantities are set. The step stops growing
+        as the catalog grows.
+      </p>
+    </div>
+    <div class="panel">
+      <div class="doc-h3">What does not change</div>
+      <p class="small" style="margin:0">
+        Add-ons stay optional. The price rule (unit price × quantity), the
+        <span class="mono">selectedAddons</span> payload, the Step 4 breakdown and the
+        admin-managed inventory list are untouched. The step still sits between Print
+        Options and Review &amp; Complete.
+      </p>
+    </div>
+  </div>
+
+  <hr class="rule" />
+
+  <div class="doc-kicker" style="margin-bottom:8px">In this document</div>
+  <div class="toc">
+    <div class="toc-row"><span class="n">2</span><span>Today's Step 3, and what is wrong with it</span><span class="dots"></span><span class="tiny">screen + 6 findings</span></div>
+    <div class="toc-row"><span class="n">3</span><span>Proposed desktop — the field, closed, with selections</span><span class="dots"></span><span class="tiny">annotated</span></div>
+    <div class="toc-row"><span class="n">4</span><span>Proposed desktop — the list, open</span><span class="dots"></span><span class="tiny">annotated</span></div>
+    <div class="toc-row"><span class="n">5</span><span>Proposed mobile — closed, open, after choosing</span><span class="dots"></span><span class="tiny">3 states</span></div>
+    <div class="toc-row"><span class="n">6</span><span>Behaviour, copy and edge cases</span><span class="dots"></span><span class="tiny">spec</span></div>
+    <div class="toc-row"><span class="n">7</span><span>Choices for the reviewer</span><span class="dots"></span><span class="tiny">decisions</span></div>
+  </div>
+
+  <div style="margin-top:22px;display:flex;gap:10px;align-items:center">
+    <span class="badge blue">Prototype only</span>
+    <span class="tiny">No application code has been changed. The real screen is in <span class="mono">src/app/components/shared/PrintTransaction.tsx</span>, step 3.</span>
+  </div>
+
+  <div class="page-foot"><span>Docufy PSMS · Step 3 Add-ons prototype</span><span>1 / 7</span></div>
+</section>
+
+<!-- ══════════════════════════════ 2 · CURRENT ══════════════════════════════ -->
+<section class="sheet wide" id="p2">
+  <div class="page-head">
+    <div class="left">Today's Step 3</div>
+    <div class="right">BEFORE</div>
+  </div>
+
+  <div style="display:flex;gap:20px;align-items:flex-start">
+  <div class="frame-wrap" style="width:744px;height:471px">
+    <div class="frame app scale-062" style="transform-origin:top left">
+      <aside class="side">
+        <div class="brand-row">
+          <div class="logo">D</div>
+          <div class="brand-name">Docufy</div>
+          <div class="collapse"><svg class="ic"><use href="#i-panel"/></svg></div>
+        </div>
+        <nav>
+          <div class="nav-item"><svg class="ic i"><use href="#i-grid"/></svg>Dashboard</div>
+          <div class="nav-item active"><svg class="ic i"><use href="#i-file"/></svg>Print Request</div>
+          <div class="nav-item"><svg class="ic i"><use href="#i-box"/></svg>My Orders</div>
+          <div class="nav-item"><svg class="ic i"><use href="#i-brief"/></svg>Job Board</div>
+        </nav>
+        <div class="profile">
+          <div class="avi">JD</div>
+          <div style="min-width:0">
+            <div class="nm">Jane Dela Cruz</div>
+            <div class="em">jane@psu.palawan.edu.ph</div>
+          </div>
+        </div>
+      </aside>
+      <div class="app-main">
+        <div class="app-top">
+          <div class="t">Print Request</div>
+          <div class="right"><svg class="ic"><use href="#i-bell"/></svg><div class="avi">JD</div></div>
+        </div>
+        <div class="canvas">
+          <div class="content-col">
+            <div class="card stepper">
+              <div class="step-item"><div class="step-circle done"><svg class="ic"><use href="#i-upload"/></svg></div><div class="step-label on">Upload Document</div></div>
+              <div class="step-line done"></div>
+              <div class="step-item"><div class="step-circle done"><svg class="ic"><use href="#i-settings"/></svg></div><div class="step-label on">Print Options</div></div>
+              <div class="step-line done"></div>
+              <div class="step-item"><div class="step-circle current"><svg class="ic"><use href="#i-cart"/></svg></div><div class="step-label on">Add-ons</div></div>
+              <div class="step-line"></div>
+              <div class="step-item"><div class="step-circle"><svg class="ic"><use href="#i-checkcircle"/></svg></div><div class="step-label">Review &amp; Complete</div></div>
+            </div>
+
+            <div class="card step-card">
+              <h2 class="step-title"><svg class="ic ico"><use href="#i-cart"/></svg>Step 3 of 4 · Add-ons</h2>
+              <div class="intro-box">Need additional supplies?</div>
+
+              <div class="addon-grid">
+                <div class="addon-card">
+                  <div class="head">
+                    <div style="flex:1;min-width:0">
+                      <div class="nm">Ballpen (Black)</div>
+                      <div class="desc">Ballpen (Black) for printing needs</div>
+                      <div class="price">₱10 / piece</div>
+                    </div>
+                    <span class="chip">supplies</span>
+                  </div>
+                  <div class="row">
+                    <div class="qty"><button><svg class="ic"><use href="#i-minus"/></svg></button></div>
+                    <div class="qty-num">0</div>
+                    <div class="qty"><button><svg class="ic"><use href="#i-plus"/></svg></button></div>
+                  </div>
+                </div>
+                <div class="addon-card">
+                  <div class="head">
+                    <div style="flex:1;min-width:0">
+                      <div class="nm">Staples</div>
+                      <div class="desc">Staples for printing needs</div>
+                      <div class="price">₱5 / box</div>
+                    </div>
+                    <span class="chip">supplies</span>
+                  </div>
+                  <div class="row">
+                    <div class="qty"><button><svg class="ic"><use href="#i-minus"/></svg></button></div>
+                    <div class="qty-num">0</div>
+                    <div class="qty"><button><svg class="ic"><use href="#i-plus"/></svg></button></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="selected" style="margin-top:12px">
+                <div class="selected-head"><div class="h">Selected Add-ons</div><div class="tot">₱10.00</div></div>
+                <div class="sel-row">
+                  <div class="info"><div class="nm">Ballpen (Black) × 1</div></div>
+                  <div class="line-total">₱10</div>
+                </div>
+              </div>
+
+              <div class="nav-row">
+                <button class="btn outline">Back</button>
+                <button class="btn primary">Next Step</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <span class="pin" style="left:210px;top:154px">5</span>
+    <span class="pin" style="left:210px;top:184px">1</span>
+    <span class="pin" style="left:210px;top:206px">4</span>
+    <span class="pin" style="left:210px;top:234px">2</span>
+    <span class="pin" style="left:673px;top:182px">3</span>
+  </div>
+
+  <div style="flex:1;min-width:0;padding-top:2px">
+    <h2 class="doc-h2">Every add-on is always on screen</h2>
+    <p class="doc-sub" style="font-size:9.5pt">
+      The step renders one full card per add-on in the inventory's Add-ons category, each
+      carrying its own quantity controls, even when the customer wants none of them.
+    </p>
+    <ul class="findings" style="margin-top:12px">
+      <li><span class="num">1</span><span><b>Every add-on is always expanded.</b> The step is as long as the shop's catalog, so a customer looking for one item reads every card first.</span></li>
+      <li><span class="num">2</span><span><b>Quantity controls appear at zero.</b> A card with a − 0 + row reads as something to configure, not something to add — and it repeats on every card.</span></li>
+      <li><span class="num">3</span><span><b>The “supplies” chip is internal.</b> It is the inventory category, not a distinction a customer chooses by.</span></li>
+      <li><span class="num">4</span><span><b>Stock is known but not shown.</b> The store already flags <span class="mono">inStock</span>, yet an out-of-stock add-on looks exactly like a selectable one.</span></li>
+      <li><span class="num">5</span><span><b>Two boxes say the same thing.</b> “Need additional supplies?” repeats the step title, and the total only appears after something is already chosen.</span></li>
+      <li><span class="num" style="background:#94a3b8">6</span><span><b>Optional is never stated.</b> Nothing on the screen tells the customer they can move on without picking anything.</span></li>
+    </ul>
+  </div>
+  </div>
+
+  <div class="page-foot"><span>Docufy PSMS · Step 3 Add-ons prototype</span><span>2 / 7</span></div>
+</section>
+
+<!-- ══════════════════════════════ 3 · DESKTOP CLOSED ══════════════════════════════ -->
+<section class="sheet wide" id="p3">
+  <div class="page-head">
+    <div class="left">Proposed · Desktop · Field closed</div>
+    <div class="right">AFTER — STATE 1 OF 2</div>
+  </div>
+
+  <div style="display:flex;gap:20px;align-items:flex-start">
+    <div class="frame-wrap" style="width:708px;height:546px">
+      <div class="frame desk scale-088">
+        <div class="topbar">
+          <div class="menu"><svg class="ic"><use href="#i-panel"/></svg></div>
+          <div class="t">Print Request</div>
+          <div class="right"><svg class="ic"><use href="#i-bell"/></svg><div class="avi">JD</div></div>
+        </div>
+        <div class="canvas" style="padding-top:14px">
+          <div class="content-col">
+            <div class="card stepper">
+              <div class="step-item"><div class="step-circle done"><svg class="ic"><use href="#i-upload"/></svg></div><div class="step-label on">Upload Document</div></div>
+              <div class="step-line done"></div>
+              <div class="step-item"><div class="step-circle done"><svg class="ic"><use href="#i-settings"/></svg></div><div class="step-label on">Print Options</div></div>
+              <div class="step-line done"></div>
+              <div class="step-item"><div class="step-circle current"><svg class="ic"><use href="#i-cart"/></svg></div><div class="step-label on">Add-ons</div></div>
+              <div class="step-line"></div>
+              <div class="step-item"><div class="step-circle"><svg class="ic"><use href="#i-checkcircle"/></svg></div><div class="step-label">Review &amp; Complete</div></div>
+            </div>
+
+            <div class="card step-card">
+              <h2 class="step-title"><svg class="ic ico"><use href="#i-cart"/></svg>Step 3 of 4 · Add-ons</h2>
+              <p class="step-sub">Optional supplies for this order. Skip this step if you don't need anything extra.</p>
+
+              <div class="field-label">Add-ons</div>
+              <p class="field-help">Choose from the supplies the shop has in stock. You can set quantities after selecting.</p>
+              <div class="field">
+                <svg class="ic f-ico"><use href="#i-bag"/></svg>
+                <span class="f-text">Select add-ons</span>
+                <span class="f-chip">1 selected · ₱10.00</span>
+                <svg class="ic f-chev"><use href="#i-chev-d"/></svg>
+              </div>
+
+              <div class="selected" style="margin-top:12px">
+                <div class="selected-head"><div class="h">Selected add-ons</div><div class="tot">₱10.00</div></div>
+                <div class="sel-row">
+                  <div class="info">
+                    <div class="nm">Ballpen (Black)</div>
+                    <div class="meta">₱10.00 / piece</div>
+                  </div>
+                  <div class="qty">
+                    <button><svg class="ic"><use href="#i-minus"/></svg></button>
+                    <span class="val">1</span>
+                    <button><svg class="ic"><use href="#i-plus"/></svg></button>
+                  </div>
+                  <div class="line-total">₱10.00</div>
+                </div>
+              </div>
+
+              <div class="nav-row">
+                <button class="btn outline">Back</button>
+                <div class="nav-right"><span class="optional-note">Optional</span><button class="btn primary">Next Step</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <span class="pin" style="left:20px;top:264px">1</span>
+      <span class="pin" style="left:628px;top:248px">2</span>
+      <span class="pin" style="left:20px;top:346px">3</span>
+    </div>
+
+    <div style="flex:1;min-width:0;padding-top:6px">
+      <div class="legend">
+        <div class="item"><span class="num">1</span><span><b>One field replaces the grid.</b> It reads “Select add-ons” and stays one line tall no matter how many supplies the shop stocks.</span></div>
+        <div class="item"><span class="num">2</span><span><b>The field carries the answer.</b> “1 selected · ₱10.00” means the customer never has to scroll to know what is on the order or what it costs.</span></div>
+        <div class="item"><span class="num">3</span><span><b>Chosen items become rows.</b> Name, unit price, a −/+ stepper and the line total, in one card that also prints the running total.</span></div>
+        <div class="item"><span class="num" style="background:#64748b">+</span><span><b>Empty is a valid state.</b> With nothing picked the field reads “Select add-ons” and a quiet line says the step is optional, so Continue is never a guess.</span></div>
+      </div>
+
+      <div class="panel" style="margin-top:14px">
+        <div class="doc-h3">Empty state</div>
+        <div class="field" style="height:40px;margin-top:6px">
+          <svg class="ic f-ico"><use href="#i-bag"/></svg>
+          <span class="f-text" style="color:#94A3B8">Select add-ons</span>
+          <svg class="ic f-chev" style="margin-left:auto"><use href="#i-chev-d"/></svg>
+        </div>
+        <div class="empty-line" style="margin-top:8px"><svg class="ic" style="font-size:14px;color:#94a3b8"><use href="#i-check"/></svg>No add-ons selected — you can continue without any.</div>
+      </div>
+
+      <p class="tiny" style="margin-top:12px">
+        Add-ons total is still derived as <b>unit price × quantity</b> and is passed to
+        Step 4 unchanged. No price, stock or order logic is proposed here.
+      </p>
+    </div>
+  </div>
+
+  <div class="page-foot"><span>Docufy PSMS · Step 3 Add-ons prototype</span><span>3 / 7</span></div>
+</section>
+
+<!-- ══════════════════════════════ 4 · DESKTOP OPEN ══════════════════════════════ -->
+<section class="sheet wide" id="p4">
+  <div class="page-head">
+    <div class="left">Proposed · Desktop · List open</div>
+    <div class="right">AFTER — STATE 2 OF 2</div>
+  </div>
+
+  <div style="display:flex;gap:20px;align-items:flex-start">
+    <div class="frame-wrap" style="width:708px;height:646px">
+      <div class="frame desk scale-088">
+        <div class="canvas" style="padding-top:16px">
+          <div class="content-col">
+            <div class="card step-card">
+              <h2 class="step-title"><svg class="ic ico"><use href="#i-cart"/></svg>Step 3 of 4 · Add-ons</h2>
+              <p class="step-sub">Optional supplies for this order. Skip this step if you don't need anything extra.</p>
+
+              <div class="field-label">Add-ons</div>
+              <p class="field-help">Choose from the supplies the shop has in stock. You can set quantities after selecting.</p>
+              <div class="field" style="border-color:#1668D9;box-shadow:0 0 0 3px rgba(22,104,217,.18)">
+                <svg class="ic f-ico"><use href="#i-bag"/></svg>
+                <span class="f-text">Select add-ons</span>
+                <span class="f-chip">2 selected · ₱15.00</span>
+                <svg class="ic f-chev"><use href="#i-chev-d"/></svg>
+              </div>
+
+              <div class="panel-pop">
+                <div class="panel-list">
+                  <div class="opt on">
+                    <div class="box"><svg class="ic"><use href="#i-check"/></svg></div>
+                    <div class="mid">
+                      <div class="nm">Ballpen (Black)</div>
+                      <div class="meta">for printing needs</div>
+                    </div>
+                    <div class="right">
+                      <div class="price">₱10.00 / piece</div>
+                      <div class="stock">30 in stock</div>
+                    </div>
+                  </div>
+                  <div class="opt on">
+                    <div class="box"><svg class="ic"><use href="#i-check"/></svg></div>
+                    <div class="mid">
+                      <div class="nm">Staples</div>
+                      <div class="meta">for printing needs</div>
+                    </div>
+                    <div class="right">
+                      <div class="price">₱5.00 / box</div>
+                      <div class="stock">15 in stock</div>
+                    </div>
+                  </div>
+                  <div class="opt off">
+                    <div class="box"></div>
+                    <div class="mid">
+                      <div class="nm">Folder (Long)</div>
+                      <div class="meta">for printing needs</div>
+                    </div>
+                    <div class="right">
+                      <div class="price">₱15.00 / piece</div>
+                      <div class="stock out">Out of stock</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="panel-foot">
+                  <div class="sum"><b>2</b> selected · <b>₱15.00</b> &nbsp;<span style="color:#94a3b8">Add-ons are added to your total</span></div>
+                  <button class="btn primary sm">Done</button>
+                </div>
+              </div>
+
+              <div class="selected" style="margin-top:12px">
+                <div class="selected-head"><div class="h">Selected add-ons</div><div class="tot">₱15.00</div></div>
+                <div class="sel-row">
+                  <div class="info"><div class="nm">Ballpen (Black)</div><div class="meta">₱10.00 / piece</div></div>
+                  <div class="qty"><button><svg class="ic"><use href="#i-minus"/></svg></button><span class="val">1</span><button><svg class="ic"><use href="#i-plus"/></svg></button></div>
+                  <div class="line-total">₱10.00</div>
+                </div>
+                <div class="sel-row">
+                  <div class="info"><div class="nm">Staples</div><div class="meta">₱5.00 / box</div></div>
+                  <div class="qty"><button><svg class="ic"><use href="#i-minus"/></svg></button><span class="val">1</span><button><svg class="ic"><use href="#i-plus"/></svg></button></div>
+                  <div class="line-total">₱5.00</div>
+                </div>
+              </div>
+
+              <div class="nav-row">
+                <button class="btn outline">Back</button>
+                <div class="nav-right"><span class="optional-note">Optional</span><button class="btn primary">Next Step</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <span class="pin" style="left:20px;top:141px">1</span>
+      <span class="pin" style="left:20px;top:192px">2</span>
+      <span class="pin" style="left:670px;top:240px">3</span>
+      <span class="pin" style="left:670px;top:350px">4</span>
+    </div>
+
+    <div style="flex:1;min-width:0;padding-top:4px">
+      <div class="legend">
+        <div class="item"><span class="num">1</span><span><b>The field is the control.</b> Blue border and halo while the list is open; the count and running total stay visible next to it.</span></div>
+        <div class="item"><span class="num">2</span><span><b>One row per supply.</b> A checkbox, the name, and what it is — picking is a toggle, and several can be picked without reopening the list.</span></div>
+        <div class="item"><span class="num">3</span><span><b>Price, unit and live stock on the row.</b> “Out of stock” disables the row instead of letting the customer order something the shop cannot give.</span></div>
+        <div class="item"><span class="num">4</span><span><b>The panel answers before it closes.</b> “2 selected · ₱15.00” plus Done. Done, Esc or a click outside closes it and returns focus to the field.</span></div>
+      </div>
+
+      <div class="panel amber" style="margin-top:14px">
+        <div class="doc-h3" style="color:#92400E">Drawn expanded for clarity</div>
+        <p class="tiny" style="margin:2px 0 0;color:#92400E">
+          In the app this panel floats over the selected list below it — the step keeps its
+          height instead of pushing the buttons down. It is anchored to the field, not the
+          page, so it never opens somewhere else on screen.
+        </p>
+      </div>
+
+      <p class="tiny" style="margin-top:12px">
+        Rows are 52–56 px so they stay tappable. The list scrolls inside the panel once the
+        shop stocks more than roughly five add-ons; the page itself does not jump.
+      </p>
+    </div>
+  </div>
+
+  <div class="page-foot"><span>Docufy PSMS · Step 3 Add-ons prototype</span><span>4 / 7</span></div>
+</section>
+
+<!-- ══════════════════════════════ 5 · MOBILE ══════════════════════════════ -->
+<section class="sheet wide" id="p5">
+  <div class="page-head">
+    <div class="left">Proposed · Mobile · 390 × 820</div>
+    <div class="right">CLOSED · OPEN · AFTER CHOOSING</div>
+  </div>
+
+  <div class="phones">
+    <!-- mobile closed -->
+    <div class="phone-wrap">
+      <div class="phone scale-0625">
+        <div class="m-top">
+          <svg class="ic menu"><use href="#i-menu"/></svg>
+          <div class="t">Print Request</div>
+          <div class="right"><svg class="ic"><use href="#i-bell"/></svg></div>
+        </div>
+        <div class="m-body">
+          <div class="m-stepper">
+            <div class="m-step"><div class="m-circle done"><svg class="ic"><use href="#i-upload"/></svg></div><span class="on">Upload</span></div>
+            <div class="m-line done"></div>
+            <div class="m-step"><div class="m-circle done"><svg class="ic"><use href="#i-settings"/></svg></div><span class="on">Options</span></div>
+            <div class="m-line done"></div>
+            <div class="m-step"><div class="m-circle current"><svg class="ic"><use href="#i-cart"/></svg></div><span class="on">Add-ons</span></div>
+            <div class="m-line"></div>
+            <div class="m-step"><div class="m-circle"><svg class="ic"><use href="#i-checkcircle"/></svg></div><span>Review</span></div>
+          </div>
+
+          <div class="m-card">
+            <h2 class="m-title"><svg class="ic ico"><use href="#i-cart"/></svg>Step 3 of 4 · Add-ons</h2>
+            <p class="m-sub">Optional supplies for this order. Skip this step if you don't need anything.</p>
+            <div class="m-label">Add-ons</div>
+            <p class="m-help">Choose from what the shop has in stock.</p>
+            <div class="m-field">
+              <svg class="ic f-ico"><use href="#i-bag"/></svg>
+              <span class="f-text">Select add-ons</span>
+              <span class="f-chip">1 selected</span>
+              <svg class="ic f-chev"><use href="#i-chev-d"/></svg>
+            </div>
+
+            <div class="m-sel">
+              <div class="m-sel-head"><div class="h">Selected add-ons</div><div class="tot">₱10.00</div></div>
+              <div class="m-sel-row">
+                <div style="min-width:0;flex:1"><div class="nm">Ballpen (Black)</div><div class="meta">₱10.00 / piece</div></div>
+                <div class="qty"><button><svg class="ic"><use href="#i-minus"/></svg></button><span class="val">1</span><button><svg class="ic"><use href="#i-plus"/></svg></button></div>
+                <div class="lt">₱10</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="m-footer"><button class="btn outline">Back</button><button class="btn primary">Next Step</button></div>
+      </div>
+      <div class="caption" style="margin-top:8px"><b>Closed</b> · field + chosen rows</div>
+    </div>
+
+    <!-- mobile open -->
+    <div class="phone-wrap">
+      <div class="phone scale-0625">
+        <div class="m-top">
+          <svg class="ic menu"><use href="#i-menu"/></svg>
+          <div class="t">Print Request</div>
+          <div class="right"><svg class="ic"><use href="#i-bell"/></svg></div>
+        </div>
+        <div class="m-body">
+          <div class="m-card" style="margin-top:0">
+            <h2 class="m-title"><svg class="ic ico"><use href="#i-cart"/></svg>Step 3 of 4 · Add-ons</h2>
+            <p class="m-sub">Optional supplies for this order. Skip this step if you don't need anything.</p>
+            <div class="m-label">Add-ons</div>
+            <div class="m-field" style="border-color:#1668D9;box-shadow:0 0 0 3px rgba(22,104,217,.18)">
+              <svg class="ic f-ico"><use href="#i-bag"/></svg>
+              <span class="f-text">Select add-ons</span>
+              <span class="f-chip">2 selected</span>
+              <svg class="ic f-chev"><use href="#i-chev-d"/></svg>
+            </div>
+
+            <div class="m-panel">
+              <div class="m-opt on">
+                <div class="box"><svg class="ic"><use href="#i-check"/></svg></div>
+                <div style="min-width:0;flex:1"><div class="nm">Ballpen (Black)</div><div class="meta">₱10.00 / piece</div><div class="st">30 in stock</div></div>
+                <div class="pr">₱10.00</div>
+              </div>
+              <div class="m-opt on">
+                <div class="box"><svg class="ic"><use href="#i-check"/></svg></div>
+                <div style="min-width:0;flex:1"><div class="nm">Staples</div><div class="meta">₱5.00 / box</div><div class="st">15 in stock</div></div>
+                <div class="pr">₱5.00</div>
+              </div>
+              <div class="m-opt">
+                <div class="box"></div>
+                <div style="min-width:0;flex:1"><div class="nm">Folder (Long)</div><div class="meta">₱15.00 / piece</div><div class="st out">Out of stock</div></div>
+                <div class="pr" style="color:#94a3b8">—</div>
+              </div>
+              <div class="m-panel-foot">
+                <div class="s"><b>2</b> selected · <b>₱15.00</b></div>
+                <button class="btn primary sm">Done</button>
+              </div>
+            </div>
+
+            <div class="m-empty"><svg class="ic" style="font-size:13px;color:#94a3b8"><use href="#i-check"/></svg>The list floats above your selected add-ons and closes with Done.</div>
+          </div>
+        </div>
+        <div class="m-footer"><button class="btn outline">Back</button><button class="btn primary">Next Step</button></div>
+      </div>
+      <div class="caption" style="margin-top:8px"><b>Open</b> · list anchored under the field</div>
+    </div>
+
+    <!-- mobile selected -->
+    <div class="phone-wrap">
+      <div class="phone scale-0625">
+        <div class="m-top">
+          <svg class="ic menu"><use href="#i-menu"/></svg>
+          <div class="t">Print Request</div>
+          <div class="right"><svg class="ic"><use href="#i-bell"/></svg></div>
+        </div>
+        <div class="m-body">
+          <div class="m-card" style="margin-top:0">
+            <h2 class="m-title"><svg class="ic ico"><use href="#i-cart"/></svg>Step 3 of 4 · Add-ons</h2>
+            <p class="m-sub">Optional supplies for this order. Skip this step if you don't need anything.</p>
+            <div class="m-label">Add-ons</div>
+            <div class="m-field">
+              <svg class="ic f-ico"><use href="#i-bag"/></svg>
+              <span class="f-text">Select add-ons</span>
+              <span class="f-chip">2 selected</span>
+              <svg class="ic f-chev"><use href="#i-chev-d"/></svg>
+            </div>
+
+            <div class="m-sel">
+              <div class="m-sel-head"><div class="h">Selected add-ons</div><div class="tot">₱15.00</div></div>
+              <div class="m-sel-row">
+                <div style="min-width:0;flex:1"><div class="nm">Ballpen (Black)</div><div class="meta">₱10.00 / piece</div></div>
+                <div class="qty"><button><svg class="ic"><use href="#i-minus"/></svg></button><span class="val">1</span><button><svg class="ic"><use href="#i-plus"/></svg></button></div>
+                <div class="lt">₱10</div>
+              </div>
+              <div class="m-sel-row">
+                <div style="min-width:0;flex:1"><div class="nm">Staples</div><div class="meta">₱5.00 / box</div></div>
+                <div class="qty"><button><svg class="ic"><use href="#i-minus"/></svg></button><span class="val">1</span><button><svg class="ic"><use href="#i-plus"/></svg></button></div>
+                <div class="lt">₱5</div>
+              </div>
+            </div>
+
+            <div class="m-empty"><svg class="ic" style="font-size:13px;color:#94a3b8"><use href="#i-info"/></svg>Tap Select add-ons again to change what is on the order.</div>
+          </div>
+        </div>
+        <div class="m-footer"><button class="btn outline">Back</button><button class="btn primary">Next Step</button></div>
+      </div>
+      <div class="caption" style="margin-top:8px"><b>After choosing</b> · Done closed the list</div>
+    </div>
+  </div>
+
+  <div class="grid-3" style="margin-top:8px">
+    <p class="tiny" style="margin:0"><b>Not a full-screen takeover.</b> The list is a card anchored under its field with a shadow — the customer still sees the step around it, and there is no scrim to dismiss.</p>
+    <p class="tiny" style="margin:0"><b>Thumb-sized rows.</b> 52 px rows with the whole row as the target, so the checkbox does not have to be hit exactly. Done stays pinned at the panel's foot.</p>
+    <p class="tiny" style="margin:0"><b>One thumb, one column.</b> The field, the chip, the rows and the steppers all fit 390 px without horizontal scroll; the sticky Back / Next Step bar is untouched.</p>
+  </div>
+
+  <div class="page-foot"><span>Docufy PSMS · Step 3 Add-ons prototype</span><span>5 / 7</span></div>
+</section>
+
+<!-- ══════════════════════════════ 6 · BEHAVIOUR ══════════════════════════════ -->
+<section class="sheet" id="p6">
+  <div class="page-head">
+    <div class="left">Behaviour, copy and edge cases</div>
+    <div class="right">SPEC</div>
+  </div>
+
+  <h2 class="doc-h2">How it would actually work</h2>
+  <p class="doc-sub" style="max-width:160mm">
+    Everything below happens on the customer print request only. The staff walk-in flow
+    shares the same component, so it would inherit the change unless we gate it.
+  </p>
+
+  <table class="spec compact" style="margin-top:12px">
+    <thead><tr><th>State</th><th>What the customer sees and what happens</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Nothing selected</td>
+        <td>The field reads <b>Select add-ons</b> with no count chip. Under it, one quiet line: “No add-ons selected — you can continue without any.” The step never blocks Next.</td>
+      </tr>
+      <tr>
+        <td>List open</td>
+        <td>The field takes a blue border and halo. The panel opens directly under it, listing only active Add-ons items from the inventory with unit price and live stock. Picking a row adds it with quantity 1 and keeps the panel open, so several can be picked in one go.</td>
+      </tr>
+      <tr>
+        <td>Selecting / unselecting</td>
+        <td>A tap anywhere on the row toggles it. Selected rows are tinted and carry a check. The panel footer and the field chip update the moment a row changes.</td>
+      </tr>
+      <tr>
+        <td>Closing</td>
+        <td><b>Done</b>, <kbd>Esc</kbd>, or a click/tap outside the panel. Focus returns to the field. The chosen items stay in the list below.</td>
+      </tr>
+      <tr>
+        <td>Quantity</td>
+        <td>−/+ in steps of 1; line and card totals update live, and going below 1 removes the item. Quantity stays typeable as it is today — someone ordering 25 pens should not tap 24 times.</td>
+      </tr>
+      <tr>
+        <td>Out of stock</td>
+        <td>Row stays visible but disabled, with “Out of stock” in red — hiding it makes a supply the shop normally carries look discontinued. An item already selected when stock runs out keeps its row with a red note and can be removed; the order is never silently changed.</td>
+      </tr>
+      <tr>
+        <td>No add-ons at all</td>
+        <td>The existing empty state is kept (“No add-ons are currently available.”), and the field is not rendered.</td>
+      </tr>
+      <tr>
+        <td>Many add-ons</td>
+        <td>The list scrolls inside the panel (max ~5 rows) instead of lengthening the page. Past roughly 8 items, a small search box goes at the top of the panel — not before.</td>
+      </tr>
+      <tr>
+        <td>Keyboard / screen reader</td>
+        <td>The field is a button with <span class="mono">aria-expanded</span>, labelled “Add-ons, 1 selected”. The panel is a labelled group of checkboxes, so Space toggles and arrow keys read naturally; nothing depends on hover.</td>
+      </tr>
+      <tr>
+        <td>Totals</td>
+        <td>Unchanged: unit price × quantity, summed into the card total and into Step 4's “Add-ons” line. No new money rule.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <hr class="rule" style="margin:11px 0" />
+
+  <div class="grid-2">
+    <div>
+      <div class="doc-h3">Copy</div>
+      <ul class="findings" style="gap:6px;margin-top:6px">
+        <li><span>•</span><span><b>Label:</b> Add-ons</span></li>
+        <li><span>•</span><span><b>Helper:</b> Choose from the supplies the shop has in stock. You can set quantities after selecting.</span></li>
+        <li><span>•</span><span><b>Placeholder:</b> Select add-ons</span></li>
+        <li><span>•</span><span><b>Chip:</b> 1 selected · ₱10.00</span></li>
+        <li><span>•</span><span><b>Panel footer:</b> 2 selected · ₱15.00</span></li>
+        <li><span>•</span><span><b>Empty:</b> No add-ons selected — you can continue without any.</span></li>
+        <li><span>•</span><span><b>Stock:</b> 30 in stock / Out of stock</span></li>
+      </ul>
+    </div>
+    <div>
+      <div class="doc-h3">Kept from today</div>
+      <ul class="findings" style="gap:6px;margin-top:6px">
+        <li><span>•</span><span>Add-ons remain optional; nothing new blocks Next Step.</span></li>
+        <li><span>•</span><span>The list still comes from inventory's Add-ons category, so admins keep controlling it by adding or archiving items.</span></li>
+        <li><span>•</span><span>The step keeps its number and place: Step 3 of 4, between Print Options and Review.</span></li>
+        <li><span>•</span><span>Selected add-ons still appear on Step 4 and on the order/receipt exactly as they do now.</span></li>
+        <li><span>•</span><span>No change to <span class="mono">selectedAddons</span>, pricing, stock deduction or the order payload.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="page-foot"><span>Docufy PSMS · Step 3 Add-ons prototype</span><span>6 / 7</span></div>
+</section>
+
+<!-- ══════════════════════════════ 7 · CHOICES ══════════════════════════════ -->
+<section class="sheet" id="p7">
+  <div class="page-head">
+    <div class="left">Choices for the reviewer</div>
+    <div class="right">DECISIONS</div>
+  </div>
+
+  <h2 class="doc-h2">Four things to confirm</h2>
+  <p class="doc-sub" style="max-width:160mm">
+    The mockups use the recommendation in each row. Say the word if any should go the
+    other way before this is built.
+  </p>
+
+  <div class="panel" style="margin-top:14px">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">
+      <div class="doc-h3">1 · How the dropdown is shaped</div>
+      <span class="badge green">Recommended: A</span>
+    </div>
+    <div class="grid-2" style="margin-top:8px;gap:12px">
+      <div>
+        <p class="small" style="margin:0"><b>A · One picker for the whole step.</b> A single field lists every add-on and builds a selected list below it. Short, consistent, and it does not grow with the catalog.</p>
+      </div>
+      <div>
+        <p class="small" style="margin:0"><b>B · One dropdown per add-on.</b> Every add-on keeps a row and only the quantity is a dropdown. Closer to “dropdown” in the narrowest sense, but the step still grows with the catalog and the range hides inside a menu.</p>
+        <div class="tiny" style="margin:7px 0 4px">Variant B, for comparison:</div>
+        <div style="border:1px solid #E6EBF2;border-radius:9px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:8px;padding:5px 9px;border-bottom:1px solid #F1F5F9">
+            <span style="font-size:10px;font-weight:600;flex:1">Ballpen (Black) <span style="color:#94a3b8;font-weight:400">· ₱10 / piece</span></span>
+            <span style="height:22px;width:56px;border:1px solid #D5DCE6;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 6px;font-size:9.5px;color:#334155">1 <svg class="ic" style="font-size:9px"><use href="#i-chev-d"/></svg></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:5px 9px">
+            <span style="font-size:10px;font-weight:600;flex:1">Staples <span style="color:#94a3b8;font-weight:400">· ₱5 / box</span></span>
+            <span style="height:22px;width:56px;border:1px solid #D5DCE6;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 6px;font-size:9.5px;color:#334155">0 <svg class="ic" style="font-size:9px"><use href="#i-chev-d"/></svg></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-top:12px">
+    <div class="panel">
+      <div class="doc-h3">2 · Quantity editing</div>
+      <p class="small" style="margin:0"><b>Recommend:</b> −/+ stepper on each selected row, and the number stays typeable. Stepper is what phones need; typing is what a 25-piece order needs.</p>
+      <p class="tiny" style="margin:6px 0 0">Alternative: dropdown of 1–10. Rejected because it caps the order and adds a tap for every change.</p>
+    </div>
+    <div class="panel">
+      <div class="doc-h3">3 · Out-of-stock add-ons</div>
+      <p class="small" style="margin:0"><b>Recommend:</b> show them, disabled, with “Out of stock”. The inventory already knows; the customer should too, rather than wonder where a supply went.</p>
+      <p class="tiny" style="margin:6px 0 0">Alternative: hide them until restocked — fewer rows, but the catalog looks like it changes at random.</p>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:12px">
+    <div class="doc-h3">4 · Where the total lives</div>
+    <p class="small" style="margin:0"><b>Recommend:</b> both ends — a running chip on the field (<span class="mono">2 selected · ₱15.00</span>) and the total in the selected list's header. Step 4 keeps its own Add-ons line, unchanged. The step should never make the customer open it to see what it has cost them.</p>
+  </div>
+
+  <div class="panel tint" style="margin-top:12px">
+    <div class="doc-h3">Also worth deciding</div>
+    <ul class="findings" style="gap:5px;margin-top:4px">
+      <li><span>•</span><span><b>Does this apply to the staff walk-in flow too?</b> It shares the component. Recommendation: yes — one add-ons experience in both flows.</span></li>
+      <li><span>•</span><span><b>“Next Step” label.</b> Recommendation: keep it, and lean on the helper line for “optional” rather than renaming the button for one step.</span></li>
+      <li><span>•</span><span><b>Search inside the panel.</b> Recommendation: only once the shop actually stocks more than ~8 add-ons; adding it now would be a field that is usually empty.</span></li>
+      <li><span>•</span><span><b>The internal “supplies” chip.</b> Recommendation: drop it from the customer side; the category already decides what appears here.</span></li>
+    </ul>
+  </div>
+
+  <p class="tiny" style="margin-top:11px">
+    The change stays inside the step-3 block of
+    <span class="mono">src/app/components/shared/PrintTransaction.tsx</span>, reusing the
+    existing <span class="mono">selectedAddons</span> state and totals. No store, pricing
+    or order changes are needed.
+  </p>
+
+  <div class="page-foot"><span>Docufy PSMS · Step 3 Add-ons prototype</span><span>7 / 7</span></div>
+</section>
+
+<script>
+  const only = new URLSearchParams(location.search).get('only');
+  if (only) {
+    document.querySelectorAll('.sheet').forEach(s => {
+      if (!only.split(',').includes(s.id)) s.remove();
+      else s.style.margin = '0';
+    });
+  }
+  if (location.hash) {
+    const el = document.querySelector(location.hash);
+    if (el) {
+      document.querySelectorAll('.sheet').forEach(s => { s.style.margin = '0'; });
+      el.scrollIntoView({ block: 'start' });
+    }
+  }
+</script>
+</body>
+</html>

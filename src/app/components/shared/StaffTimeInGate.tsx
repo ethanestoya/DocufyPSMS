@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 import { toast } from "sonner";
+import { getErrorMessage } from "../../../lib/db/errors";
 import { useAuth } from "../../contexts/AuthContext";
 import { attendanceStore, todayPHTKey } from "../../utils/attendanceStore";
 import type { NextAction } from "../../utils/attendanceStore";
@@ -94,8 +95,7 @@ export default function StaffTimeInGate({ children }: StaffTimeInGateProps) {
           : `Time In recorded at ${formatPHTime(new Date(internetUtcMs()), { hour12: true, includeSeconds: true })}. Staff functions unlocked!`,
       );
     } catch (err) {
-      if (err instanceof Error) toast.error(err.message);
-      else toast.error("Could not record your time in. Please try again.");
+      toast.error(getErrorMessage(err));
     }
   };
 

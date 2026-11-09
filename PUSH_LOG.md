@@ -1628,3 +1628,16 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Left the untracked `mockups/admin-confirm-pricing.html` / `.png` out of this commit; they are not part of this work.
 - Promoted this batch to `deployment` from the same commit, so production and the work branch stay identical. This push also carries the already-live backend-security commit onto `frontend-dev`.
 - Typecheck and production build pass. This batch is code-verified: no customer credentials exist in this environment, so the pickup tiles, the unverified-receipt footer, the two notice placements and the order-number search were not exercised in a signed-in session.
+
+## 2026-11-09 - Prans (3:36 AM PHT)
+
+- Stopped deleted demo staff from returning, made a long payment proof scroll instead of stretching its window, repaired the server calls that failed before they left the browser, and made a missing backend function say so.
+- Stopped the demo roster coming back after deletion: the page-load seed now creates only the staff@test.com directory row, so Robert, Katie, Miguel and Ana no longer reappear in Staff Management on the next page load. Their leftover note, allowance and task rows are inert, because the nested seeder skips anyone whose staff row is gone.
+- Fixed the "Cannot read properties of undefined (reading 'rest')" failure that made every server call impossible: supabase-js reads `this` inside `rpc()`, so the order, payment and attendance repositories now bind the client before calling it instead of using a detached reference.
+- Made a long payment proof scroll inside its own window: the image frame is capped at 92% of the viewport height, scrolls by itself, keeps keyboard focus and is announced as an image region, so a tall screenshot no longer pushes the dialog past the screen.
+- Told a staff member the real reason a time-in failed: the gate now runs the caught value through the shared error mapper instead of printing one generic sentence, so an expired session, a dropped connection and a missing backend function each say what they are.
+- Gave a missing backend function its own sentence: "This feature is not set up on the server yet. Please ask your administrator." A refresh cannot fix a function that was never deployed, so it no longer points at the wrong remedy.
+- Recorded a deployment gap that is not in this commit: the connected Supabase project does not have the November 2026 RPC batch applied, so `clock_in`, `clock_out`, `admin_upsert_attendance`, `submit_payment`, `verify_payment`, `reject_payment`, `confirm_cash_payment` and the order RPCs all answer PGRST202. Staff time-in and every payment action stay broken until that SQL is run; the attendance file is safe on its own, while the revoke-and-direct-writes file must not be run while order rows are still inserted directly by the browser.
+- Included the untracked `prototyping/step3-addons-dropdown.html` and its PDF as the design deliverable they are; left the untracked `mockups/admin-confirm-pricing.html` / `.png` alone, they belong to another change.
+- Promoted this batch to `deployment` from the same commit, so production and the work branch stay identical.
+- Typecheck and production build pass. The proof frame and the staff gate are code-verified only — the backend function is absent, so no signed-in time-in could succeed in this environment.

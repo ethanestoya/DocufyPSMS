@@ -8,7 +8,9 @@ type UntypedRpc = (
   fn: string,
   args?: Record<string, unknown>,
 ) => Promise<{ data: any; error: any }>;
-const rpc = supabase.rpc as unknown as UntypedRpc;
+// Keep the call bound to the client: supabase-js reads `this.rest` inside rpc(),
+// so a detached reference throws "Cannot read properties of undefined (reading 'rest')".
+const rpc = supabase.rpc.bind(supabase) as unknown as UntypedRpc;
 
 export type AmountChoice = 'down' | 'full';
 

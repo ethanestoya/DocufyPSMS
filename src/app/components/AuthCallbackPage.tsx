@@ -72,9 +72,12 @@ export default function AuthCallbackPage() {
     }
 
     if (user) {
-      if (!isAllowedEmail(user.email)) {
-        // Belt and braces: an allowed-looking session that is not allowed by
-        // the policy never reaches the app.
+      // The organization-domain policy governs CUSTOMER accounts only; a
+      // staff/admin account created by an admin may sit on any address.
+      const isStaffAccount = user.role === "staff" || user.role === "admin";
+      if (!isStaffAccount && !isAllowedEmail(user.email)) {
+        // Belt and braces: a session the policy does not allow never reaches
+        // the app.
         navigate("/login", { replace: true });
         return;
       }

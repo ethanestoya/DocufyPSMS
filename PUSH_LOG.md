@@ -1641,3 +1641,16 @@ New entries are added at the bottom, below the most recent one, so the log reads
 - Included the untracked `prototyping/step3-addons-dropdown.html` and its PDF as the design deliverable they are; left the untracked `mockups/admin-confirm-pricing.html` / `.png` alone, they belong to another change.
 - Promoted this batch to `deployment` from the same commit, so production and the work branch stay identical.
 - Typecheck and production build pass. The proof frame and the staff gate are code-verified only — the backend function is absent, so no signed-in time-in could succeed in this environment.
+
+## 2026-11-09 - Prans (6:19 AM PHT)
+
+- Fixed new staff accounts refusing to sign in, and let staff and admin accounts use any email address.
+- Told the truth about a new staff account: creation now checks whether sign-up actually produced a session, proves a confirmed account by signing in with the password just set, and says "email not confirmed" when that fails instead of claiming the account was created.
+- Stopped a silently refused promotion from looking like success: the profile role update now reads the row back, so an already-registered address, a refused role change or a zero-row update fails the whole creation with the real reason.
+- Let staff and admin accounts use any email: the organization-domain rule now gates CUSTOMER accounts only, so a staff member on a personal address is no longer refused at sign-in or signed straight back out.
+- Kept the session guard honest during creation: the transient session that sign-up opens for the new staff user is ignored so the admin creating it is never swapped out, and a session that has already been replaced no longer loads the wrong account.
+- Documented the backend guard interaction: the merged profile privilege trigger lets an admin promote the new staff row while coercing self-service sign-ups to customer, so staff creation only still depends on the admin-update policy.
+- Recorded a project setting this fix depends on: with "Confirm email" ON, no browser-only code can create a confirmed account, so it must be turned OFF in Authentication → Providers → Email.
+- Left the untracked `mockups/use-case-diagram.html` / `.png` and `screenshots/` out of this commit; they are not part of this work.
+- Promoted this batch to `deployment` from the same commit, so production and the work branch stay identical.
+- Typecheck and production build pass. Not exercised live — there is no Supabase dashboard access and no staff credentials in this environment.

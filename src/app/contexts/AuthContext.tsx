@@ -204,6 +204,12 @@ loadStaffAccounts();
 // one refresh wiping the other tab's session.
 const AUTH_SESSION_KEY = 'docufy_auth_session_tab';
 
+// True only while an admin's registerStaff() call is in flight. With email
+// confirmation OFF, signUp activates the NEW staff user's session for a moment
+// before the admin's own session is restored; the session guard must ignore
+// those transient events instead of judging (and possibly signing out) them.
+let staffCreationInFlight = false;
+
 function readStoredUser(): User | null {
   try {
     const raw = sessionStorage.getItem(AUTH_SESSION_KEY);
@@ -283,6 +289,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // organization-email window is shown and stays until the user dismisses it.
   };
 
+  // The organization-email policy gates CUSTOMER accounts. Staff/admin accounts
+  // are created by an admin for the shop's own team and may use any address, so
+  // a session on a disallowed domain is checked against the profile role before
+  // it is dropped. Without this, a staff member created on e.g. a Gmail address
+  // would be signed out the instant their session appeared.
+  const isSessionAllowed = async (authUser: { id: string; email?: string | null }) => {
+    if (isAllowedEmail(authUser.email)) return true;
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', authUser.id)
+      .maybeSingle();
+    if (error) {
+      console.warn('[auth:email-policy] could not read the profile role:', error.message);
+    }
+    return profile?.role === 'staff' || profile?.role === 'admin';
+  };
+
   useEffect(() => {
     let mounted = true;
 
@@ -291,7 +315,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data, error } = await supabase.auth.getSession();
         if (error) console.error('Failed to restore Supabase session:', error);
         if (mounted && data.session?.user) {
-          if (!isAllowedEmail(data.session.user.email)) {
+          if (!(await isSessionAllowed(data.session.user))) {
             signOutDisallowed(data.session.user.email);
           } else {
             await loadProfile(data.session.user);
@@ -315,14 +339,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
       if (session?.user) {
-        // A session on a domain that may not hold an account is dropped here
-        // (this is what catches the Google sign-in round trip).
-        if (!isAllowedEmail(session.user.email)) {
-          signOutDisallowed(session.user.email);
-          return;
-        }
-        void loadProfile(session.user);
-        void refreshAllStores();
+        const authUser = session.user;
+        // A session the policy does not allow is dropped here (this is what
+        // catches the Google sign-in round trip). Deferred by a tick because a
+        // profile read straight inside onAuthStateChange can deadlock against
+        // supabase-js's internal auth lock.
+        setTimeout(() => {
+          void (async () => {
+            if (!mounted) return;
+            // A staff creation owns the session for a moment: signUp activates
+            // the new user, then the admin's session is restored. Ignore both
+            // events so the admin's state is never judged as the new account.
+            if (staffCreationInFlight) return;
+            // Ignore an event for a session that has already been replaced.
+            const { data: current } = await supabase.auth.getSession();
+            if (current.session?.user.id !== authUser.id) return;
+            if (!(await isSessionAllowed(authUser))) {
+              signOutDisallowed(authUser.email);
+              return;
+            }
+            if (!mounted) return;
+            void loadProfile(authUser);
+            void refreshAllStores();
+          })();
+        }, 0);
       } else {
         setUser(null);
       }
@@ -359,31 +399,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   const login = async (email: string, password: string) => {
-    // Organization-email policy: an address outside the allowed domains can
-    // never hold an account, so it is refused before we ask Supabase at all.
+    // A malformed address gets its own sentence. A well-formed one is NOT
+    // refused on its domain yet: staff/admin accounts may use any address, so
+    // the domain rule is applied after the account's role is known.
     const policy = checkEmailAllowed(email);
-    if (!policy.allowed) {
-      return {
-        success: false,
-        reason: policy.reason === 'invalid' ? ('invalid' as const) : ('domain' as const),
-      };
+    if (!policy.allowed && policy.reason === 'invalid') {
+      return { success: false, reason: 'invalid' as const };
     }
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error || !data.user) {
-      return { success: false };
+      // A disallowed address that cannot sign in is almost always a customer
+      // trying a personal email - keep the policy explanation rather than the
+      // generic "invalid email or password".
+      return { success: false, reason: policy.allowed ? undefined : ('domain' as const) };
     }
 
     await loadProfile(data.user);
     const { data: profile } = await supabase
       .from('profiles')
-      .select('active, suspended')
+      .select('role, active, suspended')
       .eq('id', data.user.id)
       .maybeSingle();
 
     if (profile?.active === false || profile?.suspended === true) {
       await supabase.auth.signOut();
       return { success: false, reason: 'inactive' as const };
+    }
+
+    // Organization-email policy: it governs CUSTOMER accounts. Staff/admin
+    // accounts are admin-created for the shop's own team and may use any
+    // address, so only a non-staff account on a disallowed domain is refused.
+    const isStaffAccount = profile?.role === 'staff' || profile?.role === 'admin';
+    if (!isStaffAccount && !isAllowedEmail(data.user.email)) {
+      await supabase.auth.signOut();
+      return { success: false, reason: 'domain' as const };
     }
 
     void refreshAllStores();
@@ -530,14 +580,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!emailRegex.test(data.email)) {
       return { success: false, message: 'Please enter a valid email address.' };
     }
-    // Organization-email policy applies to staff accounts too.
-    const policy = checkEmailAllowed(data.email);
-    if (!policy.allowed) {
-      return { success: false, message: policy.message || EMAIL_POLICY_MESSAGE };
-    }
+    // No organization-domain gate here on purpose: staff/admin accounts are
+    // created by an admin for the shop's own team and may use any address. The
+    // policy still governs customer self-registration and customer sign-in.
     if (mockUsers.some(u => u.email.toLowerCase() === data.email.toLowerCase())) {
-      return { success: false, message: 'An account with this email already exists.' };
+      return {
+        success: false,
+        message: "An account with this email already exists. Use a different address, or reset that account's password.",
+      };
     }
+
+    const requestedRole: 'staff' | 'admin' = data.role || 'staff';
 
     // Snapshot the acting admin's session: with email confirmation OFF, signUp
     // returns (and would ACTIVATE) a session for the brand-new staff user,
@@ -546,61 +599,114 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: beforeSession } = await supabase.auth.getSession();
     const actingSession = beforeSession.session;
 
-    // Create a REAL Supabase Auth user (so the new staff can actually sign in).
-    const { data: signUpResult, error: signUpError } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.password,
-      options: { data: { full_name: data.name, role: data.role || 'staff' } },
-    });
-
-    if (signUpError || !signUpResult.user) {
-      // Already a real auth user (e.g. staff@test.com or a customer) →
-      // friendly duplicate message instead of a raw "User already registered".
-      return {
-        success: false,
-        message: isPolicyTriggerError(signUpError?.message)
-          ? EMAIL_POLICY_MESSAGE
-          : signUpError?.message?.toLowerCase().includes('already')
-            ? 'An account with this email already exists.'
-            : signUpError?.message || 'Could not create staff account.',
-      };
-    }
-
-    const newUserId = signUpResult.user.id;
-
-    // Restore the admin's session (see the comment above).
-    if (actingSession) {
+    const restoreActingSession = async () => {
+      if (!actingSession) return;
       await supabase.auth.setSession({
         access_token: actingSession.access_token,
         refresh_token: actingSession.refresh_token,
       });
-    }
-
-    // The handle_new_user() trigger only copies full_name/email, so the new
-    // profile's role defaults to 'customer' — raise it to the requested role
-    // so the account actually logs in with staff/admin permissions.
-    const roleUpdate = await supabase
-      .from('profiles')
-      .update({ role: data.role || 'staff', active: true })
-      .eq('id', newUserId);
-    if (roleUpdate.error) {
-      console.warn('[auth:registerStaff] could not elevate the new profile role:', roleUpdate.error.message);
-    }
-
-    // Keep the local roster mirror in sync so Staff Management lists the new
-    // account immediately. The password deliberately is NOT copied here: the
-    // real credential lives only as Supabase's server-side hash.
-    const newStaff: MockUser = {
-      email: data.email,
-      name: data.name,
-      role: data.role || 'staff',
-      active: true,
-      profileImage: undefined,
-      isAdminRegistered: true,
     };
-    mockUsers.push(newStaff);
-    persistStaffAccounts();
-    return { success: true };
+
+    staffCreationInFlight = true;
+    try {
+      // Create a REAL Supabase Auth user (so the new staff can actually sign in).
+      const { data: signUpResult, error: signUpError } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: { data: { full_name: data.name, role: requestedRole } },
+      });
+
+      await restoreActingSession();
+
+      if (signUpError || !signUpResult?.user) {
+        // Already a real auth user (e.g. staff@test.com or a customer) →
+        // friendly duplicate message instead of a raw "User already registered".
+        return {
+          success: false,
+          message: isPolicyTriggerError(signUpError?.message)
+            ? 'The database refused this email address. An admin-created staff account on a non-organization domain needs the email-policy trigger to allow it (see the SQL in the project notes).'
+            : signUpError?.message?.toLowerCase().includes('already')
+              ? "An account with this email already exists. Use a different address, or reset that account's password."
+              : signUpError?.message || 'Could not create staff account.',
+        };
+      }
+
+      // With email confirmation ON, Supabase answers an address that already
+      // has an account with a decoy user (no identities, no error) so the API
+      // never reveals which emails are registered. Treat it as a duplicate.
+      if ((signUpResult.user.identities?.length ?? 0) === 0) {
+        return {
+          success: false,
+          message: "An account with this email already exists. Use a different address, or reset that account's password.",
+        };
+      }
+
+      const newUserId = signUpResult.user.id;
+
+      // The handle_new_user() trigger only copies full_name/email, so the new
+      // profile's role defaults to 'customer' — raise it to the requested role
+      // so the account actually logs in with staff/admin permissions.
+      // `.select()` makes the row count visible: RLS refuses an admin UPDATE of
+      // another user's row by returning zero rows with NO error, which used to
+      // be swallowed and reported as a successful creation.
+      const { data: updatedProfile, error: roleError } = await supabase
+        .from('profiles')
+        .update({ role: requestedRole, active: true })
+        .eq('id', newUserId)
+        .select('id, role, active');
+
+      if (roleError || !updatedProfile || updatedProfile.length === 0) {
+        console.error('[auth:registerStaff] could not elevate the new profile role:', roleError);
+        return {
+          success: false,
+          message:
+            'The login account was created, but its staff permissions could not be saved' +
+            (roleError ? `: ${getErrorDetail(roleError) ?? roleError.message}.` : '.') +
+            " The profiles table refused an admin update to another user's row — apply the admin profile-update policy, then try again with a different email.",
+        };
+      }
+
+      // Confirm the new account can actually sign in. With "Confirm email" ON,
+      // signUp creates the user but returns NO session, and signInWithPassword
+      // keeps answering "Invalid login credentials" until the address is
+      // confirmed — which is exactly how a brand-new staff account ended up
+      // unusable while the UI said it was registered.
+      if (!signUpResult.session) {
+        const { error: probeError } = await supabase.auth.signInWithPassword({
+          email: data.email,
+          password: data.password,
+        });
+        await restoreActingSession();
+        if (probeError) {
+          const unconfirmed =
+            probeError.code === 'email_not_confirmed' ||
+            /not confirmed|confirm your/i.test(probeError.message);
+          return {
+            success: false,
+            message: unconfirmed
+              ? 'The account was created, but Supabase holds it as "email not confirmed", so signing in is refused. Turn off Confirm email (Authentication → Providers → Email) or confirm the address with the SQL in the project notes, then set the password again.'
+              : `The account was created, but signing in failed: ${probeError.message}`,
+          };
+        }
+      }
+
+      // Keep the local roster mirror in sync so Staff Management lists the new
+      // account immediately. The password deliberately is NOT copied here: the
+      // real credential lives only as Supabase's server-side hash.
+      const newStaff: MockUser = {
+        email: data.email,
+        name: data.name,
+        role: requestedRole,
+        active: true,
+        profileImage: undefined,
+        isAdminRegistered: true,
+      };
+      mockUsers.push(newStaff);
+      persistStaffAccounts();
+      return { success: true };
+    } finally {
+      staffCreationInFlight = false;
+    }
   };
 
   // Push role/active changes to the REAL Supabase profile row (the login gate
@@ -834,15 +940,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const requestPasswordReset = async (email: string): Promise<PasswordResetRequestResult> => {
-    // Organization-email policy: a personal address holds no account, so there
-    // is nothing to reset - do not send it a recovery link.
-    const policy = checkEmailAllowed(email);
-    if (!policy.allowed) {
-      return {
-        success: false,
-        code: 'email_not_allowed',
-        error: policy.message || EMAIL_POLICY_MESSAGE,
-      };
+    // No organization-domain gate: staff/admin accounts are admin-created and
+    // may sit on any address, so a recovery link must be reachable for them
+    // too. Supabase answers the same way for an unknown address, so nothing is
+    // leaked to a customer on a personal domain.
+    if (!email || !email.includes('@')) {
+      return { success: false, code: 'invalid_email', error: 'Please enter a valid email address.' };
     }
 
     // The link has to point back at THIS deployment. Supabase only honours a
